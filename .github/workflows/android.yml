@@ -5,7 +5,7 @@ on:
   pull_request:
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -32,16 +32,3 @@ jobs:
           name: comic-spidey-prototype-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-      - name: Publish prototype prerelease if absent
-        if: github.event_name == 'push' && github.ref == 'refs/heads/arena/a6af770e-comic-spidey'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release view v0.3.0-prototype >/dev/null 2>&1; then
-            echo "Prototype release already exists; leaving it unchanged."
-          else
-            gh release create v0.3.0-prototype app/build/outputs/apk/debug/app-debug.apk \
-              --target "$GITHUB_SHA" --prerelease \
-              --title "Comic Spidey 0.3.0 — City Streets Prototype" \
-              --notes "Early Android traversal prototype, not the finished game. Includes an original spider-themed hero, a small 3D city with walking civilians and decorative traffic, first-person and third-person cameras, improved assisted swinging, basic combat, and two original villain encounters. The full campaign, licensed characters, sound, large open world, and production graphics are not implemented. This APK is debug-signed for testing only; it has not been validated on physical Android devices and is not a Play Store release. Minimum Android 6.0 (API 23)."
-          fi

@@ -7,12 +7,12 @@
   ];
   function createWorld(){
     const buildings=[];
-    for(let gx=-3;gx<=3;gx++)for(let gz=-3;gz<=3;gz++){
-      if(gx===0 || gz===0 || (Math.abs(gx)<2 && Math.abs(gz)<2))continue;
+    for(let gx=-10;gx<=10;gx++)for(let gz=-10;gz<=10;gz++){
+      if(gx%4===0 || gz%4===0 || (Math.abs(gx)<2 && Math.abs(gz)<2))continue;
       const x=gx*20,z=gz*20,h=10+((Math.abs(gx*31+gz*17)*7)%15);
       buildings.push({x,z,w:12+(Math.abs(gz)%2)*2,d:12+(Math.abs(gx)%2)*2,h});
     }
-    return {buildings,bound:70};
+    return {buildings,bound:210};
   }
   function createPlayer(){return {x:0,y:0,z:9,vx:0,vy:0,vz:0,grounded:true,health:100,rope:null};}
   function createBoss(index){const def=villains[index];return def?{...def,x:index===0?0:3,z:index===0?-8:-12,hp:def.health,state:'chase',timer:0,hitFlash:0}:null;}

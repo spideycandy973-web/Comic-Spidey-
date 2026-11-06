@@ -1,45 +1,40 @@
-# Comic Spidey — City Streets prototype
+# Comic Spidey — development build
 
-A **small, playable 3D Android prototype**, not the full game requested. It contains a custom spider-themed hero, two original boss encounters, a small city, walking civilians, and improved swinging. This is not an official Spider-Man game and does not claim to contain licensed characters, suits, artwork, or the PlayStation story. The custom art and characters are original prototype assets.
+This repository contains a **small playable 3D prototype**, not the complete game. It has a larger procedurally generated city (roughly 420 m across), streamed building chunks, a four-objective original story, free roam, two original boss encounters, simple walking civilians and swinging. The existing hero and bosses are original, low-poly placeholders—not official Spider-Man or licensed villain models. The requested production game and realistic animated models are not yet implemented.
 
 ## Play
 
-- Choose **Play Prototype** for two sequential villain encounters, or **Free Roam** to explore without a boss.
-- **Move:** virtual joystick. **Look:** drag the scene. **Camera:** tap the camera button to switch third-/first-person.
-- **Swing:** face a building and hold **SWING**. The line attaches to a real nearby rooftop. With swing assist on (default), a ground launch and gradual winch help you get airborne; release the button to keep your momentum. With assist off, jump first and move to build speed. No roof ahead/in range means no attachment; turn or get closer. The HUD displays web state and approximate altitude.
-- **Combat:** approach a boss and tap **ATTACK**. The red ring telegraphs an attack; jump or move away. Bosses get faster in phase 2. Defeat both for victory.
-- **Civilians:** walk up to a pedestrian and tap **TALK** for a short line. Pedestrians follow simple loops, not advanced AI. Traffic is decorative and has no collisions.
+- **New Story** starts a short original mission: investigate the plaza, defeat Volt, travel north, then defeat Ironclad. Follow the yellow beacon. **Continue** resumes at the last objective checkpoint; a boss fight restarts at full health after resuming. It is not the PlayStation storyline.
+- **Free Roam** lets you explore the map without a boss. Civilians walk around the original central plaza and can be spoken to; their AI is limited. Traffic is decorative and has no collisions.
+- Move with the virtual joystick and drag the scene to look. Use the camera button for third-/first-person view.
+- Face a building and hold **SWING** to attach to a rooftop. The visible line starts at the hero's hand; release to keep momentum. Swing assist (on by default) provides a takeoff boost and slow reel-in. With assist off, jump first and move to build speed. If there is no roof in range/ahead, turn or get closer. The stylized placeholder body leans and moves while swinging; this is not skeletal character animation.
+- Approach a boss and tap **ATTACK**. A red ring telegraphs an attack; jump or move away. Bosses become faster in phase 2.
 - Desktop: WASD/arrows to move; drag to look; Space to jump; hold Shift to swing; F to attack; E to talk; C to switch camera; Escape to pause.
-- Manual day/sunset/night palettes and swing assist persist locally. The app pauses when backgrounded. Boss progress is **not saved**; a new run starts from the first villain.
+- Manual day/sunset/night palettes and swing assist persist locally. The app pauses when backgrounded.
 
-The native Android activity uses package `com.comicspidey` and hosts offline WebGL/Three.js in a landscape WebView. Android 6.0+ (API 23+), subject to device WebGL support. **No physical device compatibility or performance claims are made.**
+## Asset and scope status
 
-## Not yet implemented
+The supplied Drive folder contains a Spider-Man GLB and Doctor Octopus GLB with embedded CC-BY labels, but those labels do not establish underlying Spider-Man/game-character rights. They are not bundled or published pending confirmation of redistribution rights. The inspected GLBs are static, with no rig or animation. A separate Spider-Man archive contains FBX animation files, whose compatibility and rights still need checking. The 350 MB city GLB exceeds this environment's 100 MiB Drive file transfer limit; it needs to be split or optimized before import. No suitable civilian character models have yet been identified in the folder.
 
-The full open world, long campaign, licensed villains and suits, missions, dialogue system, audio, dynamic weather/time, top-down camera, controller support, customizable controls, world streaming, graphics presets, 4K/120 Hz, and production animation/graphics are not implemented. NPCs have limited scripted lines, vehicle collisions are absent, combat and enemy AI are rudimentary, and movement/camera collision is approximate. This is still a prototype, not the final app.
+The long campaign, licensed characters and suits, realistic rigged human models, production-quality animations, full-scale living city, dynamic weather/time, top-down camera, controller support, configurable touch controls, audio, graphics presets, 4K/120 Hz, and production performance/device validation remain unimplemented. Camera and collision are approximate; NPCs and traffic are limited. No claims are made of a finished game or device compatibility.
 
-## Run in a browser
+## Run locally
 
 ```sh
 python3 -m http.server 8000 --directory app/src/main/assets
 ```
 
-Visit `http://localhost:8000` in a WebGL-capable browser using a landscape viewport. The Android app uses the same local assets and requires no network permission.
+Open `http://localhost:8000` in a WebGL-capable browser, using a landscape viewport. The native Android activity uses package `com.comicspidey` and hosts these offline assets in a WebView, Android 6.0+ (API 23+) subject to WebGL support.
 
-## Build for Android
+## Build and test
 
-Install JDK 17, Android SDK Platform 35, and Gradle 8.9. Set `ANDROID_HOME` or set `sdk.dir` in an untracked `local.properties`:
-
-```sh
-gradle :app:assembleDebug
-```
-
-The APK is `app/build/outputs/apk/debug/app-debug.apk`. It is **debug-signed for testing only**, not a Play Store release. A production APK/AAB requires secure release signing, real-device validation, licensing review, and release configuration. Each CI run may use a different debug signing key; uninstall an older debug APK if Android refuses the update (this removes its app data). GitHub Actions runs simulation and browser tests, builds a debug APK, and publishes a one-time `v0.3.0-prototype` prerelease if absent.
-
-## Test and architecture
+Install JDK 17, Android SDK Platform 35, and Gradle 8.9; set `ANDROID_HOME` or `sdk.dir` in an untracked `local.properties`:
 
 ```sh
 node --test tests/*.test.js
+gradle :app:assembleDebug
 ```
 
-`physics.js` owns 3D movement and data-driven boss rules; `city.js` owns basic pedestrian movement/dialogue; `game.js` handles Three.js presentation, cameras and input; `MainActivity.java` owns Android lifecycle. Browser smoke testing in CI additionally uses `playwright-core` and Chrome. Three.js 0.160.1 is vendored under its MIT license in `app/src/main/assets/vendor/`. This lightweight prototype is not the requested Unity/URP production architecture; the full game requires substantial further development.
+The APK is `app/build/outputs/apk/debug/app-debug.apk`, signed with a debug key **for testing only**, not a production release. A Play Store release requires secure release signing, rights clearance, real-device testing and substantial further development. CI runs simulation and browser checks and uploads a debug APK artifact; it does not automatically publish releases. Different debug keys may require uninstalling an older test APK first, which deletes its app data.
+
+`physics.js` owns movement and boss rules; `city.js` owns pedestrian simulation; `story.js` owns story progression; `game.js` handles Three.js rendering, streaming and input; `MainActivity.java` owns Android lifecycle. Three.js 0.160.1 is vendored under MIT in `app/src/main/assets/vendor/`. This lightweight WebView prototype is not the requested Unity/URP production architecture.

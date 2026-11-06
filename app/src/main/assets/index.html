@@ -13,8 +13,8 @@
   <h1>COMIC<br><span>SPIDEY</span></h1>
   <div class="title-rule"><span>CITY SHOWDOWN</span><b>02</b></div>
   <p class="intro">Take to the rooftops.<br>Protect the city.</p>
-  <div class="menu-actions"><button id="play" class="primary">▶ &nbsp; PLAY PROTOTYPE &nbsp; ↗</button><button id="freeRoam" class="secondary">✦ &nbsp; FREE ROAM</button><button id="settingsOpen" class="secondary">⚙</button></div>
-  <p class="prototype-note"><strong>EARLY 3D PROTOTYPE</strong> &nbsp; A small 3D city, civilians and two original bosses. The full campaign and licensed characters are not included.</p>
+  <div class="menu-actions"><button id="play" class="primary">▶ &nbsp; NEW STORY &nbsp; ↗</button><button id="freeRoam" class="secondary">✦ &nbsp; FREE ROAM</button><button id="continueStory" class="secondary hidden">CONTINUE</button><button id="settingsOpen" class="secondary">⚙</button></div>
+  <p class="prototype-note"><strong>EARLY 3D PROTOTYPE</strong> &nbsp; A short original story, free roam and two original bosses. The full campaign and licensed characters are not included.</p>
  </section>
  <div class="menu-right" aria-hidden="true"><div class="issue-stamp">A NEW<br><strong>PERSPECTIVE</strong><small>THE CITY NEEDS YOU.</small></div></div>
  <footer><span>BUILT FOR THE NEXT LEAP</span><span>SWING INTO ACTION &nbsp; ✦</span></footer>
@@ -22,7 +22,7 @@
 <section id="hud" class="hidden" aria-label="Game controls">
  <div class="hud-top">
   <div class="brand-small">COMIC <em>SPIDEY</em><small>3D PROTOTYPE</small><div class="health-label">YOUR HEALTH <span id="playerHealth">100</span></div><div class="bar player-bar"><i id="playerBar"></i></div></div>
-  <div class="objective"><span>✦ &nbsp; CITY SHOWDOWN</span><strong id="objective">Defeat Volt</strong><small id="tip">Drag the view to look around</small></div>
+  <div class="objective"><span>✦ &nbsp; STORY / FREE ROAM</span><strong id="objective">Investigate the plaza</strong><small id="tip">Drag the view to look around</small></div>
   <div class="hud-right"><button id="talk" class="square talk" aria-label="Talk to a nearby civilian">✦<small>TALK</small></button><button id="camera" class="square camera" aria-label="Switch camera">◉<small>3RD</small></button><button id="pause" class="square" aria-label="Pause">Ⅱ</button></div>
  </div>
  <div id="bossHud" class="boss-hud"><div><span id="bossSubtitle">THE LIVE WIRE</span><strong id="bossName">VOLT</strong><span id="bossPhase">PHASE 1</span></div><div class="bar boss-bar"><i id="bossBar"></i></div></div>
@@ -42,5 +42,5 @@
 </div>
 <div id="error" class="error hidden">3D graphics could not start. This prototype requires WebGL support.</div>
 <div id="portrait">ROTATE YOUR DEVICE <span>↻</span><small>Comic Spidey is best played in landscape.</small></div>
-<script src="vendor/three.min.js"></script><script src="physics.js"></script><script src="city.js"></script><script src="game.js"></script>
+<script src="vendor/three.min.js"></script><script src="physics.js"></script><script src="city.js"></script><script src="story.js"></script><script src="game.js"></script>
 </body></html>

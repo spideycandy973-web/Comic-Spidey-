@@ -10,7 +10,8 @@ const assert = require('node:assert/strict');
     await page.waitForTimeout(1000);
     assert.equal(await page.locator('#error').isVisible(), false, 'WebGL started');
     await page.click('#play');
-    assert.equal(await page.locator('#bossName').innerText(), 'VOLT');
+    assert.match(await page.locator('#objective').innerText(), /Investigate the plaza/);
+    assert.equal(await page.locator('#bossHud').isVisible(), false);
     await page.click('#camera'); assert.match(await page.locator('#camera').innerText(), /1ST/);
     await page.click('#camera'); assert.match(await page.locator('#camera').innerText(), /3RD/);
     await page.keyboard.down('w');
@@ -21,9 +22,13 @@ const assert = require('node:assert/strict');
       if(width<100){hit=true; break;}
     }
     await page.keyboard.up('w');
-    assert.ok(hit,'player can approach and damage the villain');
+    assert.ok(hit,'player can reach the story objective and damage the villain');
+    assert.equal(await page.locator('#bossName').innerText(), 'VOLT');
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('comic-story-v1')).stage),1);
     await page.click('#pause'); assert.equal(await page.locator('#pausePanel').isVisible(),true);
-    await page.click('#resume'); assert.equal(await page.locator('#dialog').isVisible(),false);
+    await page.click('#toMenu'); assert.equal(await page.locator('#continueStory').isVisible(),true);
+    await page.click('#continueStory'); assert.equal(await page.locator('#bossHud').isVisible(),true);
+    await page.click('#pause'); await page.click('#resume'); assert.equal(await page.locator('#dialog').isVisible(),false);
     // Fresh free-roam session: interaction with a moving civilian and an actual assisted takeoff.
     await page.reload(); await page.click('#freeRoam');
     assert.equal(await page.locator('#bossHud').isVisible(), false);

@@ -42,4 +42,4 @@ const assert = require('node:assert/strict');
     assert.deepEqual(errors,[]);
     console.log('Browser smoke test passed: WebGL, cameras, villain damage, civilian interaction and swing takeoff/release.');
   } finally {await browser.close();}
-})().catch(err=>{console.error(err);process.exit(1);});
+})().catch(err=>{console.error(err);console.error('::error::'+String(err.stack||err).replace(/%/g,'%25').replace(/\n/g,'%0A').replace(/\r/g,'%0D'));process.exit(1);});

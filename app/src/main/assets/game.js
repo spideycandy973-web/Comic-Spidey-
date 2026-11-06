@@ -141,6 +141,19 @@ for(let i=0;i<citizens.length;i++){
  const left=box(g,.2,.63,.23,navy,-.19,.32,0),right=box(g,.2,.63,.23,navy,.19,.32,0);
  box(g,.18,.65,.2,clothes,-.43,1.1,0);box(g,.18,.65,.2,clothes,.43,1.1,0);scene.add(g);citizenModels.push({g,left,right});
 }
+// Four rigged pedestrians, generated from CC0 MakeHuman geometry using the MIT-licensed Citizen Maker.
+// Four lighter placeholders remain to keep the prototype's crowd rendering cost bounded.
+try{
+ new window.ComicLoaders.GLTFLoader().parse(bytesFromBase64(window.ComicCitizenData),'',gltf=>{
+  for(let i=0;i<citizenModels.length;i+=2){
+   const old=citizenModels[i];scene.remove(old.g);old.g.traverse(o=>{if(o.geometry)o.geometry.dispose();});
+   const wrapper=new THREE.Group(),model=window.ComicLoaders.cloneRig(gltf.scene);model.rotation.y=Math.PI;wrapper.add(model);scene.add(wrapper);
+   const mixer=new THREE.AnimationMixer(model);if(gltf.animations.length)mixer.clipAction(gltf.animations[0]).play();
+   citizenModels[i]={g:wrapper,left:new THREE.Group(),right:new THREE.Group(),mixer};
+  }
+  document.body.dataset.citizenModel='loaded';window.ComicCitizenData=null;
+ },error=>{console.error('Citizen model unavailable:',error);document.body.dataset.citizenModel='fallback';});
+}catch(error){console.error('Citizen model unavailable:',error);document.body.dataset.citizenModel='fallback';}
 // Traffic is decorative: it moves on streets but has no collision/damage simulation yet.
 const cars=[];
 for(let i=0;i<4;i++){const g=new THREE.Group(),paint=mat([0xf3b84c,0x67a7bc,0xe77b6e,0xd8d8c7][i]);box(g,2.5,.7,1.25,paint,0,.55,0);box(g,1.2,.6,1.05,mat(0x9dc8d2),-.1,1.15,0);for(const x of [-.8,.8])for(const z of [-.65,.65])sphere(g,.25,ink,x,.28,z);scene.add(g);cars.push(g);}
@@ -222,7 +235,7 @@ function frame(now){const dt=last?Math.min((now-last)/1000,1/30):0;last=now;cloc
  }
  hero.group.position.set(player.x,player.y,player.z);animateHero(dt);const moving=Math.hypot(player.vx,player.vz)>.8&&player.grounded;hero.group.rotation.x=player.rope?Math.max(-.38,Math.min(.38,-player.vy*.025)):0;hero.group.rotation.z=player.rope?Math.max(-.2,Math.min(.2,player.vx*.015)):0;hero.legL.rotation.x=moving?Math.sin(clock*9)*.45:(player.rope?.45:0);hero.legR.rotation.x=moving?-hero.legL.rotation.x:(player.rope?-.35:0);hero.armL.rotation.x=player.rope?-.7:-hero.legL.rotation.x;hero.armR.rotation.x=player.rope?-2:hero.legL.rotation.x;
  if(boss){enemy.group.position.set(boss.x,0,boss.z);enemy.group.rotation.y=Math.atan2(boss.x-player.x,boss.z-player.z);enemy.ring.material.color.setHex(boss.state==='windup'?0xff3939:(boss.id==='volt'?0x62f3f5:0xffcb51));enemy.ring.scale.setScalar(boss.state==='windup'?1.2+Math.sin(clock*20)*.15:1);enemy.l.rotation.x=boss.state==='windup'?-1:Math.sin(clock*6)*.12;enemy.r.rotation.x=enemy.l.rotation.x;}
- citizens.forEach((npc,i)=>{const m=citizenModels[i];m.g.position.set(npc.x,0,npc.z);m.g.rotation.y=npc.angle;m.left.rotation.x=Math.sin(clock*6+i)*.25;m.right.rotation.x=-m.left.rotation.x;});
+ citizens.forEach((npc,i)=>{const m=citizenModels[i];m.g.position.set(npc.x,0,npc.z);m.g.rotation.y=npc.angle;if(m.mixer){if(state==='playing'||state==='menu')m.mixer.update(dt);}else{m.left.rotation.x=Math.sin(clock*6+i)*.25;m.right.rotation.x=-m.left.rotation.x;}});
  cars.forEach((car,i)=>{const pos=((clock*(i%2?7:9)+i*36)%144)-72;car.position.set(i<2?pos:(i===2?-3:3),0,i<2?(i===0?-3:3):pos);car.rotation.y=i<2?(i===0?0:Math.PI):(i===2?-Math.PI/2:Math.PI/2);});
  web.visible=!!player.rope;anchorMarker.visible=!!player.rope;
  if(player.rope){if(view==='first'){camera.updateMatrixWorld(true);hands.localToWorld(webStart.set(.32,-.35,-1.05));document.body.dataset.webOrigin='first-person-hand';}else{hero.group.updateMatrixWorld(true);if(heroHand){heroHand.getWorldPosition(webStart);document.body.dataset.webOrigin='rigged-hand';}else{hero.armR.localToWorld(webStart.set(0,-.76,0));document.body.dataset.webOrigin='placeholder-hand';}}webEnd.set(player.rope.x,player.rope.y,player.rope.z);web.position.copy(webStart).add(webEnd).multiplyScalar(.5);web.scale.y=webStart.distanceTo(webEnd);web.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),webEnd.sub(webStart).normalize());anchorMarker.position.set(player.rope.x,player.rope.y,player.rope.z);}

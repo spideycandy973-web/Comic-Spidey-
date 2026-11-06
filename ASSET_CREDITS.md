@@ -7,3 +7,4 @@ The user confirmed permission to include and publicly redistribute the supplied 
 - **Three.js and FBX/GLTF loaders:** three.js 0.160.1, MIT; see `app/src/main/assets/vendor/THREE-LICENSE.txt`. `model-loaders.js` bundles the official loaders and their support modules, using the existing global Three.js runtime.
 
 If any supplied asset permission or attribution is incorrect, remove/replace it before distribution. Comic Spidey is not represented as an official or endorsed Marvel/Sony product.
+- **Rigged pedestrians:** generated with [Citizen Maker](https://github.com/ghanemja/citizen-maker) by Janelle Ghanem (MIT; license reproduced in `app/src/main/assets/vendor/CITIZEN-MAKER-LICENSE.txt`), using MakeHuman's CC0 base geometry. One generated dressed model and its procedural walk clip are reused by four pedestrians; the remaining four use simple fallback geometry.

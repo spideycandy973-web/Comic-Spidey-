@@ -4,8 +4,8 @@
  const stages=[
   {type:'travel',title:'Investigate the plaza',hint:'A disturbance has been reported downtown.',x:0,z:-8,radius:5,spawn:{x:0,z:9}},
   {type:'boss',title:'Stop Volt',hint:'Volt is attacking the plaza!',boss:0,spawn:{x:0,z:-2}},
-  {type:'travel',title:'Reach the north crossing',hint:'Ironclad is heading north. Follow the beacon.',x:0,z:-85,radius:6,spawn:{x:0,z:-8}},
-  {type:'boss',title:'Stop Ironclad',hint:'Ironclad is threatening the crossing!',boss:1,spawn:{x:0,z:-79}},
+  {type:'travel',title:'Reach the north crossing',hint:'Doctor Octopus is heading north. Follow the beacon.',x:0,z:-85,radius:6,spawn:{x:0,z:-8}},
+  {type:'boss',title:'Stop Doctor Octopus',hint:'Doctor Octopus is threatening the crossing!',boss:1,spawn:{x:0,z:-79}},
   {type:'complete',title:'City secured',hint:'The city is safe for now.',spawn:{x:0,z:-79}}
  ];
  function valid(index){return Number.isInteger(index)&&index>=0&&index<stages.length;}

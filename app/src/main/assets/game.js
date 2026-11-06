@@ -49,6 +49,11 @@ function makeHero(){
 }
 function makeBoss(id){
  const g=new THREE.Group(), primary=id==='volt'?purple:steel,accent=id==='volt'?cyan:gold;
+ if(id==='docock' && docTemplate){
+  g.add(docTemplate.clone(true));const left=new THREE.Group(),right=new THREE.Group();g.add(left,right);
+  const ring=new THREE.Mesh(new THREE.RingGeometry(1.3,1.48,32),new THREE.MeshBasicMaterial({color:0xffcb51,side:THREE.DoubleSide,transparent:true,opacity:.9}));ring.rotation.x=-Math.PI/2;ring.position.y=.03;g.add(ring);
+  g.userData.model='docock';return {group:g,ring,l:left,r:right};
+ }
  box(g,1.25,1.35,.7,primary,0,1.3,0);box(g,1.3,.25,.75,ink,0,.75,0);sphere(g,.46,primary,0,2.25,0);
  box(g,.55,.12,.04,accent,0,2.29,-.44);box(g,.2,.55,.05,accent,0,1.45,-.37);
  const l=box(g,.4,1,.4,primary,-.85,1.3,0),r=box(g,.4,1,.4,primary,.85,1.3,0);
@@ -58,7 +63,33 @@ function makeBoss(id){
  const ring=new THREE.Mesh(new THREE.RingGeometry(1.3,1.48,32),new THREE.MeshBasicMaterial({color:id==='volt'?0x62f3f5:0xffcb51,side:THREE.DoubleSide,transparent:true,opacity:.9}));ring.rotation.x=-Math.PI/2;ring.position.y=.03;g.add(ring);
  return {group:g,ring,l,r};
 }
-const hero=makeHero();scene.add(hero.group);let enemy=makeBoss('volt');scene.add(enemy.group);
+const hero=makeHero();scene.add(hero.group);
+let heroMixer=null,heroActions={},heroActionName='',heroHand=null,docTemplate=null;
+function bytesFromBase64(value){const binary=atob(value),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return bytes.buffer;}
+// User-supplied rigged Spider-Man FBX plus compatible Mixamo clips. No network request is needed.
+try{
+ const data=window.ComicModelData, fbx=new window.ComicLoaders.FBXLoader(), model=fbx.parse(bytesFromBase64(data.heroFbx),'');
+ if(!model.animations.length||!model.getObjectByName('mixamorigRightHand'))throw new Error('Hero rig or idle clip missing');
+ const fallbackParts=hero.group.children.slice();fallbackParts.forEach(part=>part.visible=false);
+ model.scale.setScalar(1.12);model.rotation.y=Math.PI;hero.group.add(model);heroHand=model.getObjectByName('mixamorigRightHand');
+ heroMixer=new THREE.AnimationMixer(model);
+ heroActions.idle=heroMixer.clipAction(model.animations[0]);heroActions.run=heroMixer.clipAction(THREE.AnimationClip.parse(data.run));heroActions.swing=heroMixer.clipAction(THREE.AnimationClip.parse(data.swing));
+ heroActions.idle.play();heroActionName='idle';document.body.dataset.heroModel='loaded';data.heroFbx=null;data.run=null;data.swing=null;
+}catch(error){console.error('Hero model unavailable:',error);document.body.dataset.heroModel='fallback';$('modelStatus').textContent='SPIDER-MAN MODEL FAILED • ORIGINAL PLACEHOLDER IN USE';$('modelStatus').classList.remove('hidden');}
+let enemy=makeBoss('volt');scene.add(enemy.group);
+try{
+ const data=window.ComicModelData;
+ new window.ComicLoaders.GLTFLoader().parse(bytesFromBase64(data.docGlb),'',gltf=>{
+  docTemplate=gltf.scene;
+  const bounds=new THREE.Box3().setFromObject(docTemplate),size=bounds.getSize(new THREE.Vector3()),center=bounds.getCenter(new THREE.Vector3());
+  if(!Number.isFinite(size.y)||size.y<=0){document.body.dataset.docModel='fallback';return;}
+  const scale=2.8/size.y;docTemplate.scale.setScalar(scale);docTemplate.position.set(-center.x*scale,-bounds.min.y*scale,-center.z*scale);
+  document.body.dataset.docModel='loaded';data.docGlb=null;
+  if(boss&&boss.id==='docock'){scene.remove(enemy.group);enemy=makeBoss('docock');scene.add(enemy.group);document.body.dataset.bossModel=enemy.group.userData.model||'placeholder';}
+ },error=>{console.error('Doctor Octopus model unavailable:',error);document.body.dataset.docModel='fallback';$('modelStatus').textContent='DOCTOR OCTOPUS MODEL FAILED • PLACEHOLDER IN USE';$('modelStatus').classList.remove('hidden');});
+}catch(error){console.error('Doctor Octopus model unavailable:',error);document.body.dataset.docModel='fallback';$('modelStatus').textContent='DOCTOR OCTOPUS MODEL FAILED • PLACEHOLDER IN USE';$('modelStatus').classList.remove('hidden');}
+function animateHero(dt){if(!heroMixer)return;const next=player.rope?'swing':(player.grounded&&Math.hypot(player.vx,player.vz)>.8?'run':'idle');if(next!==heroActionName){heroActions[heroActionName].fadeOut(.18);heroActions[next].reset().fadeIn(.18).play();heroActionName=next;}document.body.dataset.heroAction=next;if(state==='playing'||state==='menu')heroMixer.update(dt);}
+
 // First-person forearms are attached to the camera and hidden in third-person view.
 const hands=new THREE.Group();camera.add(hands);
 box(hands,.18,.18,.65,red,-.32,-.35,-.75).rotation.x=-.3;box(hands,.18,.18,.65,red,.32,-.35,-.75).rotation.x=-.3;hands.visible=false;
@@ -134,7 +165,7 @@ function advanceStory(event){const next=Story.advance(storyStage,event);if(next!
 updateContinue();
 function message(text,seconds=3){$('notice').textContent=text;noticeTimer=seconds;$('notice').classList.remove('hidden');}
 function clearInput(){Object.assign(input,{forward:false,back:false,left:false,right:false,jx:0,jy:0,jump:false,swing:false});player.rope=null;$('stick').style.transform='translate(0,0)';document.querySelectorAll('.pressed').forEach(x=>x.classList.remove('pressed'));}
-function setBoss(index){bossIndex=index;boss=P.createBoss(index);scene.remove(enemy.group);if(boss){enemy=makeBoss(boss.id);scene.add(enemy.group);$('bossHud').classList.remove('hidden');$('bossName').textContent=boss.name;$('bossSubtitle').textContent=boss.subtitle;$('objective').textContent='Defeat '+boss.name;message(boss.name+' HAS ENTERED THE FIGHT!',3);}else{$('bossHud').classList.add('hidden');finish(true);}}
+function setBoss(index){bossIndex=index;boss=P.createBoss(index);scene.remove(enemy.group);if(boss){enemy=makeBoss(boss.id);scene.add(enemy.group);document.body.dataset.bossModel=enemy.group.userData.model||'placeholder';$('bossHud').classList.remove('hidden');$('bossName').textContent=boss.name;$('bossSubtitle').textContent=boss.subtitle;$('objective').textContent='Defeat '+boss.name;message(boss.name+' HAS ENTERED THE FIGHT!',3);}else{$('bossHud').classList.add('hidden');finish(true);}}
 function start(selectedMode='story',continueSaved=false){
  clearInput();mode=selectedMode;player=P.createPlayer();yaw=0;pitch=0;view='third';attackCooldown=0;state='playing';last=0;
  storyStage=continueSaved?(savedStage()??0):0;
@@ -189,12 +220,12 @@ function frame(now){const dt=last?Math.min((now-last)/1000,1/30):0;last=now;cloc
   if(noticeTimer>0){noticeTimer-=dt;if(noticeTimer<=0)$('notice').classList.add('hidden');}
   updateHud();
  }
- hero.group.position.set(player.x,player.y,player.z);const moving=Math.hypot(player.vx,player.vz)>.8&&player.grounded;hero.group.rotation.x=player.rope?Math.max(-.38,Math.min(.38,-player.vy*.025)):0;hero.group.rotation.z=player.rope?Math.max(-.2,Math.min(.2,player.vx*.015)):0;hero.legL.rotation.x=moving?Math.sin(clock*9)*.45:(player.rope?.45:0);hero.legR.rotation.x=moving?-hero.legL.rotation.x:(player.rope?-.35:0);hero.armL.rotation.x=player.rope?-.7:-hero.legL.rotation.x;hero.armR.rotation.x=player.rope?-2:hero.legL.rotation.x;
+ hero.group.position.set(player.x,player.y,player.z);animateHero(dt);const moving=Math.hypot(player.vx,player.vz)>.8&&player.grounded;hero.group.rotation.x=player.rope?Math.max(-.38,Math.min(.38,-player.vy*.025)):0;hero.group.rotation.z=player.rope?Math.max(-.2,Math.min(.2,player.vx*.015)):0;hero.legL.rotation.x=moving?Math.sin(clock*9)*.45:(player.rope?.45:0);hero.legR.rotation.x=moving?-hero.legL.rotation.x:(player.rope?-.35:0);hero.armL.rotation.x=player.rope?-.7:-hero.legL.rotation.x;hero.armR.rotation.x=player.rope?-2:hero.legL.rotation.x;
  if(boss){enemy.group.position.set(boss.x,0,boss.z);enemy.group.rotation.y=Math.atan2(boss.x-player.x,boss.z-player.z);enemy.ring.material.color.setHex(boss.state==='windup'?0xff3939:(boss.id==='volt'?0x62f3f5:0xffcb51));enemy.ring.scale.setScalar(boss.state==='windup'?1.2+Math.sin(clock*20)*.15:1);enemy.l.rotation.x=boss.state==='windup'?-1:Math.sin(clock*6)*.12;enemy.r.rotation.x=enemy.l.rotation.x;}
  citizens.forEach((npc,i)=>{const m=citizenModels[i];m.g.position.set(npc.x,0,npc.z);m.g.rotation.y=npc.angle;m.left.rotation.x=Math.sin(clock*6+i)*.25;m.right.rotation.x=-m.left.rotation.x;});
  cars.forEach((car,i)=>{const pos=((clock*(i%2?7:9)+i*36)%144)-72;car.position.set(i<2?pos:(i===2?-3:3),0,i<2?(i===0?-3:3):pos);car.rotation.y=i<2?(i===0?0:Math.PI):(i===2?-Math.PI/2:Math.PI/2);});
  web.visible=!!player.rope;anchorMarker.visible=!!player.rope;
- if(player.rope){if(view==='first'){camera.updateMatrixWorld(true);hands.localToWorld(webStart.set(.32,-.35,-1.05));}else{hero.group.updateMatrixWorld(true);hero.armR.localToWorld(webStart.set(0,-.76,0));}webEnd.set(player.rope.x,player.rope.y,player.rope.z);web.position.copy(webStart).add(webEnd).multiplyScalar(.5);web.scale.y=webStart.distanceTo(webEnd);web.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),webEnd.sub(webStart).normalize());anchorMarker.position.set(player.rope.x,player.rope.y,player.rope.z);}
+ if(player.rope){if(view==='first'){camera.updateMatrixWorld(true);hands.localToWorld(webStart.set(.32,-.35,-1.05));document.body.dataset.webOrigin='first-person-hand';}else{hero.group.updateMatrixWorld(true);if(heroHand){heroHand.getWorldPosition(webStart);document.body.dataset.webOrigin='rigged-hand';}else{hero.armR.localToWorld(webStart.set(0,-.76,0));document.body.dataset.webOrigin='placeholder-hand';}}webEnd.set(player.rope.x,player.rope.y,player.rope.z);web.position.copy(webStart).add(webEnd).multiplyScalar(.5);web.scale.y=webStart.distanceTo(webEnd);web.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),webEnd.sub(webStart).normalize());anchorMarker.position.set(player.rope.x,player.rope.y,player.rope.z);}
  if(state==='menu'){camera.position.set(15+Math.sin(clock*.13)*2,8,20);camera.lookAt(0,2,0);hero.group.visible=true;hands.visible=false;}
  else if(view==='first'){camera.position.set(player.x,player.y+1.8,player.z);target.set(player.x-Math.sin(yaw)*Math.cos(pitch)*10,player.y+1.8+Math.sin(pitch)*10,player.z-Math.cos(yaw)*Math.cos(pitch)*10);camera.lookAt(target);}
  else{desired.set(player.x+Math.sin(yaw)*6,Math.max(player.y+.5,player.y+3.5-pitch*4),player.z+Math.cos(yaw)*6);target.set(player.x,player.y+1.4+pitch*3,player.z);rayDirection.copy(desired).sub(target);const distance=rayDirection.length();ray.set(target,rayDirection.normalize());ray.far=distance;const intersections=ray.intersectObjects(buildingMeshes,false);if(intersections.length)desired.copy(target).addScaledVector(rayDirection,Math.max(.4,intersections[0].distance-.5));camera.position.lerp(desired,Math.min(1,dt*8));camera.lookAt(target);}

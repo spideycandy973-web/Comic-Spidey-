@@ -3,7 +3,7 @@
   'use strict';
   const villains = [
     {id:'volt',name:'VOLT',subtitle:'THE LIVE WIRE',health:100,speed:3.8,range:2.4,damage:12,windup:.65,cooldown:1.2},
-    {id:'ironclad',name:'IRONCLAD',subtitle:'THE WRECKING MACHINE',health:160,speed:2.5,range:2.9,damage:22,windup:1.05,cooldown:1.65}
+    {id:'docock',name:'DOCTOR OCTOPUS',subtitle:'THE MASTER PLANNER',health:160,speed:2.5,range:2.9,damage:22,windup:1.05,cooldown:1.65}
   ];
   function createWorld(){
     const buildings=[];

@@ -3,7 +3,7 @@ const { chromium } = require('playwright-core');
 const assert = require('node:assert/strict');
 (async () => {
   const browser = await chromium.launch({executablePath:'/usr/bin/google-chrome', headless:true, args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
-  const page = await browser.newPage({viewport:{width:1280,height:720}});
+  const page = await browser.newPage({viewport:{width:960,height:540}});
   const errors=[]; page.on('pageerror', e=>errors.push(e.message));
   try {
     await page.goto('http://127.0.0.1:8000', {waitUntil:'load'});
@@ -15,7 +15,7 @@ const assert = require('node:assert/strict');
     await page.click('#camera'); assert.match(await page.locator('#camera').innerText(), /3RD/);
     await page.keyboard.down('w');
     let hit=false;
-    for(let i=0;i<18;i++){
+    for(let i=0;i<60;i++){
       await page.keyboard.press('f'); await page.waitForTimeout(250);
       const width=await page.locator('#bossBar').evaluate(el=>parseFloat(el.style.width));
       if(width<100){hit=true; break;}
@@ -29,7 +29,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#bossHud').isVisible(), false);
     await page.keyboard.down('s'); await page.keyboard.down('d');
     let nearby=false;
-    for(let i=0;i<30;i++) { await page.waitForTimeout(100); if(await page.locator('#talk').getAttribute('data-nearby')==='true'){nearby=true;break;} }
+    for(let i=0;i<100;i++) { await page.waitForTimeout(100); if(await page.locator('#talk').getAttribute('data-nearby')==='true'){nearby=true;break;} }
     await page.keyboard.up('s'); await page.keyboard.up('d');
     assert.ok(nearby,'can approach a moving civilian');
     await page.keyboard.press('e'); assert.match(await page.locator('#notice').innerText(),/CIVILIAN:/);

@@ -1,7 +1,7 @@
 /* Local WebGL prototype. The simulation lives in physics.js; this file handles presentation and input. */
 (() => {
 'use strict';
-const $=id=>document.getElementById(id), P=window.ComicPhysics, City=window.ComicCity, Story=window.ComicStory, Combat=window.ComicCombat, Crime=window.ComicCrime;
+const $=id=>document.getElementById(id), P=window.ComicPhysics, City=window.ComicCity, Story=window.ComicStory, Combat=window.ComicCombat, Crime=window.ComicCrime, Weather=window.ComicWeather, Audio=window.ComicAudio;
 let renderer;
 try { renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'}); }
 catch(e){ $('error').classList.remove('hidden'); return; }
@@ -10,11 +10,21 @@ $('gameView').appendChild(renderer.domElement);
 const scene=new THREE.Scene(), camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,220);scene.add(camera);
 const world=P.createWorld();let player=P.createPlayer(),boss=P.createBoss(0),bossIndex=0,storyStage=0,mode='story',state='menu',previous='menu',view='third',yaw=0,pitch=0,last=0,clock=0,noticeTimer=0;
 let combat=Combat.create(),crime=Crime.create(),crimeModels=[],shotTarget=null,shotTime=0;
-const input={forward:false,back:false,left:false,right:false,jx:0,jy:0,jump:false,swing:false};
+const input={forward:false,back:false,left:false,right:false,jx:0,jy:0,jump:false,climb:false,swing:false};
 function load(key,fallback){try{return JSON.parse(localStorage.getItem(key))||fallback;}catch(e){return fallback;}}
 function save(key,value){try{localStorage.setItem(key,JSON.stringify(value));}catch(e){}}
-const settings=Object.assign({lighting:'sunset',assist:true},load('comic3d-settings',{}));
+const settings=Object.assign({lighting:'sunset',assist:true,weather:'clear',quality:'high',touchSize:'normal',swapControls:false,sound:true},load('comic3d-settings',{}));
 if(!['sunset','day','night','cycle'].includes(settings.lighting))settings.lighting='sunset';
+if(!['clear','rain','cycle'].includes(settings.weather))settings.weather='clear';
+if(!['low','balanced','high'].includes(settings.quality))settings.quality='high';
+if(!['small','normal','large'].includes(settings.touchSize))settings.touchSize='normal';
+const weatherState=Weather.create(settings.weather);
+function applyPreferences(){
+ renderer.setPixelRatio(Math.min(devicePixelRatio||1,{low:.75,balanced:1,high:1.5}[settings.quality]));renderer.setSize(innerWidth,innerHeight);
+ document.documentElement.style.setProperty('--touch-scale',({small:.85,normal:1,large:1.15})[settings.touchSize]);
+ document.querySelector('.hud-bottom').classList.toggle('swapped',!!settings.swapControls);document.body.dataset.quality=settings.quality;Audio.configure(settings.sound);
+}
+applyPreferences();
 const palettes={sunset:{sky:0xe89b88,fog:0xe89b88,ambient:0xffd5bb,sun:0xffe5c8},day:{sky:0x93c7dc,fog:0x93c7dc,ambient:0xe2efff,sun:0xfff4d8},night:{sky:0x222d50,fog:0x222d50,ambient:0x7088c4,sun:0x819ade}};
 const ambient=new THREE.HemisphereLight(0xffffff,0x39435b,2);scene.add(ambient);
 const sun=new THREE.DirectionalLight(0xffffff,2.1);sun.position.set(-25,60,15);scene.add(sun);
@@ -109,6 +119,16 @@ const road=mat(0x30394d),stripe=mat(0xd9c992),pavement=mat(0x7e8996);
 for(let pos=-800;pos<=800;pos+=80){
  box(scene,citySize,.02,15,road,0,0,pos);box(scene,15,.02,citySize,road,pos,.005,0);
  box(scene,citySize,.025,.13,stripe,0,.02,pos);box(scene,.13,.025,citySize,stripe,pos,.025,0);
+}
+// A bounded particle pool follows the player. It is cosmetic, not a physical simulation.
+const rainPositions=new Float32Array(240*6),rainGeometry=new THREE.BufferGeometry();
+for(let i=0;i<240;i++){const j=i*6;rainPositions[j]=(i*71%440)/10-22;rainPositions[j+1]=(i*53%200)/10;rainPositions[j+2]=(i*97%440)/10-22;rainPositions[j+3]=rainPositions[j]-.15;rainPositions[j+4]=rainPositions[j+1]-.8;rainPositions[j+5]=rainPositions[j+2];}
+rainGeometry.setAttribute('position',new THREE.BufferAttribute(rainPositions,3));
+const rain=new THREE.LineSegments(rainGeometry,new THREE.LineBasicMaterial({color:0xb3d9ee,transparent:true,opacity:.5,depthWrite:false}));rain.frustumCulled=false;rain.visible=false;scene.add(rain);
+function updateWeather(dt){
+ const active=Weather.step(weatherState,dt);rain.visible=active;document.body.dataset.raining=String(active);
+ if(!active)return;rain.position.set(player.x,player.y,player.z);
+ for(let i=0;i<rainPositions.length;i+=6){let y=rainPositions[i+1]-18*dt;if(y<0)y+=20;rainPositions[i+1]=y;rainPositions[i+4]=y-.8;}rainGeometry.attributes.position.needsUpdate=true;
 }
 // An open arena makes the boss encounters readable.
 box(scene,24,.05,24,pavement,0,.03,0);
@@ -209,8 +229,8 @@ const crimeBeacon=new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,15,10),new T
 const shotLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),new THREE.LineBasicMaterial({color:0xe7ffff}));shotLine.visible=false;scene.add(shotLine);
 function crimeTick(dt){
  const result=Crime.tick(crime,player,dt,world.bound);
- if(result==='spawned'){clearCrimeModels();crimeModels=crime.enemies.map(makeThug);crimeBeacon.position.set(crime.location.x,7.5,crime.location.z);crimeBeacon.visible=true;message('CRIME REPORTED • FOLLOW THE RED BEACON',4);}
- if(result==='completed'){clearCrimeModels();crimeBeacon.visible=false;save('comic-crimes-solved',(load('comic-crimes-solved',0)||0)+1);message('CRIME STOPPED • HEALTH RESTORED',4);}
+ if(result==='spawned'){Audio.play('web');clearCrimeModels();crimeModels=crime.enemies.map(makeThug);crimeBeacon.position.set(crime.location.x,7.5,crime.location.z);crimeBeacon.visible=true;message('CRIME REPORTED • FOLLOW THE RED BEACON',4);}
+ if(result==='completed'){Audio.play('success');clearCrimeModels();crimeBeacon.visible=false;save('comic-crimes-solved',(load('comic-crimes-solved',0)||0)+1);message('CRIME STOPPED • HEALTH RESTORED',4);}
  for(const e of crime.enemies)P.stepBoss(e,player,dt,world);
  if(crime.phase==='active'){$('objective').textContent='Stop the street crime';$('tip').textContent=crime.enemies.filter(e=>e.hp>0).length+' enemies remaining';}
  else {$('objective').textContent='Explore the city';$('tip').textContent='Crimes stopped: '+(load('comic-crimes-solved',0)||0);}
@@ -236,10 +256,10 @@ function applyStoryStage(){
 function advanceStory(event){const next=Story.advance(storyStage,event);if(next!==storyStage){storyStage=next;applyStoryStage();}}
 updateContinue();
 function message(text,seconds=3){$('notice').textContent=text;noticeTimer=seconds;$('notice').classList.remove('hidden');}
-function clearInput(){Object.assign(input,{forward:false,back:false,left:false,right:false,jx:0,jy:0,jump:false,swing:false});player.rope=null;$('stick').style.transform='translate(0,0)';document.querySelectorAll('.pressed').forEach(x=>x.classList.remove('pressed'));}
+function clearInput(){Object.assign(input,{forward:false,back:false,left:false,right:false,jx:0,jy:0,jump:false,climb:false,swing:false});player.rope=null;$('stick').style.transform='translate(0,0)';document.querySelectorAll('.pressed').forEach(x=>x.classList.remove('pressed'));}
 function setBoss(index){bossIndex=index;boss=P.createBoss(index);scene.remove(enemy.group);if(boss){enemy=makeBoss(boss.id);scene.add(enemy.group);document.body.dataset.bossModel=enemy.group.userData.model||'placeholder';$('bossHud').classList.remove('hidden');$('bossName').textContent=boss.name;$('bossSubtitle').textContent=boss.subtitle;$('objective').textContent='Defeat '+boss.name;message(boss.name+' HAS ENTERED THE FIGHT!',3);}else{$('bossHud').classList.add('hidden');finish(true);}}
 function start(selectedMode='story',continueSaved=false){
- clearInput();mode=selectedMode;player=P.createPlayer();combat=Combat.create();crime=Crime.create();clearCrimeModels();crimeBeacon.visible=false;shotTarget=null;shotTime=0;yaw=0;pitch=0;view='third';state='playing';last=0;
+ clearInput();Audio.unlock();mode=selectedMode;player=P.createPlayer();combat=Combat.create();crime=Crime.create();clearCrimeModels();crimeBeacon.visible=false;shotTarget=null;shotTime=0;yaw=0;pitch=0;view='third';state='playing';last=0;
  storyStage=continueSaved?(savedStage()??0):0;
  if(mode==='story'){const spawn=Story.stage(storyStage).spawn;player.x=spawn.x;player.z=spawn.z;}
  camera.position.set(player.x,4,player.z+7);updateChunks(player.x,player.z);
@@ -247,7 +267,7 @@ function start(selectedMode='story',continueSaved=false){
  if(mode==='story')applyStoryStage();else{hideBoss();beacon.visible=false;$('objective').textContent='Explore the city';$('tip').textContent='Drag the view to look around';message('HOLD SWING TO LAUNCH • DRAG TO LOOK',5);}
  updateHud();drawMap();
 }
-function showDialog(panel){$('dialog').classList.remove('hidden');['pause','settings','result'].forEach(p=>$(p+'Panel').classList.toggle('hidden',p!==panel));$('lighting').value=settings.lighting;$('assist').checked=!!settings.assist;}
+function showDialog(panel){$('dialog').classList.remove('hidden');['pause','settings','result'].forEach(p=>$(p+'Panel').classList.toggle('hidden',p!==panel));$('lighting').value=settings.lighting;$('assist').checked=!!settings.assist;$('weather').value=settings.weather;$('quality').value=settings.quality;$('touchSize').value=settings.touchSize;$('swapControls').checked=!!settings.swapControls;$('sound').checked=!!settings.sound;}
 function pause(){if(state!=='playing')return;clearInput();state='paused';previous='paused';showDialog('pause');}
 function resume(){state='playing';last=0;$('dialog').classList.add('hidden');}
 function menu(){clearInput();clearCrimeModels();crimeBeacon.visible=false;shotTime=0;state='menu';$('dialog').classList.add('hidden');$('hud').classList.add('hidden');$('menu').classList.remove('hidden');beacon.visible=false;updateContinue();}
@@ -257,6 +277,8 @@ $('settingsOpen').onclick=()=>{previous='menu';showDialog('settings');};$('pause
 function closeSettings(){if(previous==='paused')showDialog('pause');else $('dialog').classList.add('hidden');}
 $('settingsDone').onclick=closeSettings;$('closeDialog').onclick=()=>{if(!$('settingsPanel').classList.contains('hidden'))closeSettings();else if(state==='paused')resume();else if(state==='result')menu();};
 $('lighting').onchange=e=>{settings.lighting=e.target.value;save('comic3d-settings',settings);lighting();};$('assist').onchange=e=>{settings.assist=e.target.checked;save('comic3d-settings',settings);};
+$('weather').onchange=e=>{settings.weather=e.target.value;Weather.setMode(weatherState,settings.weather);updateWeather(0);save('comic3d-settings',settings);};
+for(const id of ['quality','touchSize','swapControls','sound'])$(id).onchange=e=>{settings[id]=e.target.type==='checkbox'?e.target.checked:e.target.value;applyPreferences();if(id==='sound')Audio.unlock();save('comic3d-settings',settings);};
 function updateView(){hands.visible=view==='first';hero.group.visible=view!=='first';const label={third:'3RD',first:'1ST',overhead:'TOP'};const next={third:'first person',first:'overhead',overhead:'third person'};$('camera').innerHTML='◉<small>'+label[view]+'</small>';$('camera').setAttribute('aria-label','Switch to '+next[view]);}
 function toggleCamera(){if(state!=='playing')return;view=({third:'first',first:'overhead',overhead:'third'})[view];updateView();message(({first:'FIRST-PERSON CAMERA',third:'THIRD-PERSON CAMERA',overhead:'OVERHEAD CAMERA'})[view],2);}
 $('camera').onclick=toggleCamera;
@@ -265,12 +287,12 @@ $('talk').onclick=talk;
 function targets(){return boss?[boss]:crime.enemies;}
 function hit(){
  if(state!=='playing')return;const result=Combat.melee(combat,player,targets());
- if(result.ok){message('HIT • COMBO '+result.combo,1);if(result.target===boss&&boss.hp<=0){player.health=Math.min(100,player.health+35);if(mode==='story')advanceStory({type:'defeated',boss:bossIndex});}}
+ if(result.ok){Audio.play('hit');message('HIT • COMBO '+result.combo,1);if(result.target===boss&&boss.hp<=0){player.health=Math.min(100,player.health+35);if(mode==='story')advanceStory({type:'defeated',boss:bossIndex});}}
  else if(result.reason==='range')message('GET CLOSER TO ATTACK',1);
 }
 function shootWeb(){
  if(state!=='playing')return;const result=Combat.web(combat,player,targets());
- if(result.ok){shotTarget=result.target;shotTime=.22;message('WEB HIT • ENEMY STUNNED',1.2);}
+ if(result.ok){Audio.play('web');shotTarget=result.target;shotTime=.22;message('WEB HIT • ENEMY STUNNED',1.2);}
  else if(result.reason==='energy')message('WEB ENERGY RECHARGING',1.5);
  else if(result.reason==='range')message('NO ENEMY IN WEB RANGE',1.5);
 }
@@ -279,12 +301,12 @@ function dodge(){
  const sx=(input.right?1:0)-(input.left?1:0)+input.jx,sz=(input.back?1:0)-(input.forward?1:0)+input.jy;
  let dx=Math.cos(yaw)*sx+Math.sin(yaw)*sz,dz=-Math.sin(yaw)*sx+Math.cos(yaw)*sz;
  if(Math.hypot(dx,dz)<.1){dx=Math.cos(yaw);dz=-Math.sin(yaw);}
- if(Combat.dodge(combat,player,dx,dz)){input.swing=false;message('DODGE!',.8);}
+ if(Combat.dodge(combat,player,dx,dz)){Audio.play('dodge');input.swing=false;message('DODGE!',.8);}
 }
-function swingOn(){if(state!=='playing'||input.swing)return;input.swing=true;if(!P.attach(player,world,settings.assist,{x:-Math.sin(yaw),z:-Math.cos(yaw)}))message('NO ROOFTOP AHEAD • TURN TOWARD A BUILDING',2);else message(settings.assist?'WEB ATTACHED • RELEASE TO LAUNCH':'WEB ATTACHED • JUMP AND MOVE TO SWING',2);}
+function swingOn(){if(state!=='playing'||input.swing)return;input.swing=true;if(!P.attach(player,world,settings.assist,{x:-Math.sin(yaw),z:-Math.cos(yaw)}))message('NO ROOFTOP AHEAD • TURN TOWARD A BUILDING',2);else{Audio.play('swing');message(settings.assist?'WEB ATTACHED • RELEASE TO LAUNCH':'WEB ATTACHED • JUMP AND MOVE TO SWING',2);}}
 function swingOff(){input.swing=false;player.rope=null;}
 function bindHold(id,down,up=()=>{}){const el=$(id);el.addEventListener('pointerdown',e=>{if(state!=='playing')return;e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('pressed');down();});const release=()=>{el.classList.remove('pressed');up();};el.addEventListener('pointerup',release);el.addEventListener('pointercancel',release);el.addEventListener('lostpointercapture',release);}
-bindHold('jump',()=>{input.jump=true;});bindHold('swing',swingOn,swingOff);bindHold('attack',hit);bindHold('webShot',shootWeb);bindHold('dodge',dodge);
+bindHold('jump',()=>{if(player.grounded)Audio.play('jump');input.jump=true;input.climb=true;},()=>{input.climb=false;});bindHold('swing',swingOn,swingOff);bindHold('attack',hit);bindHold('webShot',shootWeb);bindHold('dodge',dodge);
 const joy=$('joystick');let joyId=null;
 function joyMove(e){const r=joy.getBoundingClientRect(),dx=(e.clientX-(r.left+r.width/2))/(r.width*.38),dy=(e.clientY-(r.top+r.height/2))/(r.height*.38),length=Math.max(1,Math.hypot(dx,dy));input.jx=dx/length;input.jy=dy/length;$('stick').style.transform=`translate(${input.jx*r.width*.28}px,${input.jy*r.height*.28}px)`;}
 joy.addEventListener('pointerdown',e=>{if(state!=='playing'||joyId!==null)return;e.preventDefault();joyId=e.pointerId;joy.setPointerCapture(e.pointerId);joyMove(e);});joy.addEventListener('pointermove',e=>{if(e.pointerId===joyId)joyMove(e);});function joyEnd(e){if(e.pointerId!==joyId)return;joyId=null;input.jx=input.jy=0;$('stick').style.transform='translate(0,0)';}joy.addEventListener('pointerup',joyEnd);joy.addEventListener('pointercancel',joyEnd);joy.addEventListener('lostpointercapture',joyEnd);
@@ -292,10 +314,10 @@ let lookId=null,lookX=0,lookY=0;const surface=renderer.domElement;
 surface.addEventListener('pointerdown',e=>{if(state!=='playing'||lookId!==null)return;lookId=e.pointerId;lookX=e.clientX;lookY=e.clientY;surface.setPointerCapture(e.pointerId);});
 surface.addEventListener('pointermove',e=>{if(e.pointerId!==lookId)return;yaw-=(e.clientX-lookX)*.005;pitch=Math.max(-.65,Math.min(.65,pitch-(e.clientY-lookY)*.004));lookX=e.clientX;lookY=e.clientY;});function lookEnd(e){if(e.pointerId===lookId)lookId=null;}surface.addEventListener('pointerup',lookEnd);surface.addEventListener('pointercancel',lookEnd);surface.addEventListener('lostpointercapture',lookEnd);
 const keys={w:'forward',ArrowUp:'forward',s:'back',ArrowDown:'back',a:'left',ArrowLeft:'left',d:'right',ArrowRight:'right'};
-window.addEventListener('keydown',e=>{const k=keys[e.key]||keys[e.key.toLowerCase()];if(k){e.preventDefault();if(state==='playing')input[k]=true;}if(e.code==='Space'){e.preventDefault();if(state==='playing'&&!e.repeat)input.jump=true;}if(e.key==='Shift'){e.preventDefault();swingOn();}if(e.key.toLowerCase()==='f'&&!e.repeat)hit();if(e.key.toLowerCase()==='g'&&!e.repeat)shootWeb();if(e.key.toLowerCase()==='q'&&!e.repeat)dodge();if(e.key.toLowerCase()==='c'&&!e.repeat)toggleCamera();if(e.key.toLowerCase()==='e'&&!e.repeat)talk();if(e.key==='Escape'&&!e.repeat){if(state==='playing')pause();else if(state==='paused'&&!$('pausePanel').classList.contains('hidden'))resume();}});
-window.addEventListener('keyup',e=>{const k=keys[e.key]||keys[e.key.toLowerCase()];if(k)input[k]=false;if(e.key==='Shift')swingOff();});
+window.addEventListener('keydown',e=>{const k=keys[e.key]||keys[e.key.toLowerCase()];if(k){e.preventDefault();if(state==='playing')input[k]=true;}if(e.code==='Space'){e.preventDefault();if(state==='playing'){if(!e.repeat){input.jump=true;if(player.grounded)Audio.play('jump');}input.climb=true;}}if(e.key==='Shift'){e.preventDefault();swingOn();}if(e.key.toLowerCase()==='f'&&!e.repeat)hit();if(e.key.toLowerCase()==='g'&&!e.repeat)shootWeb();if(e.key.toLowerCase()==='q'&&!e.repeat)dodge();if(e.key.toLowerCase()==='c'&&!e.repeat)toggleCamera();if(e.key.toLowerCase()==='e'&&!e.repeat)talk();if(e.key==='Escape'&&!e.repeat){if(state==='playing')pause();else if(state==='paused'&&!$('pausePanel').classList.contains('hidden'))resume();}});
+window.addEventListener('keyup',e=>{const k=keys[e.key]||keys[e.key.toLowerCase()];if(k)input[k]=false;if(e.key==='Shift')swingOff();if(e.code==='Space')input.climb=false;});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});window.addEventListener('blur',pause);
-function updateHud(){ $('webStatus').textContent=(player.rope?'WEB ATTACHED • '+Math.round(player.y)+'M':'WEB READY')+' • '+Math.round(combat.energy)+'%';$('webStatus').dataset.energy=String(Math.round(combat.energy));$('webStatus').dataset.altitude=player.y.toFixed(2);$('talk').dataset.nearby=City.nearest(citizens,player)?'true':'false';$('webStatus').classList.toggle('attached',!!player.rope);$('playerHealth').textContent=Math.ceil(player.health);$('playerBar').style.width=player.health+'%';if(boss){$('bossBar').style.width=(boss.hp/boss.health*100)+'%';$('bossPhase').textContent=boss.hp<=boss.health/2?'PHASE 2':'PHASE 1';} }
+function updateHud(){ $('webStatus').textContent=(player.rope?'WEB ATTACHED • '+Math.round(player.y)+'M':'WEB READY')+' • '+Math.round(combat.energy)+'%';$('webStatus').dataset.energy=String(Math.round(combat.energy));$('webStatus').dataset.altitude=player.y.toFixed(2);document.body.dataset.wallRunning=String(player.wallRunning);$('talk').dataset.nearby=City.nearest(citizens,player)?'true':'false';$('webStatus').classList.toggle('attached',!!player.rope);$('playerHealth').textContent=Math.ceil(player.health);$('playerBar').style.width=player.health+'%';if(boss){$('bossBar').style.width=(boss.hp/boss.health*100)+'%';$('bossPhase').textContent=boss.hp<=boss.health/2?'PHASE 2':'PHASE 1';} }
 // A north-up local map is redrawn at low frequency; it shows the same simulated buildings.
 const mapCanvas=$('minimap'),mapCtx=mapCanvas.getContext('2d');let mapTimer=0;
 function drawMap(){
@@ -319,10 +341,12 @@ function frame(now){const dt=last?Math.min((now-last)/1000,1/30):0;last=now;cloc
   if(settings.lighting==='cycle'){timeOfDay+=dt;lightTimer-=dt;if(lightTimer<=0){lighting();lightTimer=.25;}}
   const sx=(input.right?1:0)-(input.left?1:0)+input.jx,sz=(input.back?1:0)-(input.forward?1:0)+input.jy;
   const mx=Math.cos(yaw)*sx+Math.sin(yaw)*sz,mz=-Math.sin(yaw)*sx+Math.cos(yaw)*sz;
-  City.step(citizens,dt);
-  P.stepPlayer(player,world,{x:mx,z:mz,jump:input.jump},dt);updateChunks(player.x,player.z);input.jump=false;Combat.tick(combat,player,dt);P.stepBoss(boss,player,dt,world);if(mode==='free')crimeTick(dt);shotTime=Math.max(0,shotTime-dt);
+  updateWeather(dt);const previousHealth=player.health;
+  City.recenter(citizens,player,world.bound);City.step(citizens,dt);
+  P.stepPlayer(player,world,{x:mx,z:mz,jump:input.jump,climb:input.climb},dt);updateChunks(player.x,player.z);input.jump=false;Combat.tick(combat,player,dt);P.stepBoss(boss,player,dt,world);if(mode==='free')crimeTick(dt);shotTime=Math.max(0,shotTime-dt);
   if(Math.hypot(mx,mz)>.1)hero.group.rotation.y=Math.atan2(-mx,-mz);
   if(mode==='story')advanceStory({type:'position',x:player.x,z:player.z});
+  if(player.health<previousHealth)Audio.play('damage');
   if(player.health<=0)finish(false);
   if(noticeTimer>0){noticeTimer-=dt;if(noticeTimer<=0)$('notice').classList.add('hidden');}
   updateHud();mapTimer-=dt;if(mapTimer<=0){drawMap();mapTimer=.25;}

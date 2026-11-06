@@ -41,7 +41,17 @@ const assert = require('node:assert/strict');
     await page.click('#continueStory'); assert.equal(await page.locator('#bossHud').isVisible(),true);
     await page.click('#pause'); await page.click('#resume'); assert.equal(await page.locator('#dialog').isVisible(),false);
     // Fresh free-roam session: interaction with a moving civilian and an actual assisted takeoff.
-    await page.reload(); await page.click('#settingsOpen'); await page.selectOption('#lighting','cycle'); await page.click('#settingsDone');
+    await page.reload(); await page.click('#settingsOpen'); await page.selectOption('#lighting','cycle');
+    await page.selectOption('#weather','rain'); await page.selectOption('#quality','low'); await page.selectOption('#touchSize','small');
+    await page.check('#swapControls'); await page.uncheck('#sound');
+    assert.equal(await page.locator('body').getAttribute('data-raining'),'true');
+    assert.equal(await page.locator('body').getAttribute('data-quality'),'low');
+    assert.equal(await page.locator('#gameView canvas').evaluate(el=>el.width),480);
+    assert.equal(await page.locator('.hud-bottom').evaluate(el=>el.classList.contains('swapped')),true);
+    await page.click('#settingsDone'); await page.reload(); await page.click('#settingsOpen');
+    assert.equal(await page.locator('#weather').inputValue(),'rain'); assert.equal(await page.locator('#quality').inputValue(),'low');
+    assert.equal(await page.locator('#swapControls').isChecked(),true); assert.equal(await page.locator('#sound').isChecked(),false);
+    await page.selectOption('#weather','clear'); await page.selectOption('#quality','high'); await page.selectOption('#touchSize','normal'); await page.uncheck('#swapControls'); await page.click('#settingsDone');
     await page.click('#freeRoam');
     assert.equal(await page.locator('body').getAttribute('data-lighting'),'cycle');
     const sky=await page.locator('body').getAttribute('data-sky-color');

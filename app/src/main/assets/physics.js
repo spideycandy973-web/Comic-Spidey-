@@ -36,7 +36,7 @@
     for(let cx=minX;cx<=maxX;cx++)for(let cz=minZ;cz<=maxZ;cz++){const list=world.chunks.get(cx+','+cz);if(list)out.push(...list);}
     return out;
   }
-  function createPlayer(){return {x:0,y:0,z:9,vx:0,vy:0,vz:0,grounded:true,health:100,rope:null};}
+  function createPlayer(){return {x:0,y:0,z:9,vx:0,vy:0,vz:0,grounded:true,health:100,rope:null,wallTime:0,wallRunning:false};}
   function createBoss(index){const def=villains[index];return def?{...def,x:index===0?0:3,z:index===0?-8:-12,hp:def.health,state:'chase',timer:0,hitFlash:0}:null;}
   // Prefer a real rooftop in front of the camera; no invisible air anchors.
   // Assist adds an explicit take-off impulse and winches the rope in slowly.
@@ -70,17 +70,18 @@
     if(p.rope){if(p.rope.assist)p.rope.length=Math.max(5,p.rope.length-3*dt);const dx=p.x-p.rope.x,dy=p.y+1.4-p.rope.y,dz=p.z-p.rope.z,d=Math.hypot(dx,dy,dz)||1;
       if(d>p.rope.length){const nx=dx/d,ny=dy/d,nz=dz/d;p.x=p.rope.x+nx*p.rope.length;p.y=p.rope.y+ny*p.rope.length-1.4;p.z=p.rope.z+nz*p.rope.length;const radial=p.vx*nx+p.vy*ny+p.vz*nz;if(radial>0){p.vx-=radial*nx;p.vy-=radial*ny;p.vz-=radial*nz;}}
     }
-    p.grounded=false;let floor=0;
+    p.grounded=false;p.wallRunning=false;let floor=0,wallContact=false;
     for(const b of nearbyBuildings(world,p.x,p.z,24)){
       const inside=Math.abs(p.x-b.x)<b.w/2+.45&&Math.abs(p.z-b.z)<b.d/2+.45;
       if(!inside)continue;
       if(oy>=b.h-.05&&p.y<=b.h&&p.vy<=0){floor=Math.max(floor,b.h);}
       else if(p.y<b.h-.05 && p.y+1.7>0){ // Solid walls: reject the entering horizontal component.
-        const wasX=Math.abs(ox-b.x)<b.w/2+.45,wasZ=Math.abs(oz-b.z)<b.d/2+.45;
+        wallContact=true;const wasX=Math.abs(ox-b.x)<b.w/2+.45,wasZ=Math.abs(oz-b.z)<b.d/2+.45;
         if(!wasX){p.x=ox;p.vx=0;} else if(!wasZ){p.z=oz;p.vz=0;} else {p.x=ox;p.z=oz;p.vx=p.vz=0;}
       }
     }
-    if(p.y<=floor && p.vy<=0){p.y=floor;p.vy=0;p.grounded=true;}
+    if(wallContact&&move.climb&&!p.rope&&p.y>0&&Math.hypot(mx,mz)>.1&&(p.wallTime||0)<2){p.vy=5;p.wallTime=(p.wallTime||0)+dt;p.wallRunning=true;}
+    if(p.y<=floor && p.vy<=0){p.y=floor;p.vy=0;p.grounded=true;p.wallTime=0;p.wallRunning=false;}
     p.x=Math.max(-world.bound,Math.min(world.bound,p.x));p.z=Math.max(-world.bound,Math.min(world.bound,p.z));
   }
   function attack(p,b){if(!b||b.hp<=0)return false;const distance=Math.hypot(p.x-b.x,p.z-b.z);if(distance>3.2||p.y>2.7)return false;b.hp=Math.max(0,b.hp-20);b.hitFlash=.18;return true;}

@@ -21,7 +21,6 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#bossHud').isVisible(), false);
     await page.click('#camera'); assert.match(await page.locator('#camera').innerText(), /1ST/);
     await page.click('#camera'); assert.match(await page.locator('#camera').innerText(), /3RD/);
-    if(process.env.CAPTURE_CITY){const image=await page.screenshot({type:'jpeg',quality:15});console.log('::notice title=city-preview::'+image.toString('base64'));}
     await page.keyboard.down('w');
     let hit=false;
     for(let i=0;i<140;i++){

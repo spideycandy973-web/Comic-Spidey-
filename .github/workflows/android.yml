@@ -20,6 +20,11 @@ jobs:
           gradle-version: '8.9'
       - name: Test movement model
         run: node --test tests/*.test.js
+      - name: Browser smoke test
+        run: |
+          npm install --no-save --no-package-lock playwright-core@1.57.0
+          python3 -m http.server 8000 --directory app/src/main/assets > /tmp/comic-server.log 2>&1 &
+          node tests/browser-smoke.cjs
       - name: Build debug APK
         run: gradle :app:assembleDebug
       - uses: actions/upload-artifact@v4
@@ -32,11 +37,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view v0.1.0-prototype >/dev/null 2>&1; then
+          if gh release view v0.2.0-prototype >/dev/null 2>&1; then
             echo "Prototype release already exists; leaving it unchanged."
           else
-            gh release create v0.1.0-prototype app/build/outputs/apk/debug/app-debug.apk \
+            gh release create v0.2.0-prototype app/build/outputs/apk/debug/app-debug.apk \
               --target "$GITHUB_SHA" --prerelease \
-              --title "Comic Spidey 0.1.0 — Rooftop Run Prototype" \
-              --notes "Early Android traversal prototype, not the finished game. Includes original side-view rooftop exploration, jump, physics-based 2D swinging, collectibles, local progress and manual lighting settings. Campaign, combat, villains, 3D cameras, sound and production graphics are not implemented. This APK is debug-signed for testing only; it has not been validated on physical Android devices and is not a Play Store release. Minimum Android 6.0 (API 23)."
+              --title "Comic Spidey 0.2.0 — City Showdown Prototype" \
+              --notes "Early Android traversal prototype, not the finished game. Includes a small original 3D city, first-person and third-person cameras, basic swinging and combat, and two original villain encounters. The full campaign, licensed characters, sound, large open world, and production graphics are not implemented. This APK is debug-signed for testing only; it has not been validated on physical Android devices and is not a Play Store release. Minimum Android 6.0 (API 23)."
           fi

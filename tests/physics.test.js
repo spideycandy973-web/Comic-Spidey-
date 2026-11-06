@@ -1,27 +1,8 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const P = require('../app/src/main/assets/physics.js');
-test('gravity lands the player on a rooftop', () => {
-  const world = P.createWorld(), player = P.createPlayer();
-  for (let i = 0; i < 180; i++) P.step(player, world, {}, 1/60);
-  assert.equal(player.grounded, true);
-  assert.ok(player.y < world.floor);
-});
-test('jump requires ground and moves upward', () => {
-  const world = P.createWorld(), player = P.createPlayer();
-  for (let i = 0; i < 180; i++) P.step(player, world, {}, 1/60);
-  const y = player.y;
-  P.step(player, world, {jump: true}, 1/60);
-  assert.ok(player.y < y);
-});
-test('web attachment validates range and holds rope length', () => {
-  const world = P.createWorld(), player = P.createPlayer();
-  player.x = 100; player.y = 500;
-  assert.equal(P.attach(player, world, true), true);
-  const rope = player.rope;
-  for (let i = 0; i < 120; i++) P.step(player, world, {move: 1}, 1/60);
-  assert.ok(Math.hypot(player.x-rope.x, player.y-rope.y) <= rope.length + 0.01);
-  player.y = -1000;
-  assert.equal(P.attach(player, world, false), false);
-  assert.equal(player.rope, null);
-});
+test('player jumps and lands under gravity',()=>{const w=P.createWorld(),p=P.createPlayer();P.stepPlayer(p,w,{jump:true},1/60);assert.ok(p.y>0);for(let i=0;i<150;i++)P.stepPlayer(p,w,{},1/60);assert.equal(p.y,0);assert.equal(p.grounded,true);});
+test('swing finds a rooftop anchor and enforces the rope constraint',()=>{const w=P.createWorld(),p=P.createPlayer();assert.equal(P.attach(p,w,true),true);let r=p.rope;for(let i=0;i<100;i++)P.stepPlayer(p,w,{x:1,z:-1},1/60);assert.ok(Math.hypot(p.x-r.x,p.y+1.4-r.y,p.z-r.z)<=r.length+.02);p.y=1000;assert.equal(P.attach(p,w,false),false);assert.equal(p.rope,null);});
+test('attacks only hit in range and can defeat a boss',()=>{let p=P.createPlayer(),b=P.createBoss(0);assert.equal(P.attack(p,b),false);p.x=b.x;p.z=b.z;for(let i=0;i<5;i++)assert.equal(P.attack(p,b),true);assert.equal(b.hp,0);assert.equal(P.attack(p,b),false);});
+test('both villains telegraph and damage the player',()=>{for(let i=0;i<2;i++){const p=P.createPlayer(),b=P.createBoss(i);p.x=b.x;p.z=b.z;P.stepBoss(b,p,1/60);assert.equal(b.state,'windup');for(let n=0;n<100;n++)P.stepBoss(b,p,1/60);assert.ok(p.health<100);}});
+test('building walls block movement and roofs support landings',()=>{const w=P.createWorld(),b=w.buildings[0],p=P.createPlayer();p.x=b.x;p.z=b.z;p.y=b.h+1;p.vy=-1;p.grounded=false;for(let i=0;i<30;i++)P.stepPlayer(p,w,{},1/60);assert.equal(p.y,b.h);assert.equal(p.grounded,true);});

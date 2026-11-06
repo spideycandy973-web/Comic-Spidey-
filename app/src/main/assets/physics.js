@@ -8,7 +8,7 @@
   function createWorld(){
     const buildings=[];
     for(let gx=-3;gx<=3;gx++)for(let gz=-3;gz<=3;gz++){
-      if(Math.abs(gx)<2 && Math.abs(gz)<2)continue;
+      if(gx===0 || gz===0 || (Math.abs(gx)<2 && Math.abs(gz)<2))continue;
       const x=gx*20,z=gz*20,h=10+((Math.abs(gx*31+gz*17)*7)%15);
       buildings.push({x,z,w:12+(Math.abs(gz)%2)*2,d:12+(Math.abs(gx)%2)*2,h});
     }
@@ -16,13 +16,25 @@
   }
   function createPlayer(){return {x:0,y:0,z:9,vx:0,vy:0,vz:0,grounded:true,health:100,rope:null};}
   function createBoss(index){const def=villains[index];return def?{...def,x:index===0?0:3,z:index===0?-8:-12,hp:def.health,state:'chase',timer:0,hitFlash:0}:null;}
-  function attach(p,world,assist){
-    let best=null,bestScore=Infinity;const range=assist?42:30;
+  // Prefer a real rooftop in front of the camera; no invisible air anchors.
+  // Assist adds an explicit take-off impulse and winches the rope in slowly.
+  function attach(p,world,assist,heading={x:0,z:-1}){
+    let best=null,bestScore=Infinity;const range=assist?65:48;
+    const hlen=Math.hypot(heading.x,heading.z)||1, hx=heading.x/hlen,hz=heading.z/hlen;
     for(const b of world.buildings){
-      const y=b.h+1,dx=b.x-p.x,dy=y-(p.y+1.4),dz=b.z-p.z,dist=Math.hypot(dx,dy,dz);
-      if(dy>1&&dist<range&&dist<bestScore){best={x:b.x,y,z:b.z,length:Math.max(3,dist)};bestScore=dist;}
+      // Nearest point just inside the roof edge, rather than the faraway centre.
+      const ax=Math.max(b.x-b.w/2+.6,Math.min(b.x+b.w/2-.6,p.x));
+      const az=Math.max(b.z-b.d/2+.6,Math.min(b.z+b.d/2-.6,p.z));
+      const y=b.h+.4,dx=ax-p.x,dy=y-(p.y+1.4),dz=az-p.z,dist=Math.hypot(dx,dy,dz);
+      const horizontal=Math.hypot(dx,dz)||1,forward=(dx*hx+dz*hz)/horizontal;
+      if(dy>1&&dist<range&&forward>-.15){
+        const score=dist-forward*12;
+        if(score<bestScore){best={x:ax,y,z:az,length:Math.max(3,dist),assist};bestScore=score;}
+      }
     }
-    p.rope=best;return !!best;
+    p.rope=best;
+    if(best&&assist&&p.grounded){p.vy=Math.max(p.vy,10);p.vx+=hx*5;p.vz+=hz*5;p.grounded=false;}
+    return !!best;
   }
   function stepPlayer(p,world,move,dt){
     dt=Math.max(0,Math.min(1/30,dt));
@@ -33,7 +45,7 @@
     if(move.jump&&p.grounded){p.vy=10;p.grounded=false;}
     p.vy-=22*dt;
     const ox=p.x,oy=p.y,oz=p.z;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;
-    if(p.rope){const dx=p.x-p.rope.x,dy=p.y+1.4-p.rope.y,dz=p.z-p.rope.z,d=Math.hypot(dx,dy,dz)||1;
+    if(p.rope){if(p.rope.assist)p.rope.length=Math.max(5,p.rope.length-3*dt);const dx=p.x-p.rope.x,dy=p.y+1.4-p.rope.y,dz=p.z-p.rope.z,d=Math.hypot(dx,dy,dz)||1;
       if(d>p.rope.length){const nx=dx/d,ny=dy/d,nz=dz/d;p.x=p.rope.x+nx*p.rope.length;p.y=p.rope.y+ny*p.rope.length-1.4;p.z=p.rope.z+nz*p.rope.length;const radial=p.vx*nx+p.vy*ny+p.vz*nz;if(radial>0){p.vx-=radial*nx;p.vy-=radial*ny;p.vz-=radial*nz;}}
     }
     p.grounded=false;let floor=0;

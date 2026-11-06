@@ -1,0 +1,3 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const C=require('../app/src/main/assets/city');
+test('pedestrians walk around the plaza and remain in bounds',()=>{const npcs=C.create(),x=npcs[0].x;C.step(npcs,1);assert.notEqual(npcs[0].x,x);for(const n of npcs){assert.ok(Math.abs(n.x)<=14&&Math.abs(n.z)<=14);}});
+test('interaction chooses a nearby pedestrian and cycles dialogue',()=>{const npcs=C.create(),p={x:npcs[0].x,y:0,z:npcs[0].z},npc=C.nearest(npcs,p);assert.equal(npc,npcs[0]);assert.notEqual(C.talk(npc),C.talk(npc));assert.equal(C.nearest(npcs,{x:0,y:0,z:0}),null);assert.equal(C.nearest(npcs,{...p,y:5}),null);});

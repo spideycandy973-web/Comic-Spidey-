@@ -6,15 +6,15 @@
 </head>
 <body>
 <div id="gameView" aria-label="3D city game"></div><div class="grain" aria-hidden="true"></div>
-<div class="topline"><span>AN ORIGINAL SUPERHERO PROTOTYPE</span><span>ISSUE 02 &nbsp; / &nbsp; CITY SHOWDOWN</span></div>
+<div class="topline"><span>AN ORIGINAL SUPERHERO PROTOTYPE</span><span>ISSUE 03 &nbsp; / &nbsp; CITY STREETS</span></div>
 <main id="menu" class="overlay">
  <section class="menu-content">
   <div class="eyebrow"><span class="dot"></span> YOUR CITY. YOUR STORY.</div>
   <h1>COMIC<br><span>SPIDEY</span></h1>
   <div class="title-rule"><span>CITY SHOWDOWN</span><b>02</b></div>
-  <p class="intro">Two villains. One city.<br>It's time to suit up.</p>
-  <div class="menu-actions"><button id="play" class="primary">▶ &nbsp; PLAY PROTOTYPE &nbsp; ↗</button><button id="settingsOpen" class="secondary">⚙ &nbsp; SETTINGS</button></div>
-  <p class="prototype-note"><strong>EARLY 3D PROTOTYPE</strong> &nbsp; A small playable city and two original boss encounters. Not the full campaign or licensed characters.</p>
+  <p class="intro">Take to the rooftops.<br>Protect the city.</p>
+  <div class="menu-actions"><button id="play" class="primary">▶ &nbsp; PLAY PROTOTYPE &nbsp; ↗</button><button id="freeRoam" class="secondary">✦ &nbsp; FREE ROAM</button><button id="settingsOpen" class="secondary">⚙</button></div>
+  <p class="prototype-note"><strong>EARLY 3D PROTOTYPE</strong> &nbsp; A small 3D city, civilians and two original bosses. The full campaign and licensed characters are not included.</p>
  </section>
  <div class="menu-right" aria-hidden="true"><div class="issue-stamp">A NEW<br><strong>PERSPECTIVE</strong><small>THE CITY NEEDS YOU.</small></div></div>
  <footer><span>BUILT FOR THE NEXT LEAP</span><span>SWING INTO ACTION &nbsp; ✦</span></footer>
@@ -23,24 +23,24 @@
  <div class="hud-top">
   <div class="brand-small">COMIC <em>SPIDEY</em><small>3D PROTOTYPE</small><div class="health-label">YOUR HEALTH <span id="playerHealth">100</span></div><div class="bar player-bar"><i id="playerBar"></i></div></div>
   <div class="objective"><span>✦ &nbsp; CITY SHOWDOWN</span><strong id="objective">Defeat Volt</strong><small id="tip">Drag the view to look around</small></div>
-  <div class="hud-right"><button id="camera" class="square camera" aria-label="Switch camera">◉<small>3RD</small></button><button id="pause" class="square" aria-label="Pause">Ⅱ</button></div>
+  <div class="hud-right"><button id="talk" class="square talk" aria-label="Talk to a nearby civilian">✦<small>TALK</small></button><button id="camera" class="square camera" aria-label="Switch camera">◉<small>3RD</small></button><button id="pause" class="square" aria-label="Pause">Ⅱ</button></div>
  </div>
  <div id="bossHud" class="boss-hud"><div><span id="bossSubtitle">THE LIVE WIRE</span><strong id="bossName">VOLT</strong><span id="bossPhase">PHASE 1</span></div><div class="bar boss-bar"><i id="bossBar"></i></div></div>
- <div id="notice" class="notice">DRAG TO LOOK &nbsp; • &nbsp; MOVE TOWARD THE VILLAIN</div>
+ <div id="webStatus" class="web-status" aria-live="polite">WEB READY</div><div id="notice" class="notice">DRAG TO LOOK &nbsp; • &nbsp; MOVE TOWARD THE VILLAIN</div>
  <div class="hud-bottom">
   <div class="movement"><span class="control-label">MOVE</span><div id="joystick" class="joystick" aria-label="Movement joystick"><div id="stick"></div></div></div>
   <div class="actions"><div><button id="jump" class="control jump" aria-label="Jump">↑</button><span>JUMP</span></div><div><button id="swing" class="control swing" aria-label="Hold to swing">✳</button><span>HOLD SWING</span></div><div><button id="attack" class="control attack" aria-label="Attack">✦</button><span>ATTACK</span></div></div>
  </div>
- <div class="keyboard-hint">WASD TO MOVE &nbsp; · &nbsp; DRAG TO LOOK &nbsp; · &nbsp; SPACE JUMP &nbsp; · &nbsp; SHIFT SWING &nbsp; · &nbsp; F ATTACK &nbsp; · &nbsp; C CAMERA</div>
+ <div class="keyboard-hint">WASD TO MOVE &nbsp; · &nbsp; DRAG TO LOOK &nbsp; · &nbsp; SPACE JUMP &nbsp; · &nbsp; SHIFT SWING &nbsp; · &nbsp; F ATTACK &nbsp; · &nbsp; E TALK &nbsp; · &nbsp; C CAMERA</div>
 </section>
 <div id="dialog" class="dialog-wrap hidden" role="dialog" aria-modal="true" aria-label="Game menu">
  <div class="dialog"><div class="dialog-head"><span>COMIC SPIDEY &nbsp; / &nbsp; PROTOTYPE</span><button id="closeDialog" aria-label="Close">✕</button></div>
   <div id="pausePanel" class="hidden"><p class="eyebrow">TAKE A BREATHER</p><h2>PAUSED<span>.</span></h2><p>Return to the city when you're ready.</p><button id="resume" class="primary full">▶ &nbsp; RESUME</button><button id="pauseSettings" class="secondary full">⚙ &nbsp; SETTINGS</button><button id="toMenu" class="text-button">← &nbsp; BACK TO MAIN MENU</button></div>
-  <div id="settingsPanel" class="hidden"><p class="eyebrow">MAKE IT YOURS</p><h2>SETTINGS<span>.</span></h2><p>Settings are saved on this device.</p><label class="setting"><span><b>City lighting</b><small>Choose the time of day</small></span><select id="lighting"><option value="sunset">Sunset</option><option value="day">Day</option><option value="night">Night</option></select></label><label class="setting"><span><b>Swing assist</b><small>Find anchors from farther away</small></span><input id="assist" type="checkbox"></label><button id="settingsDone" class="primary full">DONE &nbsp; ✓</button></div>
+  <div id="settingsPanel" class="hidden"><p class="eyebrow">MAKE IT YOURS</p><h2>SETTINGS<span>.</span></h2><p>Settings are saved on this device.</p><label class="setting"><span><b>City lighting</b><small>Choose the time of day</small></span><select id="lighting"><option value="sunset">Sunset</option><option value="day">Day</option><option value="night">Night</option></select></label><label class="setting"><span><b>Swing assist</b><small>Longer reach, takeoff boost and gentle reel-in</small></span><input id="assist" type="checkbox"></label><button id="settingsDone" class="primary full">DONE &nbsp; ✓</button></div>
   <div id="resultPanel" class="hidden"><p class="eyebrow" id="resultTag"></p><h2 id="resultTitle"></h2><p id="resultText"></p><button id="retry" class="primary full">↻ &nbsp; PLAY AGAIN</button><button id="resultMenu" class="text-button">← &nbsp; BACK TO MAIN MENU</button></div>
  </div>
 </div>
 <div id="error" class="error hidden">3D graphics could not start. This prototype requires WebGL support.</div>
 <div id="portrait">ROTATE YOUR DEVICE <span>↻</span><small>Comic Spidey is best played in landscape.</small></div>
-<script src="vendor/three.min.js"></script><script src="physics.js"></script><script src="game.js"></script>
+<script src="vendor/three.min.js"></script><script src="physics.js"></script><script src="city.js"></script><script src="game.js"></script>
 </body></html>

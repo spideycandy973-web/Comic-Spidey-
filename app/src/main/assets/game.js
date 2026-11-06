@@ -1,14 +1,14 @@
 /* Local WebGL prototype. The simulation lives in physics.js; this file handles presentation and input. */
 (() => {
 'use strict';
-const $=id=>document.getElementById(id), P=window.ComicPhysics;
+const $=id=>document.getElementById(id), P=window.ComicPhysics, City=window.ComicCity;
 let renderer;
 try { renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'}); }
 catch(e){ $('error').classList.remove('hidden'); return; }
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;
 $('gameView').appendChild(renderer.domElement);
 const scene=new THREE.Scene(), camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,220);scene.add(camera);
-const world=P.createWorld();let player=P.createPlayer(),boss=P.createBoss(0),bossIndex=0,state='menu',previous='menu',view='third',yaw=0,pitch=0,last=0,clock=0,attackCooldown=0,noticeTimer=0;
+const world=P.createWorld();let player=P.createPlayer(),boss=P.createBoss(0),bossIndex=0,mode='showdown',state='menu',previous='menu',view='third',yaw=0,pitch=0,last=0,clock=0,attackCooldown=0,noticeTimer=0;
 const input={forward:false,back:false,left:false,right:false,jx:0,jy:0,jump:false,swing:false};
 function load(key,fallback){try{return JSON.parse(localStorage.getItem(key))||fallback;}catch(e){return fallback;}}
 function save(key,value){try{localStorage.setItem(key,JSON.stringify(value));}catch(e){}}
@@ -23,14 +23,29 @@ const mat=(color)=>new THREE.MeshToonMaterial({color});
 const ink=mat(0x101b30),red=mat(0xe84747),navy=mat(0x263a66),white=mat(0xf8f4df),gold=mat(0xffd753),purple=mat(0x6c4abd),steel=mat(0x637889),cyan=mat(0x45e7ef);
 function box(parent,w,h,d,m,x,y,z){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);parent.add(o);return o;}
 function sphere(parent,r,m,x,y,z){const o=new THREE.Mesh(new THREE.SphereGeometry(r,12,8),m);o.position.set(x,y,z);parent.add(o);return o;}
+// A custom spider-themed suit: rounded low-poly anatomy, webbed mask and an original emblem.
 function makeHero(){
  const group=new THREE.Group();
- box(group,.85,1,.48,red,0,1.1,0);box(group,.85,.3,.49,navy,0,.7,0);
- const head=sphere(group,.39,red,0,1.9,0);head.scale.set(1,1.12,.95);
- box(group,.25,.11,.04,white,-.18,1.97,-.36).rotation.z=-.2;box(group,.25,.11,.04,white,.18,1.97,-.36).rotation.z=.2;
- const armL=box(group,.25,.8,.28,red,-.56,1.1,0),armR=box(group,.25,.8,.28,red,.56,1.1,0);
- const legL=box(group,.28,.7,.32,navy,-.23,.36,0),legR=box(group,.28,.7,.32,navy,.23,.36,0);
- box(group,.24,.13,.03,ink,0,1.25,-.255);return {group,armL,armR,legL,legR};
+ function oval(parent,rx,ry,rz,material,x,y,z){const o=sphere(parent,1,material,x,y,z);o.scale.set(rx,ry,rz);return o;}
+ function limb(x,y,material,length,r){const pivot=new THREE.Group();pivot.position.set(x,y,0);group.add(pivot);oval(pivot,r,length/2,r,material,0,-length/2,0);return pivot;}
+ oval(group,.47,.62,.29,navy,0,1.15,0);oval(group,.42,.47,.30,red,0,1.27,0);
+ oval(group,.37,.24,.27,navy,0,.66,0);oval(group,.22,.18,.19,red,0,1.66,0);
+ const canvas=document.createElement('canvas');canvas.width=256;canvas.height=128;const c=canvas.getContext('2d');
+ c.fillStyle='#e84442';c.fillRect(0,0,256,128);c.strokeStyle='#592a38';c.lineWidth=1.3;
+ for(let x=0;x<=256;x+=16){c.beginPath();c.moveTo(x,0);c.lineTo(x,128);c.stroke();}
+ for(let y=18;y<120;y+=16){c.beginPath();for(let x=0;x<=256;x+=8){const yy=y+Math.sin(x*Math.PI/16)*3;if(x===0)c.moveTo(x,yy);else c.lineTo(x,yy);}c.stroke();}
+ const tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;
+ oval(group,.37,.43,.34,new THREE.MeshToonMaterial({map:tex}),0,1.99,0);
+ // High-contrast angular lenses on the front of the mask.
+ function lens(sign){const shape=new THREE.Shape();shape.moveTo(sign*.04,2.07);shape.lineTo(sign*.33,2.17);shape.lineTo(sign*.28,1.98);shape.lineTo(sign*.12,1.94);shape.closePath();const outline=new THREE.Mesh(new THREE.ShapeGeometry(shape),ink);outline.position.z=-.326;outline.rotation.y=Math.PI;outline.scale.x=-1;group.add(outline);const inner=outline.clone();inner.material=white;inner.position.z=-.331;inner.scale.set(-.78,.68,1);inner.position.x=sign*.02;inner.position.y=.66;group.add(inner);}
+ lens(-1);lens(1);
+ const armL=limb(-.57,1.56,red,.83,.16),armR=limb(.57,1.56,red,.83,.16);
+ const legL=limb(-.22,.69,navy,.67,.19),legR=limb(.22,.69,navy,.67,.19);
+ oval(legL,.15,.24,.17,red,0,-.52,-.02);oval(legR,.15,.24,.17,red,0,-.52,-.02);
+ // Original white angular spider motif on both chest and back.
+ function emblem(z){oval(group,.08,.13,.025,white,0,1.28,z);for(let i=0;i<4;i++)for(const sign of [-1,1]){const points=[new THREE.Vector3(sign*.04,1.35-i*.045,z),new THREE.Vector3(sign*.20,1.43-i*.08,z),new THREE.Vector3(sign*.27,1.38-i*.09,z)];group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),new THREE.LineBasicMaterial({color:0xf5f0de})));}}
+ emblem(-.302);emblem(.302);
+ return {group,armL,armR,legL,legR};
 }
 function makeBoss(id){
  const g=new THREE.Group(), primary=id==='volt'?purple:steel,accent=id==='volt'?cyan:gold;
@@ -61,25 +76,40 @@ function windowTexture(seed){
  const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;return texture;
 }
 const buildingMats=Array.from({length:4},(_,i)=>new THREE.MeshToonMaterial({map:windowTexture(i)}));
+const buildingMeshes=[];
 world.buildings.forEach((b,i)=>{
  const mesh=box(scene,b.w,b.h,b.d,buildingMats[i%4],b.x,b.h/2,b.z);
+ buildingMeshes.push(mesh);
  const edges=new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),new THREE.LineBasicMaterial({color:0x273044}));mesh.add(edges);
  box(scene,b.w+.4,.35,b.d+.4,ink,b.x,b.h+.16,b.z);
  box(scene,3,1.1,2.5,mat(0x66738a),b.x-2,b.h+.7,b.z+2);
 });
 // Simple props at the edge of the central plaza.
 for(const x of [-11,11])for(const z of [-11,11]){box(scene,.18,3,.18,ink,x,1.5,z);sphere(scene,.28,gold,x,3,z);}
-const webGeom=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);const web=new THREE.Line(webGeom,new THREE.LineBasicMaterial({color:0xffffff}));web.visible=false;scene.add(web);
+// Pedestrians are simulated separately from their meshes so their behavior is testable.
+const citizens=City.create(), citizenModels=[];
+const clothing=[0xeea664,0x65a7bc,0xa7799c,0x78a67a,0xd6b45c,0x8a91c0,0xd77b72,0x8aa1a7];
+for(let i=0;i<citizens.length;i++){
+ const g=new THREE.Group(), clothes=mat(clothing[i]), skin=mat([0xdba782,0x9d6d4f,0xf2c8a5,0x744f42][i%4]);
+ box(g,.65,.75,.35,clothes,0,1.08,0);sphere(g,.24,skin,0,1.73,0);
+ const left=box(g,.2,.63,.23,navy,-.19,.32,0),right=box(g,.2,.63,.23,navy,.19,.32,0);
+ box(g,.18,.65,.2,clothes,-.43,1.1,0);box(g,.18,.65,.2,clothes,.43,1.1,0);scene.add(g);citizenModels.push({g,left,right});
+}
+// Traffic is decorative: it moves on streets but has no collision/damage simulation yet.
+const cars=[];
+for(let i=0;i<4;i++){const g=new THREE.Group(),paint=mat([0xf3b84c,0x67a7bc,0xe77b6e,0xd8d8c7][i]);box(g,2.5,.7,1.25,paint,0,.55,0);box(g,1.2,.6,1.05,mat(0x9dc8d2),-.1,1.15,0);for(const x of [-.8,.8])for(const z of [-.65,.65])sphere(g,.25,ink,x,.28,z);scene.add(g);cars.push(g);}
+const web=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,1,6),new THREE.MeshBasicMaterial({color:0xe8ffff}));web.visible=false;scene.add(web);
+const anchorMarker=new THREE.Mesh(new THREE.SphereGeometry(.24,10,8),new THREE.MeshBasicMaterial({color:0xffe36f}));anchorMarker.visible=false;scene.add(anchorMarker);
 function message(text,seconds=3){$('notice').textContent=text;noticeTimer=seconds;$('notice').classList.remove('hidden');}
 function clearInput(){Object.assign(input,{forward:false,back:false,left:false,right:false,jx:0,jy:0,jump:false,swing:false});player.rope=null;$('stick').style.transform='translate(0,0)';document.querySelectorAll('.pressed').forEach(x=>x.classList.remove('pressed'));}
 function setBoss(index){bossIndex=index;boss=P.createBoss(index);scene.remove(enemy.group);if(boss){enemy=makeBoss(boss.id);scene.add(enemy.group);$('bossHud').classList.remove('hidden');$('bossName').textContent=boss.name;$('bossSubtitle').textContent=boss.subtitle;$('objective').textContent='Defeat '+boss.name;message(boss.name+' HAS ENTERED THE FIGHT!',3);}else{$('bossHud').classList.add('hidden');finish(true);}}
-function start(){clearInput();player=P.createPlayer();yaw=0;pitch=0;view='third';attackCooldown=0;state='playing';last=0;camera.position.set(0,4,16);setBoss(0);$('menu').classList.add('hidden');$('dialog').classList.add('hidden');$('hud').classList.remove('hidden');updateView();updateHud();message('MOVE TOWARD VOLT • DRAG TO LOOK',5);}
+function start(selectedMode='showdown'){clearInput();mode=selectedMode;player=P.createPlayer();yaw=0;pitch=0;view='third';attackCooldown=0;state='playing';last=0;camera.position.set(0,4,16);if(mode==='showdown')setBoss(0);else{boss=null;scene.remove(enemy.group);$('bossHud').classList.add('hidden');$('objective').textContent='Explore the city';}$('menu').classList.add('hidden');$('dialog').classList.add('hidden');$('hud').classList.remove('hidden');updateView();updateHud();message(mode==='showdown'?'MOVE TOWARD VOLT • DRAG TO LOOK':'HOLD SWING TO LAUNCH • DRAG TO LOOK',5);}
 function showDialog(panel){$('dialog').classList.remove('hidden');['pause','settings','result'].forEach(p=>$(p+'Panel').classList.toggle('hidden',p!==panel));$('lighting').value=settings.lighting;$('assist').checked=!!settings.assist;}
 function pause(){if(state!=='playing')return;clearInput();state='paused';previous='paused';showDialog('pause');}
 function resume(){state='playing';last=0;$('dialog').classList.add('hidden');}
 function menu(){clearInput();state='menu';$('dialog').classList.add('hidden');$('hud').classList.add('hidden');$('menu').classList.remove('hidden');}
 function finish(won){clearInput();state='result';$('resultTag').textContent=won?'CITY SAVED':'DOWN BUT NOT OUT';$('resultTitle').textContent=won?'VICTORY!':'DEFEATED';$('resultText').textContent=won?'You defeated both villains in this prototype. The larger game is still in development.':'The villains won this round. Try again and dodge their warning rings.';showDialog('result');}
-window.comicGame={pause};$('play').onclick=start;$('retry').onclick=start;$('pause').onclick=pause;$('resume').onclick=resume;$('toMenu').onclick=menu;$('resultMenu').onclick=menu;
+window.comicGame={pause};$('play').onclick=()=>start('showdown');$('freeRoam').onclick=()=>start('free');$('retry').onclick=()=>start('showdown');$('pause').onclick=pause;$('resume').onclick=resume;$('toMenu').onclick=menu;$('resultMenu').onclick=menu;
 $('settingsOpen').onclick=()=>{previous='menu';showDialog('settings');};$('pauseSettings').onclick=()=>{previous='paused';showDialog('settings');};
 function closeSettings(){if(previous==='paused')showDialog('pause');else $('dialog').classList.add('hidden');}
 $('settingsDone').onclick=closeSettings;$('closeDialog').onclick=()=>{if(!$('settingsPanel').classList.contains('hidden'))closeSettings();else if(state==='paused')resume();else if(state==='result')menu();};
@@ -87,8 +117,10 @@ $('lighting').onchange=e=>{settings.lighting=e.target.value;save('comic3d-settin
 function updateView(){hands.visible=view==='first';hero.group.visible=view!=='first';$('camera').innerHTML='◉<small>'+(view==='first'?'1ST':'3RD')+'</small>';$('camera').setAttribute('aria-label',view==='first'?'Switch to third person':'Switch to first person');}
 function toggleCamera(){if(state!=='playing')return;view=view==='third'?'first':'third';updateView();message(view==='first'?'FIRST-PERSON CAMERA':'THIRD-PERSON CAMERA',2);}
 $('camera').onclick=toggleCamera;
-function hit(){if(state!=='playing'||attackCooldown>0)return;attackCooldown=.42;if(P.attack(player,boss)){message('HIT!  •  '+boss.name,1);if(boss.hp<=0){player.health=Math.min(100,player.health+35);setBoss(bossIndex+1);}}else message('GET CLOSER TO ATTACK',1);}
-function swingOn(){if(state!=='playing'||input.swing)return;input.swing=true;if(!P.attach(player,world,settings.assist))message('NO ROOFTOP IN RANGE',1.5);}
+function talk(){if(state!=='playing')return;const npc=City.nearest(citizens,player);message(npc?'CIVILIAN: '+City.talk(npc):'MOVE CLOSER TO A CIVILIAN TO TALK',3);}
+$('talk').onclick=talk;
+function hit(){if(state!=='playing'||attackCooldown>0)return;if(!boss){message('NO VILLAIN IN FREE ROAM',1.5);return;}attackCooldown=.42;if(P.attack(player,boss)){message('HIT!  •  '+boss.name,1);if(boss.hp<=0){player.health=Math.min(100,player.health+35);setBoss(bossIndex+1);}}else message('GET CLOSER TO ATTACK',1);}
+function swingOn(){if(state!=='playing'||input.swing)return;input.swing=true;if(!P.attach(player,world,settings.assist,{x:-Math.sin(yaw),z:-Math.cos(yaw)}))message('NO ROOFTOP AHEAD • TURN TOWARD A BUILDING',2);else message(settings.assist?'WEB ATTACHED • RELEASE TO LAUNCH':'WEB ATTACHED • JUMP AND MOVE TO SWING',2);}
 function swingOff(){input.swing=false;player.rope=null;}
 function bindHold(id,down,up=()=>{}){const el=$(id);el.addEventListener('pointerdown',e=>{if(state!=='playing')return;e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('pressed');down();});const release=()=>{el.classList.remove('pressed');up();};el.addEventListener('pointerup',release);el.addEventListener('pointercancel',release);el.addEventListener('lostpointercapture',release);}
 bindHold('jump',()=>{input.jump=true;});bindHold('swing',swingOn,swingOff);bindHold('attack',hit);
@@ -99,16 +131,17 @@ let lookId=null,lookX=0,lookY=0;const surface=renderer.domElement;
 surface.addEventListener('pointerdown',e=>{if(state!=='playing'||lookId!==null)return;lookId=e.pointerId;lookX=e.clientX;lookY=e.clientY;surface.setPointerCapture(e.pointerId);});
 surface.addEventListener('pointermove',e=>{if(e.pointerId!==lookId)return;yaw-=(e.clientX-lookX)*.005;pitch=Math.max(-.65,Math.min(.65,pitch-(e.clientY-lookY)*.004));lookX=e.clientX;lookY=e.clientY;});function lookEnd(e){if(e.pointerId===lookId)lookId=null;}surface.addEventListener('pointerup',lookEnd);surface.addEventListener('pointercancel',lookEnd);surface.addEventListener('lostpointercapture',lookEnd);
 const keys={w:'forward',ArrowUp:'forward',s:'back',ArrowDown:'back',a:'left',ArrowLeft:'left',d:'right',ArrowRight:'right'};
-window.addEventListener('keydown',e=>{const k=keys[e.key]||keys[e.key.toLowerCase()];if(k){e.preventDefault();if(state==='playing')input[k]=true;}if(e.code==='Space'){e.preventDefault();if(state==='playing'&&!e.repeat)input.jump=true;}if(e.key==='Shift'){e.preventDefault();swingOn();}if(e.key.toLowerCase()==='f'&&!e.repeat)hit();if(e.key.toLowerCase()==='c'&&!e.repeat)toggleCamera();if(e.key==='Escape'&&!e.repeat){if(state==='playing')pause();else if(state==='paused'&&!$('pausePanel').classList.contains('hidden'))resume();}});
+window.addEventListener('keydown',e=>{const k=keys[e.key]||keys[e.key.toLowerCase()];if(k){e.preventDefault();if(state==='playing')input[k]=true;}if(e.code==='Space'){e.preventDefault();if(state==='playing'&&!e.repeat)input.jump=true;}if(e.key==='Shift'){e.preventDefault();swingOn();}if(e.key.toLowerCase()==='f'&&!e.repeat)hit();if(e.key.toLowerCase()==='c'&&!e.repeat)toggleCamera();if(e.key.toLowerCase()==='e'&&!e.repeat)talk();if(e.key==='Escape'&&!e.repeat){if(state==='playing')pause();else if(state==='paused'&&!$('pausePanel').classList.contains('hidden'))resume();}});
 window.addEventListener('keyup',e=>{const k=keys[e.key]||keys[e.key.toLowerCase()];if(k)input[k]=false;if(e.key==='Shift')swingOff();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});window.addEventListener('blur',pause);
-function updateHud(){ $('playerHealth').textContent=Math.ceil(player.health);$('playerBar').style.width=player.health+'%';if(boss){$('bossBar').style.width=(boss.hp/boss.health*100)+'%';$('bossPhase').textContent=boss.hp<=boss.health/2?'PHASE 2':'PHASE 1';} }
+function updateHud(){ $('webStatus').textContent=player.rope?'WEB ATTACHED • '+Math.round(player.y)+'M':'WEB READY';$('webStatus').dataset.altitude=player.y.toFixed(2);$('talk').dataset.nearby=City.nearest(citizens,player)?'true':'false';$('webStatus').classList.toggle('attached',!!player.rope);$('playerHealth').textContent=Math.ceil(player.health);$('playerBar').style.width=player.health+'%';if(boss){$('bossBar').style.width=(boss.hp/boss.health*100)+'%';$('bossPhase').textContent=boss.hp<=boss.health/2?'PHASE 2':'PHASE 1';} }
 function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}window.addEventListener('resize',resize);
-const desired=new THREE.Vector3(),target=new THREE.Vector3();
+const desired=new THREE.Vector3(),target=new THREE.Vector3(), ray=new THREE.Raycaster(),rayDirection=new THREE.Vector3(),webStart=new THREE.Vector3(),webEnd=new THREE.Vector3();
 function frame(now){const dt=last?Math.min((now-last)/1000,1/30):0;last=now;clock+=dt;
  if(state==='playing'){
   const sx=(input.right?1:0)-(input.left?1:0)+input.jx,sz=(input.back?1:0)-(input.forward?1:0)+input.jy;
   const mx=Math.cos(yaw)*sx+Math.sin(yaw)*sz,mz=-Math.sin(yaw)*sx+Math.cos(yaw)*sz;
+  City.step(citizens,dt);
   P.stepPlayer(player,world,{x:mx,z:mz,jump:input.jump},dt);input.jump=false;P.stepBoss(boss,player,dt);attackCooldown=Math.max(0,attackCooldown-dt);
   if(Math.hypot(mx,mz)>.1)hero.group.rotation.y=Math.atan2(-mx,-mz);
   if(player.health<=0)finish(false);
@@ -117,10 +150,13 @@ function frame(now){const dt=last?Math.min((now-last)/1000,1/30):0;last=now;cloc
  }
  hero.group.position.set(player.x,player.y,player.z);const moving=Math.hypot(player.vx,player.vz)>.8&&player.grounded;hero.legL.rotation.x=moving?Math.sin(clock*9)*.45:0;hero.legR.rotation.x=-hero.legL.rotation.x;hero.armL.rotation.x=-hero.legL.rotation.x;hero.armR.rotation.x=player.rope?-2:hero.legL.rotation.x;
  if(boss){enemy.group.position.set(boss.x,0,boss.z);enemy.group.rotation.y=Math.atan2(boss.x-player.x,boss.z-player.z);enemy.ring.material.color.setHex(boss.state==='windup'?0xff3939:(boss.id==='volt'?0x62f3f5:0xffcb51));enemy.ring.scale.setScalar(boss.state==='windup'?1.2+Math.sin(clock*20)*.15:1);enemy.l.rotation.x=boss.state==='windup'?-1:Math.sin(clock*6)*.12;enemy.r.rotation.x=enemy.l.rotation.x;}
- web.visible=!!player.rope;if(player.rope){web.geometry.setFromPoints([new THREE.Vector3(player.x,player.y+1.4,player.z),new THREE.Vector3(player.rope.x,player.rope.y,player.rope.z)]);}
+ citizens.forEach((npc,i)=>{const m=citizenModels[i];m.g.position.set(npc.x,0,npc.z);m.g.rotation.y=npc.angle;m.left.rotation.x=Math.sin(clock*6+i)*.25;m.right.rotation.x=-m.left.rotation.x;});
+ cars.forEach((car,i)=>{const pos=((clock*(i%2?7:9)+i*36)%144)-72;car.position.set(i<2?pos:(i===2?-3:3),0,i<2?(i===0?-3:3):pos);car.rotation.y=i<2?(i===0?0:Math.PI):(i===2?-Math.PI/2:Math.PI/2);});
+ web.visible=!!player.rope;anchorMarker.visible=!!player.rope;
+ if(player.rope){webStart.set(player.x,player.y+1.5,player.z);webEnd.set(player.rope.x,player.rope.y,player.rope.z);web.position.copy(webStart).add(webEnd).multiplyScalar(.5);web.scale.y=webStart.distanceTo(webEnd);web.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),webEnd.sub(webStart).normalize());anchorMarker.position.set(player.rope.x,player.rope.y,player.rope.z);}
  if(state==='menu'){camera.position.set(15+Math.sin(clock*.13)*2,8,20);camera.lookAt(0,2,0);hero.group.visible=true;hands.visible=false;}
  else if(view==='first'){camera.position.set(player.x,player.y+1.8,player.z);target.set(player.x-Math.sin(yaw)*Math.cos(pitch)*10,player.y+1.8+Math.sin(pitch)*10,player.z-Math.cos(yaw)*Math.cos(pitch)*10);camera.lookAt(target);}
- else{desired.set(player.x+Math.sin(yaw)*6,player.y+3.5-pitch*4,player.z+Math.cos(yaw)*6);camera.position.lerp(desired,Math.min(1,dt*8));target.set(player.x,player.y+1.4+pitch*3,player.z);camera.lookAt(target);}
+ else{desired.set(player.x+Math.sin(yaw)*6,Math.max(player.y+.5,player.y+3.5-pitch*4),player.z+Math.cos(yaw)*6);target.set(player.x,player.y+1.4+pitch*3,player.z);rayDirection.copy(desired).sub(target);const distance=rayDirection.length();ray.set(target,rayDirection.normalize());ray.far=distance;const intersections=ray.intersectObjects(buildingMeshes,false);if(intersections.length)desired.copy(target).addScaledVector(rayDirection,Math.max(.4,intersections[0].distance-.5));camera.position.lerp(desired,Math.min(1,dt*8));camera.lookAt(target);}
  renderer.render(scene,camera);requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

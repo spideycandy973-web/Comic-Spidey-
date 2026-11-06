@@ -24,7 +24,22 @@ const assert = require('node:assert/strict');
     assert.ok(hit,'player can approach and damage the villain');
     await page.click('#pause'); assert.equal(await page.locator('#pausePanel').isVisible(),true);
     await page.click('#resume'); assert.equal(await page.locator('#dialog').isVisible(),false);
+    // Fresh free-roam session: interaction with a moving civilian and an actual assisted takeoff.
+    await page.reload(); await page.click('#freeRoam');
+    assert.equal(await page.locator('#bossHud').isVisible(), false);
+    await page.keyboard.down('s'); await page.keyboard.down('d');
+    let nearby=false;
+    for(let i=0;i<30;i++) { await page.waitForTimeout(100); if(await page.locator('#talk').getAttribute('data-nearby')==='true'){nearby=true;break;} }
+    await page.keyboard.up('s'); await page.keyboard.up('d');
+    assert.ok(nearby,'can approach a moving civilian');
+    await page.keyboard.press('e'); assert.match(await page.locator('#notice').innerText(),/CIVILIAN:/);
+    await page.reload(); await page.click('#freeRoam');
+    await page.keyboard.down('Shift'); await page.waitForTimeout(700);
+    assert.match(await page.locator('#webStatus').innerText(), /WEB ATTACHED/);
+    assert.ok(parseFloat(await page.locator('#webStatus').getAttribute('data-altitude'))>.5,'assisted swing leaves the ground');
+    await page.keyboard.up('Shift'); await page.waitForTimeout(100);
+    assert.match(await page.locator('#webStatus').innerText(),/WEB READY/);
     assert.deepEqual(errors,[]);
-    console.log('Browser smoke test passed: WebGL, both cameras, movement, villain damage, pause/resume.');
+    console.log('Browser smoke test passed: WebGL, cameras, villain damage, civilian interaction and swing takeoff/release.');
   } finally {await browser.close();}
 })().catch(err=>{console.error(err);process.exit(1);});

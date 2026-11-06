@@ -36,7 +36,7 @@ gradle :app:assembleDebug
 
 The debug APK will be at `app/build/outputs/apk/debug/app-debug.apk`. It is signed with the standard debug key and is **for testing only**, not a production/Play Store release. A production AAB/APK requires an appropriately secured release signing key, real-device validation, licensing review and release configuration. Android API choices here are prototype defaults, not a claim of device compatibility testing.
 
-The GitHub Actions workflow runs movement tests and builds a debug APK as a downloadable workflow artifact. It does not publish a production release.
+The GitHub Actions workflow runs movement tests, builds a debug APK as a downloadable workflow artifact, and creates a one-time `v0.1.0-prototype` prerelease if it does not already exist. It does not publish a production release or update an existing prerelease.
 
 ## Test
 

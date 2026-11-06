@@ -5,7 +5,7 @@ on:
   pull_request:
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,3 +27,16 @@ jobs:
           name: comic-spidey-prototype-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+      - name: Publish prototype prerelease if absent
+        if: github.event_name == 'push' && github.ref == 'refs/heads/arena/a6af770e-comic-spidey'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v0.1.0-prototype >/dev/null 2>&1; then
+            echo "Prototype release already exists; leaving it unchanged."
+          else
+            gh release create v0.1.0-prototype app/build/outputs/apk/debug/app-debug.apk \
+              --target "$GITHUB_SHA" --prerelease \
+              --title "Comic Spidey 0.1.0 — Rooftop Run Prototype" \
+              --notes "Early Android traversal prototype, not the finished game. Includes original side-view rooftop exploration, jump, physics-based 2D swinging, collectibles, local progress and manual lighting settings. Campaign, combat, villains, 3D cameras, sound and production graphics are not implemented. This APK is debug-signed for testing only; it has not been validated on physical Android devices and is not a Play Store release. Minimum Android 6.0 (API 23)."
+          fi

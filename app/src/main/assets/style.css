@@ -5,3 +5,5 @@
 .model-status{position:absolute;bottom:35px;left:50%;transform:translateX(-50%);z-index:8;background:#7b2424;color:#fff;padding:6px 10px;font-size:10px;font-weight:bold;white-space:nowrap}
 
 .map-panel{position:absolute;left:max(3%,env(safe-area-inset-left));top:123px;width:116px;padding:6px;background:#101a30df;border:1px solid #fff8;box-shadow:3px 3px #1119}.map-title{display:flex;justify-content:space-between;font-size:7px;font-weight:900;letter-spacing:.7px;color:#e9e7df}.map-title b{color:#ffd749}.map-panel canvas{display:block;width:102px;height:102px;margin:5px 0;background:#202b40}.map-panel #districtName{font-size:7px;color:#ffd749;font-weight:900;letter-spacing:.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}@media(max-height:500px){.map-panel{top:100px;width:78px;padding:4px}.map-panel canvas{width:68px;height:68px;margin:3px 0}.map-title,.map-panel #districtName{font-size:6px}}
+
+.dodge,.web-shot{width:48px;height:48px;font-size:18px;background:#283655d9}.web-shot{color:#bfeaff}.dodge{color:#ffe684}@media(max-height:500px){.actions{gap:6px}.actions span{font-size:7px;letter-spacing:0}.dodge,.web-shot{width:40px;height:40px}}

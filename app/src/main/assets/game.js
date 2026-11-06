@@ -1,23 +1,32 @@
 /* Local WebGL prototype. The simulation lives in physics.js; this file handles presentation and input. */
 (() => {
 'use strict';
-const $=id=>document.getElementById(id), P=window.ComicPhysics, City=window.ComicCity, Story=window.ComicStory;
+const $=id=>document.getElementById(id), P=window.ComicPhysics, City=window.ComicCity, Story=window.ComicStory, Combat=window.ComicCombat, Crime=window.ComicCrime;
 let renderer;
 try { renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'}); }
 catch(e){ $('error').classList.remove('hidden'); return; }
 renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;
 $('gameView').appendChild(renderer.domElement);
 const scene=new THREE.Scene(), camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,220);scene.add(camera);
-const world=P.createWorld();let player=P.createPlayer(),boss=P.createBoss(0),bossIndex=0,storyStage=0,mode='story',state='menu',previous='menu',view='third',yaw=0,pitch=0,last=0,clock=0,attackCooldown=0,noticeTimer=0;
+const world=P.createWorld();let player=P.createPlayer(),boss=P.createBoss(0),bossIndex=0,storyStage=0,mode='story',state='menu',previous='menu',view='third',yaw=0,pitch=0,last=0,clock=0,noticeTimer=0;
+let combat=Combat.create(),crime=Crime.create(),crimeModels=[],shotTarget=null,shotTime=0;
 const input={forward:false,back:false,left:false,right:false,jx:0,jy:0,jump:false,swing:false};
 function load(key,fallback){try{return JSON.parse(localStorage.getItem(key))||fallback;}catch(e){return fallback;}}
 function save(key,value){try{localStorage.setItem(key,JSON.stringify(value));}catch(e){}}
 const settings=Object.assign({lighting:'sunset',assist:true},load('comic3d-settings',{}));
-if(!['sunset','day','night'].includes(settings.lighting))settings.lighting='sunset';
+if(!['sunset','day','night','cycle'].includes(settings.lighting))settings.lighting='sunset';
 const palettes={sunset:{sky:0xe89b88,fog:0xe89b88,ambient:0xffd5bb,sun:0xffe5c8},day:{sky:0x93c7dc,fog:0x93c7dc,ambient:0xe2efff,sun:0xfff4d8},night:{sky:0x222d50,fog:0x222d50,ambient:0x7088c4,sun:0x819ade}};
 const ambient=new THREE.HemisphereLight(0xffffff,0x39435b,2);scene.add(ambient);
 const sun=new THREE.DirectionalLight(0xffffff,2.1);sun.position.set(-25,60,15);scene.add(sun);
-function lighting(){const v=palettes[settings.lighting];scene.background=new THREE.Color(v.sky);scene.fog=new THREE.Fog(v.fog,65,175);ambient.color.setHex(v.ambient);sun.color.setHex(v.sun);ambient.intensity=settings.lighting==='night'?1.15:2;sun.intensity=settings.lighting==='night'?.8:2.1;}
+let timeOfDay=0,lightTimer=0;
+function lighting(){
+ let v=palettes[settings.lighting],next=null,mix=0;
+ if(settings.lighting==='cycle'){const cycle=(timeOfDay%240)/240*3,i=Math.floor(cycle),names=['day','sunset','night','day'];v=palettes[names[i]];next=palettes[names[i+1]];mix=cycle-i;}
+ const color=(key)=>{const c=new THREE.Color(v[key]);return next?c.lerp(new THREE.Color(next[key]),mix):c;};
+ scene.background=color('sky');scene.fog=new THREE.Fog(color('fog'),65,175);ambient.color.copy(color('ambient'));sun.color.copy(color('sun'));
+ const intensity=(name)=>name==='night'?1:0;const darkness=settings.lighting==='cycle'?intensity(['day','sunset','night'][Math.floor((timeOfDay%240)/240*3)])*(1-mix)+intensity(['sunset','night','day'][Math.floor((timeOfDay%240)/240*3)])*mix:(settings.lighting==='night'?1:0);
+ ambient.intensity=2-.85*darkness;sun.intensity=2.1-1.3*darkness;document.body.dataset.lighting=settings.lighting;document.body.dataset.skyColor=scene.background.getHexString();
+}
 lighting();
 const mat=(color)=>new THREE.MeshToonMaterial({color});
 const ink=mat(0x101b30),red=mat(0xe84747),navy=mat(0x263a66),white=mat(0xf8f4df),gold=mat(0xffd753),purple=mat(0x6c4abd),steel=mat(0x637889),cyan=mat(0x45e7ef);
@@ -185,6 +194,28 @@ try{
 // Traffic is decorative: it moves on streets but has no collision/damage simulation yet.
 const cars=[];
 for(let i=0;i<4;i++){const g=new THREE.Group(),paint=mat([0xf3b84c,0x67a7bc,0xe77b6e,0xd8d8c7][i]);box(g,2.5,.7,1.25,paint,0,.55,0);box(g,1.2,.6,1.05,mat(0x9dc8d2),-.1,1.15,0);for(const x of [-.8,.8])for(const z of [-.65,.65])sphere(g,.25,ink,x,.28,z);scene.add(g);cars.push(g);}
+// Crime encounters use independent simulation records and lightweight original NPC meshes.
+const thugJacket=mat(0x824353),thugPants=mat(0x263144),thugSkin=mat(0xc99372);
+function makeThug(){
+ const group=new THREE.Group();box(group,.8,.9,.45,thugJacket,0,1.1,0);sphere(group,.3,thugSkin,0,1.9,0);
+ const left=box(group,.22,.7,.25,thugJacket,-.55,1.15,0),right=box(group,.22,.7,.25,thugJacket,.55,1.15,0);
+ box(group,.26,.65,.3,thugPants,-.22,.33,0);box(group,.26,.65,.3,thugPants,.22,.33,0);
+ const ring=new THREE.Mesh(new THREE.RingGeometry(.8,.94,24),new THREE.MeshBasicMaterial({color:0xff7358,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.y=.06;group.add(ring);
+ const hpBack=box(group,1,.12,.05,ink,0,2.5,0),hpFill=box(group,.94,.07,.06,red,0,2.5,-.035);scene.add(group);
+ return {group,left,right,ring,hpBack,hpFill};
+}
+function clearCrimeModels(){for(const m of crimeModels){scene.remove(m.group);m.ring.material.dispose();m.group.traverse(o=>{if(o.geometry)o.geometry.dispose();});}crimeModels=[];}
+const crimeBeacon=new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,15,10),new THREE.MeshBasicMaterial({color:0xff5e50,transparent:true,opacity:.35,depthWrite:false}));crimeBeacon.visible=false;scene.add(crimeBeacon);
+const shotLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),new THREE.LineBasicMaterial({color:0xe7ffff}));shotLine.visible=false;scene.add(shotLine);
+function crimeTick(dt){
+ const result=Crime.tick(crime,player,dt,world.bound);
+ if(result==='spawned'){clearCrimeModels();crimeModels=crime.enemies.map(makeThug);crimeBeacon.position.set(crime.location.x,7.5,crime.location.z);crimeBeacon.visible=true;message('CRIME REPORTED • FOLLOW THE RED BEACON',4);}
+ if(result==='completed'){clearCrimeModels();crimeBeacon.visible=false;save('comic-crimes-solved',(load('comic-crimes-solved',0)||0)+1);message('CRIME STOPPED • HEALTH RESTORED',4);}
+ for(const e of crime.enemies)P.stepBoss(e,player,dt,world);
+ if(crime.phase==='active'){$('objective').textContent='Stop the street crime';$('tip').textContent=crime.enemies.filter(e=>e.hp>0).length+' enemies remaining';}
+ else {$('objective').textContent='Explore the city';$('tip').textContent='Crimes stopped: '+(load('comic-crimes-solved',0)||0);}
+ document.body.dataset.crimePhase=crime.phase;
+}
 const web=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,1,6),new THREE.MeshBasicMaterial({color:0xe8ffff}));web.visible=false;scene.add(web);
 const anchorMarker=new THREE.Mesh(new THREE.SphereGeometry(.24,10,8),new THREE.MeshBasicMaterial({color:0xffe36f}));anchorMarker.visible=false;scene.add(anchorMarker);
 const beacon=new THREE.Group();
@@ -208,7 +239,7 @@ function message(text,seconds=3){$('notice').textContent=text;noticeTimer=second
 function clearInput(){Object.assign(input,{forward:false,back:false,left:false,right:false,jx:0,jy:0,jump:false,swing:false});player.rope=null;$('stick').style.transform='translate(0,0)';document.querySelectorAll('.pressed').forEach(x=>x.classList.remove('pressed'));}
 function setBoss(index){bossIndex=index;boss=P.createBoss(index);scene.remove(enemy.group);if(boss){enemy=makeBoss(boss.id);scene.add(enemy.group);document.body.dataset.bossModel=enemy.group.userData.model||'placeholder';$('bossHud').classList.remove('hidden');$('bossName').textContent=boss.name;$('bossSubtitle').textContent=boss.subtitle;$('objective').textContent='Defeat '+boss.name;message(boss.name+' HAS ENTERED THE FIGHT!',3);}else{$('bossHud').classList.add('hidden');finish(true);}}
 function start(selectedMode='story',continueSaved=false){
- clearInput();mode=selectedMode;player=P.createPlayer();yaw=0;pitch=0;view='third';attackCooldown=0;state='playing';last=0;
+ clearInput();mode=selectedMode;player=P.createPlayer();combat=Combat.create();crime=Crime.create();clearCrimeModels();crimeBeacon.visible=false;shotTarget=null;shotTime=0;yaw=0;pitch=0;view='third';state='playing';last=0;
  storyStage=continueSaved?(savedStage()??0):0;
  if(mode==='story'){const spawn=Story.stage(storyStage).spawn;player.x=spawn.x;player.z=spawn.z;}
  camera.position.set(player.x,4,player.z+7);updateChunks(player.x,player.z);
@@ -219,23 +250,41 @@ function start(selectedMode='story',continueSaved=false){
 function showDialog(panel){$('dialog').classList.remove('hidden');['pause','settings','result'].forEach(p=>$(p+'Panel').classList.toggle('hidden',p!==panel));$('lighting').value=settings.lighting;$('assist').checked=!!settings.assist;}
 function pause(){if(state!=='playing')return;clearInput();state='paused';previous='paused';showDialog('pause');}
 function resume(){state='playing';last=0;$('dialog').classList.add('hidden');}
-function menu(){clearInput();state='menu';$('dialog').classList.add('hidden');$('hud').classList.add('hidden');$('menu').classList.remove('hidden');beacon.visible=false;updateContinue();}
-function finish(won){clearInput();state='result';$('resultTag').textContent=won?'CITY SAVED':'DOWN BUT NOT OUT';$('resultTitle').textContent=won?'VICTORY!':'DEFEATED';$('resultText').textContent=won?'You stopped both villains in this short original story. The larger game is still in development.':'The villains won this round. Try again and dodge their warning rings.';showDialog('result');}
-window.comicGame={pause};$('play').onclick=()=>start('story');$('continueStory').onclick=()=>start('story',true);$('freeRoam').onclick=()=>start('free');$('retry').onclick=()=>start('story',true);$('pause').onclick=pause;$('resume').onclick=resume;$('toMenu').onclick=menu;$('resultMenu').onclick=menu;
+function menu(){clearInput();clearCrimeModels();crimeBeacon.visible=false;shotTime=0;state='menu';$('dialog').classList.add('hidden');$('hud').classList.add('hidden');$('menu').classList.remove('hidden');beacon.visible=false;updateContinue();}
+function finish(won){clearInput();state='result';$('resultTag').textContent=won?'CITY SAVED':'DOWN BUT NOT OUT';$('resultTitle').textContent=won?'VICTORY!':'DEFEATED';$('resultText').textContent=won?'You stopped both villains in this short original story. The larger game is still in development.':'You were defeated. Try again and dodge the warning rings.';showDialog('result');}
+window.comicGame={pause};$('play').onclick=()=>start('story');$('continueStory').onclick=()=>start('story',true);$('freeRoam').onclick=()=>start('free');$('retry').onclick=()=>start(mode,mode==='story');$('pause').onclick=pause;$('resume').onclick=resume;$('toMenu').onclick=menu;$('resultMenu').onclick=menu;
 $('settingsOpen').onclick=()=>{previous='menu';showDialog('settings');};$('pauseSettings').onclick=()=>{previous='paused';showDialog('settings');};
 function closeSettings(){if(previous==='paused')showDialog('pause');else $('dialog').classList.add('hidden');}
 $('settingsDone').onclick=closeSettings;$('closeDialog').onclick=()=>{if(!$('settingsPanel').classList.contains('hidden'))closeSettings();else if(state==='paused')resume();else if(state==='result')menu();};
 $('lighting').onchange=e=>{settings.lighting=e.target.value;save('comic3d-settings',settings);lighting();};$('assist').onchange=e=>{settings.assist=e.target.checked;save('comic3d-settings',settings);};
-function updateView(){hands.visible=view==='first';hero.group.visible=view!=='first';$('camera').innerHTML='◉<small>'+(view==='first'?'1ST':'3RD')+'</small>';$('camera').setAttribute('aria-label',view==='first'?'Switch to third person':'Switch to first person');}
-function toggleCamera(){if(state!=='playing')return;view=view==='third'?'first':'third';updateView();message(view==='first'?'FIRST-PERSON CAMERA':'THIRD-PERSON CAMERA',2);}
+function updateView(){hands.visible=view==='first';hero.group.visible=view!=='first';const label={third:'3RD',first:'1ST',overhead:'TOP'};const next={third:'first person',first:'overhead',overhead:'third person'};$('camera').innerHTML='◉<small>'+label[view]+'</small>';$('camera').setAttribute('aria-label','Switch to '+next[view]);}
+function toggleCamera(){if(state!=='playing')return;view=({third:'first',first:'overhead',overhead:'third'})[view];updateView();message(({first:'FIRST-PERSON CAMERA',third:'THIRD-PERSON CAMERA',overhead:'OVERHEAD CAMERA'})[view],2);}
 $('camera').onclick=toggleCamera;
 function talk(){if(state!=='playing')return;const npc=City.nearest(citizens,player);message(npc?'CIVILIAN: '+City.talk(npc):'MOVE CLOSER TO A CIVILIAN TO TALK',3);}
 $('talk').onclick=talk;
-function hit(){if(state!=='playing'||attackCooldown>0)return;if(!boss){message('NO VILLAIN NEARBY',1.5);return;}attackCooldown=.42;if(P.attack(player,boss)){message('HIT!  •  '+boss.name,1);if(boss.hp<=0){player.health=Math.min(100,player.health+35);if(mode==='story')advanceStory({type:'defeated',boss:bossIndex});}}else message('GET CLOSER TO ATTACK',1);}
+function targets(){return boss?[boss]:crime.enemies;}
+function hit(){
+ if(state!=='playing')return;const result=Combat.melee(combat,player,targets());
+ if(result.ok){message('HIT • COMBO '+result.combo,1);if(result.target===boss&&boss.hp<=0){player.health=Math.min(100,player.health+35);if(mode==='story')advanceStory({type:'defeated',boss:bossIndex});}}
+ else if(result.reason==='range')message('GET CLOSER TO ATTACK',1);
+}
+function shootWeb(){
+ if(state!=='playing')return;const result=Combat.web(combat,player,targets());
+ if(result.ok){shotTarget=result.target;shotTime=.22;message('WEB HIT • ENEMY STUNNED',1.2);}
+ else if(result.reason==='energy')message('WEB ENERGY RECHARGING',1.5);
+ else if(result.reason==='range')message('NO ENEMY IN WEB RANGE',1.5);
+}
+function dodge(){
+ if(state!=='playing')return;
+ const sx=(input.right?1:0)-(input.left?1:0)+input.jx,sz=(input.back?1:0)-(input.forward?1:0)+input.jy;
+ let dx=Math.cos(yaw)*sx+Math.sin(yaw)*sz,dz=-Math.sin(yaw)*sx+Math.cos(yaw)*sz;
+ if(Math.hypot(dx,dz)<.1){dx=Math.cos(yaw);dz=-Math.sin(yaw);}
+ if(Combat.dodge(combat,player,dx,dz)){input.swing=false;message('DODGE!',.8);}
+}
 function swingOn(){if(state!=='playing'||input.swing)return;input.swing=true;if(!P.attach(player,world,settings.assist,{x:-Math.sin(yaw),z:-Math.cos(yaw)}))message('NO ROOFTOP AHEAD • TURN TOWARD A BUILDING',2);else message(settings.assist?'WEB ATTACHED • RELEASE TO LAUNCH':'WEB ATTACHED • JUMP AND MOVE TO SWING',2);}
 function swingOff(){input.swing=false;player.rope=null;}
 function bindHold(id,down,up=()=>{}){const el=$(id);el.addEventListener('pointerdown',e=>{if(state!=='playing')return;e.preventDefault();el.setPointerCapture(e.pointerId);el.classList.add('pressed');down();});const release=()=>{el.classList.remove('pressed');up();};el.addEventListener('pointerup',release);el.addEventListener('pointercancel',release);el.addEventListener('lostpointercapture',release);}
-bindHold('jump',()=>{input.jump=true;});bindHold('swing',swingOn,swingOff);bindHold('attack',hit);
+bindHold('jump',()=>{input.jump=true;});bindHold('swing',swingOn,swingOff);bindHold('attack',hit);bindHold('webShot',shootWeb);bindHold('dodge',dodge);
 const joy=$('joystick');let joyId=null;
 function joyMove(e){const r=joy.getBoundingClientRect(),dx=(e.clientX-(r.left+r.width/2))/(r.width*.38),dy=(e.clientY-(r.top+r.height/2))/(r.height*.38),length=Math.max(1,Math.hypot(dx,dy));input.jx=dx/length;input.jy=dy/length;$('stick').style.transform=`translate(${input.jx*r.width*.28}px,${input.jy*r.height*.28}px)`;}
 joy.addEventListener('pointerdown',e=>{if(state!=='playing'||joyId!==null)return;e.preventDefault();joyId=e.pointerId;joy.setPointerCapture(e.pointerId);joyMove(e);});joy.addEventListener('pointermove',e=>{if(e.pointerId===joyId)joyMove(e);});function joyEnd(e){if(e.pointerId!==joyId)return;joyId=null;input.jx=input.jy=0;$('stick').style.transform='translate(0,0)';}joy.addEventListener('pointerup',joyEnd);joy.addEventListener('pointercancel',joyEnd);joy.addEventListener('lostpointercapture',joyEnd);
@@ -243,10 +292,10 @@ let lookId=null,lookX=0,lookY=0;const surface=renderer.domElement;
 surface.addEventListener('pointerdown',e=>{if(state!=='playing'||lookId!==null)return;lookId=e.pointerId;lookX=e.clientX;lookY=e.clientY;surface.setPointerCapture(e.pointerId);});
 surface.addEventListener('pointermove',e=>{if(e.pointerId!==lookId)return;yaw-=(e.clientX-lookX)*.005;pitch=Math.max(-.65,Math.min(.65,pitch-(e.clientY-lookY)*.004));lookX=e.clientX;lookY=e.clientY;});function lookEnd(e){if(e.pointerId===lookId)lookId=null;}surface.addEventListener('pointerup',lookEnd);surface.addEventListener('pointercancel',lookEnd);surface.addEventListener('lostpointercapture',lookEnd);
 const keys={w:'forward',ArrowUp:'forward',s:'back',ArrowDown:'back',a:'left',ArrowLeft:'left',d:'right',ArrowRight:'right'};
-window.addEventListener('keydown',e=>{const k=keys[e.key]||keys[e.key.toLowerCase()];if(k){e.preventDefault();if(state==='playing')input[k]=true;}if(e.code==='Space'){e.preventDefault();if(state==='playing'&&!e.repeat)input.jump=true;}if(e.key==='Shift'){e.preventDefault();swingOn();}if(e.key.toLowerCase()==='f'&&!e.repeat)hit();if(e.key.toLowerCase()==='c'&&!e.repeat)toggleCamera();if(e.key.toLowerCase()==='e'&&!e.repeat)talk();if(e.key==='Escape'&&!e.repeat){if(state==='playing')pause();else if(state==='paused'&&!$('pausePanel').classList.contains('hidden'))resume();}});
+window.addEventListener('keydown',e=>{const k=keys[e.key]||keys[e.key.toLowerCase()];if(k){e.preventDefault();if(state==='playing')input[k]=true;}if(e.code==='Space'){e.preventDefault();if(state==='playing'&&!e.repeat)input.jump=true;}if(e.key==='Shift'){e.preventDefault();swingOn();}if(e.key.toLowerCase()==='f'&&!e.repeat)hit();if(e.key.toLowerCase()==='g'&&!e.repeat)shootWeb();if(e.key.toLowerCase()==='q'&&!e.repeat)dodge();if(e.key.toLowerCase()==='c'&&!e.repeat)toggleCamera();if(e.key.toLowerCase()==='e'&&!e.repeat)talk();if(e.key==='Escape'&&!e.repeat){if(state==='playing')pause();else if(state==='paused'&&!$('pausePanel').classList.contains('hidden'))resume();}});
 window.addEventListener('keyup',e=>{const k=keys[e.key]||keys[e.key.toLowerCase()];if(k)input[k]=false;if(e.key==='Shift')swingOff();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});window.addEventListener('blur',pause);
-function updateHud(){ $('webStatus').textContent=player.rope?'WEB ATTACHED • '+Math.round(player.y)+'M':'WEB READY';$('webStatus').dataset.altitude=player.y.toFixed(2);$('talk').dataset.nearby=City.nearest(citizens,player)?'true':'false';$('webStatus').classList.toggle('attached',!!player.rope);$('playerHealth').textContent=Math.ceil(player.health);$('playerBar').style.width=player.health+'%';if(boss){$('bossBar').style.width=(boss.hp/boss.health*100)+'%';$('bossPhase').textContent=boss.hp<=boss.health/2?'PHASE 2':'PHASE 1';} }
+function updateHud(){ $('webStatus').textContent=(player.rope?'WEB ATTACHED • '+Math.round(player.y)+'M':'WEB READY')+' • '+Math.round(combat.energy)+'%';$('webStatus').dataset.energy=String(Math.round(combat.energy));$('webStatus').dataset.altitude=player.y.toFixed(2);$('talk').dataset.nearby=City.nearest(citizens,player)?'true':'false';$('webStatus').classList.toggle('attached',!!player.rope);$('playerHealth').textContent=Math.ceil(player.health);$('playerBar').style.width=player.health+'%';if(boss){$('bossBar').style.width=(boss.hp/boss.health*100)+'%';$('bossPhase').textContent=boss.hp<=boss.health/2?'PHASE 2':'PHASE 1';} }
 // A north-up local map is redrawn at low frequency; it shows the same simulated buildings.
 const mapCanvas=$('minimap'),mapCtx=mapCanvas.getContext('2d');let mapTimer=0;
 function drawMap(){
@@ -258,6 +307,7 @@ function drawMap(){
  for(let i=Math.floor((player.z-160)/80);i<=Math.ceil((player.z+160)/80);i++){ctx.beginPath();ctx.moveTo(0,toY(i*80));ctx.lineTo(w,toY(i*80));ctx.stroke();}
  ctx.fillStyle='#8294a5';for(const b of P.nearbyBuildings(world,player.x,player.z,165))ctx.fillRect(toX(b.x-b.w/2),toY(b.z-b.d/2),Math.max(1,b.w*scale),Math.max(1,b.d*scale));
  if(beacon.visible){const x=toX(beacon.position.x),y=toY(beacon.position.z);if(x>=0&&x<w&&y>=0&&y<w){ctx.fillStyle='#ffd749';ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();}}
+ if(mode==='free'&&crime.location){const x=toX(crime.location.x),y=toY(crime.location.z);if(x>=0&&x<w&&y>=0&&y<w){ctx.fillStyle='#f55';ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();}}
  if(boss){const x=toX(boss.x),y=toY(boss.z);if(x>=0&&x<w&&y>=0&&y<w){ctx.fillStyle='#f24d4d';ctx.fillRect(x-3,y-3,6,6);}}
  ctx.save();ctx.translate(w/2,w/2);ctx.rotate(-yaw);ctx.fillStyle='#fff6df';ctx.beginPath();ctx.moveTo(0,-7);ctx.lineTo(5,5);ctx.lineTo(0,3);ctx.lineTo(-5,5);ctx.closePath();ctx.fill();ctx.restore();
  $('districtName').textContent=P.districtAt(player.x,player.z);document.body.dataset.district=P.districtAt(player.x,player.z);
@@ -266,10 +316,11 @@ function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMa
 const desired=new THREE.Vector3(),target=new THREE.Vector3(), ray=new THREE.Raycaster(),rayDirection=new THREE.Vector3(),webStart=new THREE.Vector3(),webEnd=new THREE.Vector3();
 function frame(now){const dt=last?Math.min((now-last)/1000,1/30):0;last=now;clock+=dt;
  if(state==='playing'){
+  if(settings.lighting==='cycle'){timeOfDay+=dt;lightTimer-=dt;if(lightTimer<=0){lighting();lightTimer=.25;}}
   const sx=(input.right?1:0)-(input.left?1:0)+input.jx,sz=(input.back?1:0)-(input.forward?1:0)+input.jy;
   const mx=Math.cos(yaw)*sx+Math.sin(yaw)*sz,mz=-Math.sin(yaw)*sx+Math.cos(yaw)*sz;
   City.step(citizens,dt);
-  P.stepPlayer(player,world,{x:mx,z:mz,jump:input.jump},dt);updateChunks(player.x,player.z);input.jump=false;P.stepBoss(boss,player,dt);attackCooldown=Math.max(0,attackCooldown-dt);
+  P.stepPlayer(player,world,{x:mx,z:mz,jump:input.jump},dt);updateChunks(player.x,player.z);input.jump=false;Combat.tick(combat,player,dt);P.stepBoss(boss,player,dt,world);if(mode==='free')crimeTick(dt);shotTime=Math.max(0,shotTime-dt);
   if(Math.hypot(mx,mz)>.1)hero.group.rotation.y=Math.atan2(-mx,-mz);
   if(mode==='story')advanceStory({type:'position',x:player.x,z:player.z});
   if(player.health<=0)finish(false);
@@ -278,13 +329,16 @@ function frame(now){const dt=last?Math.min((now-last)/1000,1/30):0;last=now;cloc
  }
  hero.group.position.set(player.x,player.y,player.z);animateHero(dt);const moving=Math.hypot(player.vx,player.vz)>.8&&player.grounded;hero.group.rotation.x=player.rope?Math.max(-.38,Math.min(.38,-player.vy*.025)):0;hero.group.rotation.z=player.rope?Math.max(-.2,Math.min(.2,player.vx*.015)):0;hero.legL.rotation.x=moving?Math.sin(clock*9)*.45:(player.rope?.45:0);hero.legR.rotation.x=moving?-hero.legL.rotation.x:(player.rope?-.35:0);hero.armL.rotation.x=player.rope?-.7:-hero.legL.rotation.x;hero.armR.rotation.x=player.rope?-2:hero.legL.rotation.x;
  if(boss){enemy.group.position.set(boss.x,0,boss.z);enemy.group.rotation.y=Math.atan2(boss.x-player.x,boss.z-player.z);enemy.ring.material.color.setHex(boss.state==='windup'?0xff3939:(boss.id==='volt'?0x62f3f5:0xffcb51));enemy.ring.scale.setScalar(boss.state==='windup'?1.2+Math.sin(clock*20)*.15:1);enemy.l.rotation.x=boss.state==='windup'?-1:Math.sin(clock*6)*.12;enemy.r.rotation.x=enemy.l.rotation.x;}
+ crimeModels.forEach((m,i)=>{const c=crime.enemies[i];if(!c)return;m.group.visible=c.hp>0;m.group.position.set(c.x,0,c.z);m.group.rotation.y=Math.atan2(c.x-player.x,c.z-player.z);m.ring.material.color.setHex(c.stun>0?0x83dcff:c.state==='windup'?0xff3030:0xff9c63);m.left.rotation.x=c.state==='windup'?-1:Math.sin(clock*6+i)*.15;m.right.rotation.x=-m.left.rotation.x;m.hpFill.scale.x=Math.max(.001,c.hp/c.health);});
+ shotLine.visible=shotTime>0&&!!shotTarget;
+ if(shotLine.visible){hero.group.updateMatrixWorld(true);const a=view==='first'?(camera.updateMatrixWorld(true),hands.localToWorld(new THREE.Vector3(.32,-.35,-1.05))):(heroHand?heroHand.getWorldPosition(new THREE.Vector3()):new THREE.Vector3(player.x,player.y+1.5,player.z));shotLine.geometry.setFromPoints([a,new THREE.Vector3(shotTarget.x,1.2,shotTarget.z)]);}
  citizens.forEach((npc,i)=>{const m=citizenModels[i];m.g.position.set(npc.x,0,npc.z);m.g.rotation.y=npc.angle;if(m.mixer){if(state==='playing'||state==='menu')m.mixer.update(dt);}else{m.left.rotation.x=Math.sin(clock*6+i)*.25;m.right.rotation.x=-m.left.rotation.x;}});
  cars.forEach((car,i)=>{const pos=((clock*(i%2?7:9)+i*36)%144)-72;car.position.set(i<2?pos:(i===2?-3:3),0,i<2?(i===0?-3:3):pos);car.rotation.y=i<2?(i===0?0:Math.PI):(i===2?-Math.PI/2:Math.PI/2);});
  web.visible=!!player.rope;anchorMarker.visible=!!player.rope;
  if(player.rope){if(view==='first'){camera.updateMatrixWorld(true);hands.localToWorld(webStart.set(.32,-.35,-1.05));document.body.dataset.webOrigin='first-person-hand';}else{hero.group.updateMatrixWorld(true);if(heroHand){heroHand.getWorldPosition(webStart);document.body.dataset.webOrigin='rigged-hand';}else{hero.armR.localToWorld(webStart.set(0,-.76,0));document.body.dataset.webOrigin='placeholder-hand';}}webEnd.set(player.rope.x,player.rope.y,player.rope.z);web.position.copy(webStart).add(webEnd).multiplyScalar(.5);web.scale.y=webStart.distanceTo(webEnd);web.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),webEnd.sub(webStart).normalize());anchorMarker.position.set(player.rope.x,player.rope.y,player.rope.z);}
  if(state==='menu'){camera.position.set(15+Math.sin(clock*.13)*2,8,20);camera.lookAt(0,2,0);hero.group.visible=true;hands.visible=false;}
  else if(view==='first'){camera.position.set(player.x,player.y+1.8,player.z);target.set(player.x-Math.sin(yaw)*Math.cos(pitch)*10,player.y+1.8+Math.sin(pitch)*10,player.z-Math.cos(yaw)*Math.cos(pitch)*10);camera.lookAt(target);}
- else{desired.set(player.x+Math.sin(yaw)*6,Math.max(player.y+.5,player.y+3.5-pitch*4),player.z+Math.cos(yaw)*6);target.set(player.x,player.y+1.4+pitch*3,player.z);rayDirection.copy(desired).sub(target);const distance=rayDirection.length();ray.set(target,rayDirection.normalize());ray.far=distance;const intersections=ray.intersectObjects(buildingMeshes,false);if(intersections.length)desired.copy(target).addScaledVector(rayDirection,Math.max(.4,intersections[0].distance-.5));camera.position.lerp(desired,Math.min(1,dt*8));camera.lookAt(target);}
+ else{if(view==='overhead'){desired.set(player.x+Math.sin(yaw)*4,player.y+18,player.z+Math.cos(yaw)*4);target.set(player.x,player.y+1,player.z);}else{desired.set(player.x+Math.sin(yaw)*6,Math.max(player.y+.5,player.y+3.5-pitch*4),player.z+Math.cos(yaw)*6);target.set(player.x,player.y+1.4+pitch*3,player.z);}rayDirection.copy(desired).sub(target);const distance=rayDirection.length();ray.set(target,rayDirection.normalize());ray.far=distance;const intersections=ray.intersectObjects(buildingMeshes,false);if(intersections.length)desired.copy(target).addScaledVector(rayDirection,Math.max(.4,intersections[0].distance-.5));camera.position.lerp(desired,Math.min(1,dt*8));camera.lookAt(target);}
  renderer.render(scene,camera);requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

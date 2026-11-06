@@ -84,15 +84,18 @@
     p.x=Math.max(-world.bound,Math.min(world.bound,p.x));p.z=Math.max(-world.bound,Math.min(world.bound,p.z));
   }
   function attack(p,b){if(!b||b.hp<=0)return false;const distance=Math.hypot(p.x-b.x,p.z-b.z);if(distance>3.2||p.y>2.7)return false;b.hp=Math.max(0,b.hp-20);b.hitFlash=.18;return true;}
-  function stepBoss(b,p,dt){
+  function stepBoss(b,p,dt,world){
     if(!b||b.hp<=0||p.health<=0)return;
-    b.hitFlash=Math.max(0,b.hitFlash-dt);const dx=p.x-b.x,dz=p.z-b.z,dist=Math.hypot(dx,dz)||1;
+    b.hitFlash=Math.max(0,b.hitFlash-dt);if(b.stun>0){b.stun=Math.max(0,b.stun-dt);return;}const dx=p.x-b.x,dz=p.z-b.z,dist=Math.hypot(dx,dz)||1;
     const phase=b.hp<=b.health/2?1.3:1;
     if(b.state==='chase'){
       if(dist<b.range && p.y<2.5){b.state='windup';b.timer=b.windup/phase;}
-      else if(dist<38){const step=Math.min(dist,b.speed*phase*dt);b.x+=dx/dist*step;b.z+=dz/dist*step;}
+      else if(dist<38){const step=Math.min(dist,b.speed*phase*dt),nx=b.x+dx/dist*step,nz=b.z+dz/dist*step;
+        const blocked=(x,z)=>world&&nearbyBuildings(world,x,z,15).some(o=>Math.abs(x-o.x)<o.w/2+.5&&Math.abs(z-o.z)<o.d/2+.5);
+        if(!blocked(nx,b.z))b.x=nx;if(!blocked(b.x,nz))b.z=nz;
+      }
     }else if(b.state==='windup'){
-      b.timer-=dt;if(b.timer<=0){if(dist<b.range+0.6&&p.y<2.5)p.health=Math.max(0,p.health-b.damage);b.state='cooldown';b.timer=b.cooldown;}
+      b.timer-=dt;if(b.timer<=0){if(dist<b.range+0.6&&p.y<2.5&&!(p.invulnerable>0))p.health=Math.max(0,p.health-b.damage);b.state='cooldown';b.timer=b.cooldown;}
     }else {b.timer-=dt;if(b.timer<=0)b.state='chase';}
   }
   return {villains,createWorld,createPlayer,createBoss,attach,stepPlayer,stepBoss,attack,nearbyBuildings,districtAt,chunkCoord,chunkKey,CHUNK_SIZE};

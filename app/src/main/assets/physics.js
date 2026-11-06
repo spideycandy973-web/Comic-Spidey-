@@ -5,23 +5,45 @@
     {id:'volt',name:'VOLT',subtitle:'THE LIVE WIRE',health:100,speed:3.8,range:2.4,damage:12,windup:.65,cooldown:1.2},
     {id:'docock',name:'DOCTOR OCTOPUS',subtitle:'THE MASTER PLANNER',health:160,speed:2.5,range:2.9,damage:22,windup:1.05,cooldown:1.65}
   ];
+  const CHUNK_SIZE=80, WORLD_BOUND=810;
+  // Roads follow an 80m grid. Park lots occupy whole blocks, clear of roads and buildings.
+  const parks=[{x:120,z:-120,name:'North Garden'},{x:-200,z:200,name:'West Green'},{x:440,z:360,name:'East Commons'},{x:-440,z:-360,name:'Riverside Garden'}];
+  function inPark(x,z){return parks.some(p=>Math.abs(x-p.x)<31&&Math.abs(z-p.z)<31);}
+  function districtAt(x,z){
+    if(inPark(x,z))return 'CITY PARK';
+    if(Math.abs(x)<220&&Math.abs(z)<220)return 'DOWNTOWN';
+    if(x>280&&z>180)return 'INDUSTRIAL QUARTER';
+    if(x < -280 || z>300)return 'RESIDENTIAL DISTRICT';
+    return 'MIDTOWN';
+  }
+  function chunkCoord(v){return Math.floor((v+CHUNK_SIZE/2)/CHUNK_SIZE);}
+  function chunkKey(x,z){return chunkCoord(x)+','+chunkCoord(z);}
+  function random(gx,gz){let n=Math.imul(gx,374761393)+Math.imul(gz,668265263);n=Math.imul(n^(n>>>13),1274126177);return (n^(n>>>16))>>>0;}
   function createWorld(){
-    const buildings=[];
-    for(let gx=-10;gx<=10;gx++)for(let gz=-10;gz<=10;gz++){
-      if(gx%4===0 || gz%4===0 || (Math.abs(gx)<2 && Math.abs(gz)<2))continue;
-      const x=gx*20,z=gz*20,h=10+((Math.abs(gx*31+gz*17)*7)%15);
-      buildings.push({x,z,w:12+(Math.abs(gz)%2)*2,d:12+(Math.abs(gx)%2)*2,h});
+    const buildings=[],chunks=new Map();
+    for(let gx=-40;gx<=40;gx++)for(let gz=-40;gz<=40;gz++){
+      if(gx%4===0||gz%4===0||(Math.abs(gx)<2&&Math.abs(gz)<2))continue;
+      const x=gx*20,z=gz*20;if(inPark(x,z))continue;
+      const n=random(gx,gz),district=districtAt(x,z),nearStart=Math.abs(x)<80&&Math.abs(z)<80;
+      let h=nearStart?10+n%15:district==='DOWNTOWN'?32+n%43:district==='MIDTOWN'?18+n%31:district==='INDUSTRIAL QUARTER'?11+n%14:9+n%17;
+      const b={x,z,w:12+(n%3),d:12+((n>>>4)%3),h,district,variant:(n>>>8)%4};
+      buildings.push(b);const key=chunkKey(x,z);if(!chunks.has(key))chunks.set(key,[]);chunks.get(key).push(b);
     }
-    return {buildings,bound:210};
+    return {buildings,chunks,parks,bound:WORLD_BOUND};
+  }
+  function nearbyBuildings(world,x,z,radius){
+    const out=[],minX=chunkCoord(x-radius),maxX=chunkCoord(x+radius),minZ=chunkCoord(z-radius),maxZ=chunkCoord(z+radius);
+    for(let cx=minX;cx<=maxX;cx++)for(let cz=minZ;cz<=maxZ;cz++){const list=world.chunks.get(cx+','+cz);if(list)out.push(...list);}
+    return out;
   }
   function createPlayer(){return {x:0,y:0,z:9,vx:0,vy:0,vz:0,grounded:true,health:100,rope:null};}
   function createBoss(index){const def=villains[index];return def?{...def,x:index===0?0:3,z:index===0?-8:-12,hp:def.health,state:'chase',timer:0,hitFlash:0}:null;}
   // Prefer a real rooftop in front of the camera; no invisible air anchors.
   // Assist adds an explicit take-off impulse and winches the rope in slowly.
   function attach(p,world,assist,heading={x:0,z:-1}){
-    let best=null,bestScore=Infinity;const range=assist?65:48;
+    let best=null,bestScore=Infinity;const range=assist?95:75;
     const hlen=Math.hypot(heading.x,heading.z)||1, hx=heading.x/hlen,hz=heading.z/hlen;
-    for(const b of world.buildings){
+    for(const b of nearbyBuildings(world,p.x,p.z,range+10)){
       // Nearest point just inside the roof edge, rather than the faraway centre.
       const ax=Math.max(b.x-b.w/2+.6,Math.min(b.x+b.w/2-.6,p.x));
       const az=Math.max(b.z-b.d/2+.6,Math.min(b.z+b.d/2-.6,p.z));
@@ -49,7 +71,7 @@
       if(d>p.rope.length){const nx=dx/d,ny=dy/d,nz=dz/d;p.x=p.rope.x+nx*p.rope.length;p.y=p.rope.y+ny*p.rope.length-1.4;p.z=p.rope.z+nz*p.rope.length;const radial=p.vx*nx+p.vy*ny+p.vz*nz;if(radial>0){p.vx-=radial*nx;p.vy-=radial*ny;p.vz-=radial*nz;}}
     }
     p.grounded=false;let floor=0;
-    for(const b of world.buildings){
+    for(const b of nearbyBuildings(world,p.x,p.z,24)){
       const inside=Math.abs(p.x-b.x)<b.w/2+.45&&Math.abs(p.z-b.z)<b.d/2+.45;
       if(!inside)continue;
       if(oy>=b.h-.05&&p.y<=b.h&&p.vy<=0){floor=Math.max(floor,b.h);}
@@ -73,5 +95,5 @@
       b.timer-=dt;if(b.timer<=0){if(dist<b.range+0.6&&p.y<2.5)p.health=Math.max(0,p.health-b.damage);b.state='cooldown';b.timer=b.cooldown;}
     }else {b.timer-=dt;if(b.timer<=0)b.state='chase';}
   }
-  return {villains,createWorld,createPlayer,createBoss,attach,stepPlayer,stepBoss,attack};
+  return {villains,createWorld,createPlayer,createBoss,attach,stepPlayer,stepBoss,attack,nearbyBuildings,districtAt,chunkCoord,chunkKey,CHUNK_SIZE};
 });

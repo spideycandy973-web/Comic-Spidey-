@@ -15,9 +15,13 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('body').getAttribute('data-citizen-model'),'loaded','rigged citizen models loaded');
     await page.click('#play');
     assert.match(await page.locator('#objective').innerText(), /Investigate the plaza/);
+    assert.equal(await page.locator('#districtName').innerText(),'DOWNTOWN');
+    assert.equal(await page.locator('#minimap').isVisible(),true);
+    assert.ok(parseInt(await page.locator('body').getAttribute('data-loaded-chunks'),10)<=9);
     assert.equal(await page.locator('#bossHud').isVisible(), false);
     await page.click('#camera'); assert.match(await page.locator('#camera').innerText(), /1ST/);
     await page.click('#camera'); assert.match(await page.locator('#camera').innerText(), /3RD/);
+    if(process.env.CAPTURE_CITY){const image=await page.screenshot({type:'jpeg',quality:15});console.log('::notice title=city-preview::'+image.toString('base64'));}
     await page.keyboard.down('w');
     let hit=false;
     for(let i=0;i<140;i++){
@@ -54,6 +58,8 @@ const assert = require('node:assert/strict');
     await page.evaluate(()=>localStorage.setItem('comic-story-v1',JSON.stringify({stage:3})));
     await page.reload(); await page.waitForFunction(()=>document.body.dataset.docModel==='loaded',null,{timeout:30000});
     await page.click('#continueStory');
+    assert.equal(await page.locator('body').getAttribute('data-city-chunk'),'0,-1','moving to a distant checkpoint loads the correct chunk');
+    assert.ok(parseInt(await page.locator('body').getAttribute('data-loaded-chunks'),10)<=9,'rendered chunks stay bounded');
     assert.equal(await page.locator('#bossName').innerText(),'DOCTOR OCTOPUS');
     assert.equal(await page.locator('body').getAttribute('data-boss-model'),'docock','actual Doctor Octopus mesh is in the scene');
     assert.deepEqual(errors,[]);

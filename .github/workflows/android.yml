@@ -24,7 +24,7 @@ jobs:
         run: |
           npm install --no-save --no-package-lock playwright-core@1.57.0
           python3 -m http.server 8000 --directory app/src/main/assets > /tmp/comic-server.log 2>&1 &
-          node tests/browser-smoke.cjs
+          CAPTURE_CITY=1 node tests/browser-smoke.cjs
       - name: Build debug APK
         run: gradle :app:assembleDebug
       - uses: actions/upload-artifact@v4

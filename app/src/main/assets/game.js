@@ -93,11 +93,14 @@ function animateHero(dt){if(!heroMixer)return;const next=player.rope?'swing':(pl
 // First-person forearms are attached to the camera and hidden in third-person view.
 const hands=new THREE.Group();camera.add(hands);
 box(hands,.18,.18,.65,red,-.32,-.35,-.75).rotation.x=-.3;box(hands,.18,.18,.65,red,.32,-.35,-.75).rotation.x=-.3;hands.visible=false;
-// Procedural city meshes and hand-drawn window textures; all assets are original.
-const ground=box(scene,440,.3,440,mat(0x45516a),0,-.2,0);
+// Original procedural city: road grid spans the full traversable world.
+const citySize=world.bound*2+20;
+const ground=box(scene,citySize,.3,citySize,mat(0x45516a),0,-.2,0);
 const road=mat(0x30394d),stripe=mat(0xd9c992),pavement=mat(0x7e8996);
-for(let pos=-160;pos<=160;pos+=80){box(scene,440,.02,15,road,0,0,pos);box(scene,15,.02,440,road,pos,.005,0);}
-for(let i=-210;i<=210;i+=8){box(scene,3,.03,.18,stripe,i,.02,0);box(scene,.18,.03,3,stripe,0,.025,i);}
+for(let pos=-800;pos<=800;pos+=80){
+ box(scene,citySize,.02,15,road,0,0,pos);box(scene,15,.02,citySize,road,pos,.005,0);
+ box(scene,citySize,.025,.13,stripe,0,.02,pos);box(scene,.13,.025,citySize,stripe,pos,.025,0);
+}
 // An open arena makes the boss encounters readable.
 box(scene,24,.05,24,pavement,0,.03,0);
 for(let i=-10;i<=10;i+=5){box(scene,.04,.01,24,ink,i,.06,0);box(scene,24,.01,.04,ink,0,.06,i);}
@@ -107,27 +110,52 @@ function windowTexture(seed){
  const texture=new THREE.CanvasTexture(c);texture.colorSpace=THREE.SRGBColorSpace;return texture;
 }
 const buildingMats=Array.from({length:4},(_,i)=>new THREE.MeshToonMaterial({map:windowTexture(i)}));
-// Build and unload nearby 80m chunks. Simulation data remains deterministic and lightweight.
-const buildingMeshes=[], chunkSources=new Map(), activeChunks=new Map(), chunkSize=80;
-const edgeMat=new THREE.LineBasicMaterial({color:0x273044}), roofDetail=mat(0x66738a);
-function chunkKey(x,z){return Math.floor((x+chunkSize/2)/chunkSize)+','+Math.floor((z+chunkSize/2)/chunkSize);}
-world.buildings.forEach((b,i)=>{const k=chunkKey(b.x,b.z);if(!chunkSources.has(k))chunkSources.set(k,[]);chunkSources.get(k).push({b,i});});
+// Build and unload nearby 80m chunks; simulation and rendering share the same buildings.
+const buildingMeshes=[],activeChunks=new Map(),chunkSize=P.CHUNK_SIZE;
+const edgeMat=new THREE.LineBasicMaterial({color:0x273044}),roofDetail=mat(0x66738a);
+const lotMats={DOWNTOWN:mat(0x808995),MIDTOWN:mat(0x92949b),'RESIDENTIAL DISTRICT':mat(0xa4a9a2),'INDUSTRIAL QUARTER':mat(0x787c82),'CITY PARK':mat(0x608e70)};
+const grass=mat(0x648f69),pathMat=mat(0xb3ad95),bark=mat(0x5f4b3f),leaf=mat(0x427b5c),leafLight=mat(0x568e68);
+const sharedTreeTrunk=new THREE.CylinderGeometry(.28,.4,3.3,6),sharedTreeCrown=new THREE.SphereGeometry(2.3,8,6);
+function placeTree(group,x,z,variant){
+ const trunk=new THREE.Mesh(sharedTreeTrunk,bark);trunk.position.set(x,1.7,z);trunk.userData.sharedGeometry=true;group.add(trunk);
+ const crown=new THREE.Mesh(sharedTreeCrown,variant?leafLight:leaf);crown.position.set(x,4.5,z);crown.scale.y=1.15;crown.userData.sharedGeometry=true;group.add(crown);
+}
+function addPark(group,p){
+ box(group,62,.04,62,grass,p.x,.04,p.z);
+ box(group,3,.03,60,pathMat,p.x,.075,p.z);box(group,60,.03,3,pathMat,p.x,.075,p.z);
+ for(const dx of [-24,-14,14,24])for(const dz of [-22,22])placeTree(group,p.x+dx,p.z+dz,(dx+dz)%2===0);
+ for(const x of [-5,5]){box(group,2,.35,.65,bark,p.x+x,.45,p.z+5);box(group,2,.6,.16,bark,p.x+x,.85,p.z+5.3);}
+}
+function addBuilding(group,b,meshes){
+ const districtIndex=b.district==='INDUSTRIAL QUARTER'?2:b.district==='RESIDENTIAL DISTRICT'?3:b.variant%2;
+ const mesh=box(group,b.w,b.h,b.d,buildingMats[districtIndex],b.x,b.h/2,b.z);meshes.push(mesh);
+ mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),edgeMat));
+ box(group,b.w+.4,.35,b.d+.4,ink,b.x,b.h+.16,b.z);
+ if(b.district==='DOWNTOWN' && b.h>30){
+  box(group,b.w*.55,2.5,b.d*.55,buildingMats[(districtIndex+1)%4],b.x,b.h+1.4,b.z);
+  if(b.variant===0)box(group,.2,5,.2,ink,b.x,b.h+5,b.z);
+ }else if(b.district==='INDUSTRIAL QUARTER'){
+  box(group,2.5,3,2.5,roofDetail,b.x-2,b.h+1.6,b.z);box(group,.9,5,.9,ink,b.x+2,b.h+2.5,b.z);
+ }else{box(group,3,1.1,2.5,roofDetail,b.x-2,b.h+.7,b.z+2);}
+}
 let currentChunk='';
 function updateChunks(x,z){
- const key=chunkKey(x,z);if(key===currentChunk)return;currentChunk=key;
+ const key=P.chunkKey(x,z);if(key===currentChunk)return;currentChunk=key;
  const [cx,cz]=key.split(',').map(Number),desired=new Set();
- for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)desired.add((cx+dx)+','+(cz+dz));
- for(const [k,chunk] of activeChunks){if(!desired.has(k)){scene.remove(chunk.group);chunk.group.traverse(o=>{if(o.geometry)o.geometry.dispose();});activeChunks.delete(k);}}
- for(const k of desired){if(activeChunks.has(k)||!chunkSources.has(k))continue;
-  const group=new THREE.Group(),meshes=[];
-  for(const {b,i} of chunkSources.get(k)){
-   const mesh=box(group,b.w,b.h,b.d,buildingMats[i%4],b.x,b.h/2,b.z);meshes.push(mesh);
-   mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry),edgeMat));
-   box(group,b.w+.4,.35,b.d+.4,ink,b.x,b.h+.16,b.z);box(group,3,1.1,2.5,roofDetail,b.x-2,b.h+.7,b.z+2);
-  }
+ for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)if(Math.abs(cx+dx)<=10&&Math.abs(cz+dz)<=10)desired.add((cx+dx)+','+(cz+dz));
+ for(const [k,chunk] of activeChunks){if(!desired.has(k)){scene.remove(chunk.group);chunk.group.traverse(o=>{if(o.geometry&&!o.userData.sharedGeometry)o.geometry.dispose();});activeChunks.delete(k);}}
+ for(const k of desired){if(activeChunks.has(k))continue;
+  const [ccx,ccz]=k.split(',').map(Number),group=new THREE.Group(),meshes=[];
+  const bx=ccx*chunkSize+40,bz=ccz*chunkSize+40,district=P.districtAt(bx,bz);
+  if(Math.abs(bx)<world.bound&&Math.abs(bz)<world.bound)box(group,64,.02,64,lotMats[district],bx,.012,bz);
+  for(const b of world.chunks.get(k)||[])addBuilding(group,b,meshes);
+  for(const p of world.parks)if(P.chunkKey(p.x,p.z)===k)addPark(group,p);
+  const ix=ccx*chunkSize,iz=ccz*chunkSize;
+  for(const dx of [-9,9])for(const dz of [-9,9]){box(group,.16,3,.16,ink,ix+dx,1.5,iz+dz);sphere(group,.22,gold,ix+dx,3,iz+dz);}
   scene.add(group);activeChunks.set(k,{group,meshes});
  }
  buildingMeshes.length=0;for(const chunk of activeChunks.values())buildingMeshes.push(...chunk.meshes);
+ document.body.dataset.cityChunk=key;document.body.dataset.loadedChunks=String(activeChunks.size);
 }
 updateChunks(0,9);
 // Simple props at the edge of the central plaza.
@@ -186,7 +214,7 @@ function start(selectedMode='story',continueSaved=false){
  camera.position.set(player.x,4,player.z+7);updateChunks(player.x,player.z);
  $('menu').classList.add('hidden');$('dialog').classList.add('hidden');$('hud').classList.remove('hidden');updateView();
  if(mode==='story')applyStoryStage();else{hideBoss();beacon.visible=false;$('objective').textContent='Explore the city';$('tip').textContent='Drag the view to look around';message('HOLD SWING TO LAUNCH • DRAG TO LOOK',5);}
- updateHud();
+ updateHud();drawMap();
 }
 function showDialog(panel){$('dialog').classList.remove('hidden');['pause','settings','result'].forEach(p=>$(p+'Panel').classList.toggle('hidden',p!==panel));$('lighting').value=settings.lighting;$('assist').checked=!!settings.assist;}
 function pause(){if(state!=='playing')return;clearInput();state='paused';previous='paused';showDialog('pause');}
@@ -219,6 +247,21 @@ window.addEventListener('keydown',e=>{const k=keys[e.key]||keys[e.key.toLowerCas
 window.addEventListener('keyup',e=>{const k=keys[e.key]||keys[e.key.toLowerCase()];if(k)input[k]=false;if(e.key==='Shift')swingOff();});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();});window.addEventListener('blur',pause);
 function updateHud(){ $('webStatus').textContent=player.rope?'WEB ATTACHED • '+Math.round(player.y)+'M':'WEB READY';$('webStatus').dataset.altitude=player.y.toFixed(2);$('talk').dataset.nearby=City.nearest(citizens,player)?'true':'false';$('webStatus').classList.toggle('attached',!!player.rope);$('playerHealth').textContent=Math.ceil(player.health);$('playerBar').style.width=player.health+'%';if(boss){$('bossBar').style.width=(boss.hp/boss.health*100)+'%';$('bossPhase').textContent=boss.hp<=boss.health/2?'PHASE 2':'PHASE 1';} }
+// A north-up local map is redrawn at low frequency; it shows the same simulated buildings.
+const mapCanvas=$('minimap'),mapCtx=mapCanvas.getContext('2d');let mapTimer=0;
+function drawMap(){
+ const ctx=mapCtx,w=mapCanvas.width,scale=w/320,toX=x=>w/2+(x-player.x)*scale,toY=z=>w/2+(z-player.z)*scale;
+ ctx.clearRect(0,0,w,w);ctx.fillStyle='#35445a';ctx.fillRect(0,0,w,w);
+ for(const park of world.parks){const x=toX(park.x-31),y=toY(park.z-31);ctx.fillStyle='#58886b';ctx.fillRect(x,y,62*scale,62*scale);}
+ ctx.strokeStyle='#1c273b';ctx.lineWidth=15*scale;
+ for(let i=Math.floor((player.x-160)/80);i<=Math.ceil((player.x+160)/80);i++){ctx.beginPath();ctx.moveTo(toX(i*80),0);ctx.lineTo(toX(i*80),w);ctx.stroke();}
+ for(let i=Math.floor((player.z-160)/80);i<=Math.ceil((player.z+160)/80);i++){ctx.beginPath();ctx.moveTo(0,toY(i*80));ctx.lineTo(w,toY(i*80));ctx.stroke();}
+ ctx.fillStyle='#8294a5';for(const b of P.nearbyBuildings(world,player.x,player.z,165))ctx.fillRect(toX(b.x-b.w/2),toY(b.z-b.d/2),Math.max(1,b.w*scale),Math.max(1,b.d*scale));
+ if(beacon.visible){const x=toX(beacon.position.x),y=toY(beacon.position.z);if(x>=0&&x<w&&y>=0&&y<w){ctx.fillStyle='#ffd749';ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fill();}}
+ if(boss){const x=toX(boss.x),y=toY(boss.z);if(x>=0&&x<w&&y>=0&&y<w){ctx.fillStyle='#f24d4d';ctx.fillRect(x-3,y-3,6,6);}}
+ ctx.save();ctx.translate(w/2,w/2);ctx.rotate(-yaw);ctx.fillStyle='#fff6df';ctx.beginPath();ctx.moveTo(0,-7);ctx.lineTo(5,5);ctx.lineTo(0,3);ctx.lineTo(-5,5);ctx.closePath();ctx.fill();ctx.restore();
+ $('districtName').textContent=P.districtAt(player.x,player.z);document.body.dataset.district=P.districtAt(player.x,player.z);
+}
 function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}window.addEventListener('resize',resize);
 const desired=new THREE.Vector3(),target=new THREE.Vector3(), ray=new THREE.Raycaster(),rayDirection=new THREE.Vector3(),webStart=new THREE.Vector3(),webEnd=new THREE.Vector3();
 function frame(now){const dt=last?Math.min((now-last)/1000,1/30):0;last=now;clock+=dt;
@@ -231,7 +274,7 @@ function frame(now){const dt=last?Math.min((now-last)/1000,1/30):0;last=now;cloc
   if(mode==='story')advanceStory({type:'position',x:player.x,z:player.z});
   if(player.health<=0)finish(false);
   if(noticeTimer>0){noticeTimer-=dt;if(noticeTimer<=0)$('notice').classList.add('hidden');}
-  updateHud();
+  updateHud();mapTimer-=dt;if(mapTimer<=0){drawMap();mapTimer=.25;}
  }
  hero.group.position.set(player.x,player.y,player.z);animateHero(dt);const moving=Math.hypot(player.vx,player.vz)>.8&&player.grounded;hero.group.rotation.x=player.rope?Math.max(-.38,Math.min(.38,-player.vy*.025)):0;hero.group.rotation.z=player.rope?Math.max(-.2,Math.min(.2,player.vx*.015)):0;hero.legL.rotation.x=moving?Math.sin(clock*9)*.45:(player.rope?.45:0);hero.legR.rotation.x=moving?-hero.legL.rotation.x:(player.rope?-.35:0);hero.armL.rotation.x=player.rope?-.7:-hero.legL.rotation.x;hero.armR.rotation.x=player.rope?-2:hero.legL.rotation.x;
  if(boss){enemy.group.position.set(boss.x,0,boss.z);enemy.group.rotation.y=Math.atan2(boss.x-player.x,boss.z-player.z);enemy.ring.material.color.setHex(boss.state==='windup'?0xff3939:(boss.id==='volt'?0x62f3f5:0xffcb51));enemy.ring.scale.setScalar(boss.state==='windup'?1.2+Math.sin(clock*20)*.15:1);enemy.l.rotation.x=boss.state==='windup'?-1:Math.sin(clock*6)*.12;enemy.r.rotation.x=enemy.l.rotation.x;}

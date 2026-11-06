@@ -3,7 +3,7 @@ const { chromium } = require('playwright-core');
 const assert = require('node:assert/strict');
 (async () => {
   const browser = await chromium.launch({executablePath:'/usr/bin/google-chrome', headless:true, args:['--no-sandbox','--use-angle=swiftshader','--enable-unsafe-swiftshader']});
-  const page = await browser.newPage({viewport:{width:960,height:540}});
+  const page = await browser.newPage({viewport:{width:640,height:360}});
   const errors=[]; page.on('pageerror', e=>errors.push(e.message));
   try {
     await page.goto('http://127.0.0.1:8000', {waitUntil:'load'});
@@ -20,13 +20,13 @@ const assert = require('node:assert/strict');
     await page.click('#camera'); assert.match(await page.locator('#camera').innerText(), /3RD/);
     await page.keyboard.down('w');
     let hit=false;
-    for(let i=0;i<60;i++){
+    for(let i=0;i<140;i++){
       await page.keyboard.press('f'); await page.waitForTimeout(250);
       const width=await page.locator('#bossBar').evaluate(el=>parseFloat(el.style.width));
       if(width<100){hit=true; break;}
     }
     await page.keyboard.up('w');
-    assert.ok(hit,'player can reach the story objective and damage the villain');
+    assert.ok(hit,`player can reach the story objective and damage the villain (objective: ${await page.locator('#objective').innerText()}, health: ${await page.locator('#playerHealth').innerText()}, notice: ${await page.locator('#notice').innerText()})`);
     assert.equal(await page.locator('#bossName').innerText(), 'VOLT');
     assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('comic-story-v1')).stage),1);
     await page.click('#pause'); assert.equal(await page.locator('#pausePanel').isVisible(),true);

@@ -73,10 +73,14 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#bossHud').isVisible(), false);
     await page.waitForFunction(()=>document.body.dataset.crimePhase==='active',null,{timeout:90000});
     assert.match(await page.locator('#objective').innerText(),/street crime/);
-    await page.keyboard.down('s'); await page.keyboard.down('d');
-    let nearby=false;
-    for(let i=0;i<100;i++) { await page.waitForTimeout(100); if(await page.locator('#talk').getAttribute('data-nearby')==='true'){nearby=true;break;} }
-    await page.keyboard.up('s'); await page.keyboard.up('d');
+    let nearby=false; const held=new Set();
+    async function moveKey(key,want){if(want&&!held.has(key)){await page.keyboard.down(key);held.add(key);}else if(!want&&held.has(key)){await page.keyboard.up(key);held.delete(key);}}
+    for(let i=0;i<300;i++) {
+      const pos=await page.evaluate(()=>({x:Number(document.body.dataset.playerX),z:Number(document.body.dataset.playerZ),nx:Number(document.body.dataset.nearestNpcX),nz:Number(document.body.dataset.nearestNpcZ),near:document.querySelector('#talk').dataset.nearby==='true'}));
+      if(pos.near){nearby=true;break;}const dx=pos.nx-pos.x,dz=pos.nz-pos.z;
+      await moveKey('d',dx>1);await moveKey('a',dx< -1);await moveKey('s',dz>1);await moveKey('w',dz< -1);await page.waitForTimeout(150);
+    }
+    for(const key of held)await page.keyboard.up(key);
     assert.ok(nearby,'can approach a moving civilian');
     await page.keyboard.press('e'); assert.match(await page.locator('#notice').innerText(),/CIVILIAN:/);
     await page.click('#pause');

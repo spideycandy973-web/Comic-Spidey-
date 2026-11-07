@@ -128,6 +128,7 @@ func _physics_process(delta: float) -> void:
 	velocity.y -= 18 * delta
 	if controls.consume("jump") and is_on_floor():
 		velocity.y = 8.5
+		game.sound.play_effect("jump")
 	if controls.consume("attack"):
 		attack()
 	if controls.consume("talk"):
@@ -200,6 +201,7 @@ func attach_web(forward: Vector3) -> void:
 		anchor = selected
 		rope_length = (global_position + Vector3.UP).distance_to(anchor)
 		rope_active = true
+		game.sound.play_effect("web")
 		web.visible = true
 	else:
 		game.show_message("No reachable rooftop ahead")
@@ -225,6 +227,7 @@ func shoot_web(forward: Vector3) -> void:
 	if shot_cooldown > 0 or not playing:
 		return
 	shot_cooldown = 1.0
+	game.sound.play_effect("web")
 	var closest
 	var best := 19.0
 	for npc in game.people:
@@ -257,6 +260,7 @@ func attack() -> void:
 	if attack_cooldown > 0 or not playing:
 		return
 	attack_cooldown = 0.45
+	game.sound.play_effect("hit")
 	punch_timer = 0.2
 	var nearest
 	var best := 2.8
@@ -280,6 +284,7 @@ func attack() -> void:
 func take_damage(amount: float) -> void:
 	if not playing:
 		return
+	game.sound.play_effect("hurt")
 	health = maxf(0, health - amount)
 	game.show_message("Hit! Health: %d" % ceili(health))
 	if health <= 0:

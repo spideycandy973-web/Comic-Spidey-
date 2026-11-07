@@ -44,6 +44,8 @@ func run_test() -> void:
 	check(scene.people.size() == 6 and scene.stage == 0, "story starts at the first objective")
 	check(scene.hero.animator != null and scene.hero.skeleton != null, "hero model and skeleton imported")
 	check(scene.hero.hand_bone >= 0 and scene.hero.animator.has_animation("run"), "hand and run animation imported")
+	check(scene.hero.animator.get_animation("run").loop_mode == Animation.LOOP_LINEAR, "run animation loops")
+	check(scene.sound.samples.size() == 5, "offline sound cues were generated")
 	scene.hero.attach_web(Vector3(0, 0, -1))
 	check(scene.hero.rope_active and scene.hero.rope_length > 0, "web finds an unobstructed roof")
 	scene.hero.rope_active = false

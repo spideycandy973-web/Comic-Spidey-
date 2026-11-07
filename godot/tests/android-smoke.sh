@@ -11,7 +11,7 @@ sleep 20
 adb shell pidof "$package" >/dev/null
 # Record the actual menu before selecting New Story on the landscape screen.
 adb exec-out screencap -p > /tmp/android-menu.png
-adb shell input tap 640 165
+adb shell input tap 640 230
 sleep 20
 adb shell pidof "$package" >/dev/null
 adb shell dumpsys activity activities | grep -q "$package"

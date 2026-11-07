@@ -3,6 +3,7 @@ extends Node3D
 const WorldScript = preload("res://scripts/world.gd")
 const HeroScript = preload("res://scripts/hero.gd")
 const PersonScript = preload("res://scripts/person.gd")
+const SoundScript = preload("res://scripts/sound.gd")
 const ControlsScript = preload("res://scripts/controls.gd")
 const Missions = preload("res://scripts/missions.gd")
 const Saves = preload("res://scripts/saves.gd")
@@ -11,6 +12,7 @@ const DOCTOR = preload("res://assets/doctor_octopus.glb")
 var world
 var hero
 var controls
+var sound
 var people: Array = []
 var mission_enemies: Array = []
 var escort
@@ -50,6 +52,9 @@ func _ready() -> void:
 	world.set_script(WorldScript)
 	add_child(world)
 	world.update_chunks(Vector3.ZERO)
+	sound = Node.new()
+	sound.set_script(SoundScript)
+	add_child(sound)
 	controls = CanvasLayer.new()
 	controls.set_script(ControlsScript)
 	add_child(controls)
@@ -105,10 +110,15 @@ func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
 		add_menu_button(box, "Resume", resume_game)
 	if can_retry:
 		add_menu_button(box, "Retry checkpoint", retry_checkpoint)
+	add_menu_button(box, "Sound: " + ("On" if sound.enabled else "Off"), toggle_sound)
 	for label in ["Story", "Free Roam"]:
 		if save_enabled and not Saves.read(label).is_empty():
 			add_menu_button(box, "Continue " + label, continue_mode.bind(label))
 		add_menu_button(box, "New " + label, start_mode.bind(label))
+
+func toggle_sound() -> void:
+	sound.toggle()
+	show_menu(is_instance_valid(hero) and not hero.playing and hero.health > 0 and not mode.is_empty(), is_instance_valid(hero) and hero.health <= 0)
 
 func add_menu_button(box: VBoxContainer, text: String, callback: Callable) -> void:
 	var button := Button.new()
@@ -225,6 +235,7 @@ func advance_story() -> void:
 	if stage >= Missions.STORY.size() - 1:
 		return
 	stage += 1
+	sound.play_effect("success")
 	checkpoint = hero.position
 	setup_story_stage()
 	save_game()
@@ -264,6 +275,7 @@ func start_crime() -> void:
 
 func finish_crime(success: bool) -> void:
 	if success:
+		sound.play_effect("success")
 		crime_completed += 1
 		hero.health = minf(100, hero.health + 12)
 		show_message("Emergency resolved. Health restored.")

@@ -45,9 +45,9 @@ func _physics_process(delta: float) -> void:
 		return
 	attack_cooldown = maxf(0, attack_cooldown - delta)
 	stun = maxf(0, stun - delta)
-	var flat := hero.global_position - global_position
+	var flat: Vector3 = hero.global_position - global_position
 	flat.y = 0
-	var distance := flat.length()
+	var distance: float = flat.length()
 	velocity.y -= 18 * delta
 	if is_enemy:
 		if windup > 0:
@@ -57,7 +57,7 @@ func _physics_process(delta: float) -> void:
 			if windup <= 0 and distance < (3.0 if is_boss else 2.0):
 				hero.take_damage(18.0 if is_boss else 10.0)
 		elif stun <= 0 and distance < 24 and distance > 1.5:
-			var direction := flat.normalized()
+			var direction: Vector3 = flat.normalized()
 			velocity.x = direction.x * 3.0
 			velocity.z = direction.z * 3.0
 			visual.rotation.y = atan2(direction.x, direction.z)

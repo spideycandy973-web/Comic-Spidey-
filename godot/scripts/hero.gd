@@ -176,7 +176,7 @@ func attack() -> void:
 	if nearest:
 		var ray := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP, nearest.global_position + Vector3.UP, 1)
 		if get_world_3d().direct_space_state.intersect_ray(ray).is_empty():
-			var direction := (nearest.global_position - global_position).normalized()
+			var direction: Vector3 = (nearest.global_position - global_position).normalized()
 			visual.rotation.y = atan2(direction.x, direction.z) + PI
 			nearest.hit(25, direction)
 			game.show_message("Hit! Enemy health: %d" % maxi(0, ceili(nearest.health)))

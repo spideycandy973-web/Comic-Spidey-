@@ -1,0 +1,42 @@
+extends SceneTree
+
+func _initialize() -> void:
+	call_deferred("run_test")
+
+func check(condition: bool, message: String) -> void:
+	if not condition:
+		push_error("TEST FAILED: " + message)
+		quit(1)
+
+func run_test() -> void:
+	var scene = load("res://main.tscn").instantiate()
+	root.add_child(scene)
+	await physics_frame
+	scene.start_mode("Story")
+	scene.set_process(false)
+	scene.hero.set_physics_process(false)
+	for npc in scene.people:
+		npc.set_physics_process(false)
+	await physics_frame
+	check(scene.people.size() == 8, "story spawns citizens and enemies")
+	check(scene.hero.animator != null, "hero animation player imported")
+	check(scene.hero.skeleton != null, "hero skeleton imported")
+	check(scene.hero.hand_bone >= 0, "hero hand bone imported")
+	check(scene.hero.animator.has_animation("run"), "run animation imported")
+	var enemy = scene.people[6]
+	scene.hero.global_position = Vector3(0, 0.1, 0)
+	enemy.global_position = Vector3(0, 0.1, -1.5)
+	scene.hero.attack()
+	check(enemy.health == 35, "player attack damages enemy")
+	enemy.stun = 0
+	enemy.attack_cooldown = 0
+	enemy._physics_process(0.05)
+	enemy._physics_process(0.7)
+	check(scene.hero.health == 90, "enemy attacks damage the player")
+	scene.hero.attach_web(Vector3(0, 0, -1))
+	check(scene.hero.rope_active, "web finds an unobstructed roof")
+	check(scene.hero.rope_length > 0, "rope length is set")
+	scene.interact()
+	check(scene.controls.message != "Move closer to someone to talk.", "nearby person can be interacted with")
+	print("Native scene smoke checks passed")
+	quit(0)

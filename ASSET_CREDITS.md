@@ -8,3 +8,7 @@ The user confirmed permission to include and publicly redistribute the supplied 
 
 If any supplied asset permission or attribution is incorrect, remove/replace it before distribution. Comic Spidey is not represented as an official or endorsed Marvel/Sony product.
 - **Rigged pedestrians:** generated with [Citizen Maker](https://github.com/ghanemja/citizen-maker) by Janelle Ghanem (MIT; license reproduced in `app/src/main/assets/vendor/CITIZEN-MAKER-LICENSE.txt`), using MakeHuman's CC0 base geometry. Two generated dressed human models and their procedural walk clips are cloned across eight pedestrians; their meshes were simplified with glTF Transform and meshoptimizer for reduced rendering cost; simple fallback geometry is used if loading fails.
+
+## Native Godot development project
+
+`godot/assets/hero.glb` is a conversion of the supplied skinned Spider-Man FBX and six supplied Mixamo clips to glTF; the hero texture comes from the same user-supplied archive. `godot/assets/doctor_octopus.glb` is the supplied static Doctor Octopus model, and `godot/assets/citizen*.glb` are the same two generated and optimized Citizen Maker characters described above. Godot Engine is distributed separately under the MIT license: https://godotengine.org/license/. The city currently uses original procedural geometry, not the supplied neighborhood model.

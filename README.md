@@ -1,3 +1,7 @@
+# Project status
+
+The Android WebView game described below is the legacy implementation and does not satisfy the request for a native-engine Android game. An incomplete native Godot migration is in [`godot/`](godot/README.md). Neither project is a finished release.
+
 # Comic Spidey — development build
 
 This repository contains a **small playable 3D prototype**, not the complete game. It has an original procedurally generated city (roughly 1.62 km across), streamed building chunks, an original story with travel, interactions, an escort, a group fight and boss encounters, free roam with repeatable street crimes, two boss encounters, simple walking civilians and swinging. It uses a user-supplied rigged Spider-Man model and a user-supplied Doctor Octopus model with procedural tentacle deformation; the first boss remains a low-poly placeholder. Eight pedestrians use clones of two animated human models derived from CC0 MakeHuman geometry. The requested production game and realistic animated models are not yet implemented.

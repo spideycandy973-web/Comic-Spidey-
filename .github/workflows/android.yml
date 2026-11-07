@@ -1,7 +1,5 @@
-name: Android prototype build
+name: Legacy WebView Android checks
 on:
-  push:
-    branches: ['arena/a6af770e-comic-spidey']
   pull_request:
   workflow_dispatch:
 permissions:

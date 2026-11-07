@@ -102,10 +102,19 @@ func _physics_process(delta: float) -> void:
 	else:
 		walk_time += delta
 		var direction := Vector3(sin(walk_time * 0.3), 0, cos(walk_time * 0.3))
+		var speed := 0.8
 		if global_position.distance_to(origin) > 5:
 			direction = (origin - global_position).normalized()
-		velocity.x = direction.x * 0.8
-		velocity.z = direction.z * 0.8
+		for threat in hero.game.mission_enemies:
+			if is_instance_valid(threat) and not threat.is_queued_for_deletion() and threat.health > 0:
+				var away: Vector3 = global_position - threat.global_position
+				away.y = 0
+				if away.length() < 7.0 and away.length() > 0.1:
+					direction = away.normalized()
+					speed = 3.0
+					break
+		velocity.x = direction.x * speed
+		velocity.z = direction.z * speed
 		visual.rotation.y = atan2(direction.x, direction.z) + PI
 	if is_enemy:
 		# Telegraph the attack with a visible lunge. The supplied Doc Ock mesh is not rigged.

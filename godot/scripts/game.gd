@@ -329,7 +329,12 @@ func _process(delta: float) -> void:
 		update_crime(delta)
 	var target = current_target()
 	var distance := ""
+	controls.target_direction = Vector2.ZERO
 	if target != null:
+		var direction: Vector3 = target - hero.position
+		var forward := Vector3(-sin(hero.yaw), 0, -cos(hero.yaw))
+		var right := Vector3(cos(hero.yaw), 0, -sin(hero.yaw))
+		controls.target_direction = Vector2(direction.dot(right), -direction.dot(forward))
 		distance = "  |  %dm" % roundi(Vector2(hero.position.x - target.x, hero.position.z - target.z).length())
 	controls.status = "%s  |  HEALTH %d  |  %s" % [mode.to_upper(), ceili(hero.health), "WEB ATTACHED" if hero.rope_active else "WEB READY"]
 	if mode == "Story":

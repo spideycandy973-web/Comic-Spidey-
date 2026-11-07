@@ -10,6 +10,7 @@ var surface: Control
 var status := ""
 var message := ""
 var objective := ""
+var target_direction := Vector2.ZERO
 var joystick := Vector2.ZERO
 
 func _ready() -> void:
@@ -95,6 +96,13 @@ func draw_controls() -> void:
 		var color := Color(0.60, 0.12, 0.16, 0.85) if name == "attack" else Color(0.09, 0.19, 0.27, 0.85)
 		surface.draw_circle(p, 38, color)
 		surface.draw_string(ThemeDB.fallback_font, p + Vector2(-25, 6), labels[name], HORIZONTAL_ALIGNMENT_CENTER, 50, 15, Color.WHITE)
+	if target_direction.length_squared() > 0.01:
+		var compass_center := Vector2(s.x * 0.5, 55)
+		var direction := target_direction.normalized()
+		var side := Vector2(-direction.y, direction.x)
+		surface.draw_circle(compass_center, 25, Color(0.03, 0.08, 0.12, 0.65))
+		var triangle := PackedVector2Array([compass_center + direction * 18, compass_center - direction * 11 + side * 9, compass_center - direction * 11 - side * 9])
+		surface.draw_colored_polygon(triangle, Color(0.45, 0.9, 1.0))
 	surface.draw_string(ThemeDB.fallback_font, Vector2(20, 32), status, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color.WHITE)
 	surface.draw_string(ThemeDB.fallback_font, Vector2(20, 62), objective, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, 18, Color(0.75, 0.95, 1))
 	surface.draw_string(ThemeDB.fallback_font, Vector2(20, 90), message, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, 18, Color.WHITE)

@@ -36,6 +36,19 @@
     for(let cx=minX;cx<=maxX;cx++)for(let cz=minZ;cz<=maxZ;cz++){const list=world.chunks.get(cx+','+cz);if(list)out.push(...list);}
     return out;
   }
+  // Segment vs. building AABB, including roofs. Used by attacks to prevent hits through walls.
+  function lineClear(world,a,b){
+    const dx=b.x-a.x,dy=b.y-a.y,dz=b.z-a.z,r=Math.max(Math.abs(dx),Math.abs(dz))+16;
+    for(const o of nearbyBuildings(world,a.x,a.z,r)){
+      let enter=0,exit=1;
+      for(const [origin,delta,min,max] of [[a.x,dx,o.x-o.w/2,o.x+o.w/2],[a.y,dy,0,o.h],[a.z,dz,o.z-o.d/2,o.z+o.d/2]]){
+        if(Math.abs(delta)<1e-9){if(origin<min||origin>max){enter=2;break;}}
+        else{let t0=(min-origin)/delta,t1=(max-origin)/delta;if(t0>t1)[t0,t1]=[t1,t0];enter=Math.max(enter,t0);exit=Math.min(exit,t1);if(enter>exit)break;}
+      }
+      if(enter<=exit&&enter<=1&&exit>=0)return false;
+    }
+    return true;
+  }
   function createPlayer(){return {x:0,y:0,z:9,vx:0,vy:0,vz:0,grounded:true,health:100,rope:null,wallTime:0,wallRunning:false};}
   function createBoss(index){const def=villains[index];return def?{...def,x:index===0?0:3,z:index===0?-8:-12,hp:def.health,state:'chase',timer:0,hitFlash:0}:null;}
   // Prefer a real rooftop in front of the camera; no invisible air anchors.
@@ -99,5 +112,5 @@
       b.timer-=dt;if(b.timer<=0){if(dist<b.range+0.6&&p.y<2.5&&!(p.invulnerable>0))p.health=Math.max(0,p.health-b.damage);b.state='cooldown';b.timer=b.cooldown;}
     }else {b.timer-=dt;if(b.timer<=0)b.state='chase';}
   }
-  return {villains,createWorld,createPlayer,createBoss,attach,stepPlayer,stepBoss,attack,nearbyBuildings,districtAt,chunkCoord,chunkKey,CHUNK_SIZE};
+  return {villains,createWorld,createPlayer,createBoss,attach,stepPlayer,stepBoss,attack,lineClear,nearbyBuildings,districtAt,chunkCoord,chunkKey,CHUNK_SIZE};
 });

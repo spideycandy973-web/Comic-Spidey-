@@ -28,6 +28,9 @@ const assert = require('node:assert/strict');
     await page.waitForFunction(()=>document.querySelector('#camera').textContent.includes('1ST'),null,{timeout:20000});
     await page.evaluate(()=>{window.mockPad.buttons[5].pressed=false;}); await page.click('#camera'); await page.click('#camera');
     await page.evaluate(()=>Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[]}));
+    await page.keyboard.press('Space');
+    await page.waitForFunction(()=>['jump','fall'].includes(document.body.dataset.heroAction),null,{timeout:20000});
+    await page.waitForFunction(()=>Number(document.querySelector('#webStatus').dataset.altitude)<.1,null,{timeout:30000});
     await page.keyboard.down('w');
     let hit=false;
     for(let i=0;i<140;i++){
@@ -42,6 +45,7 @@ const assert = require('node:assert/strict');
     assert.match(await page.locator('#notice').innerText(),/WEB HIT/);
     await page.keyboard.press('q'); assert.match(await page.locator('#notice').innerText(),/DODGE/);
     assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('comic-story-v1')).stage),1);
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('comic-progress-v1')).xp),25);
     await page.click('#pause'); assert.equal(await page.locator('#pausePanel').isVisible(),true);
     await page.click('#toMenu'); assert.equal(await page.locator('#continueStory').isVisible(),true);
     await page.click('#continueStory'); assert.equal(await page.locator('#bossHud').isVisible(),true);
@@ -109,6 +113,14 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('body').getAttribute('data-story-enemies'),'3');
     for(let i=0;i<140&&(await page.locator('body').getAttribute('data-story-enemies'))==='3';i++){await page.keyboard.press('f');if(i%4===0)await page.keyboard.press('g');await page.waitForTimeout(200);}
     assert.ok(Number(await page.locator('body').getAttribute('data-story-enemies'))<3,'crew can take combat damage and be defeated');
+    // A cosmetic tint genuinely changes the loaded material and survives reload.
+    await page.evaluate(()=>localStorage.setItem('comic-progress-v1',JSON.stringify({xp:250,crimes:0,claimed:[]})));
+    await page.reload(); await page.waitForFunction(()=>document.body.dataset.heroModel==='loaded',null,{timeout:30000});
+    const originalTint=await page.locator('body').getAttribute('data-suit-color'); await page.click('#settingsOpen');
+    await page.selectOption('#suitTint','sunset'); assert.equal(await page.locator('body').getAttribute('data-suit-tint'),'sunset');
+    assert.notEqual(await page.locator('body').getAttribute('data-suit-color'),originalTint);
+    await page.click('#settingsDone'); await page.reload(); await page.waitForFunction(()=>document.body.dataset.heroModel==='loaded',null,{timeout:30000});
+    assert.equal(await page.locator('body').getAttribute('data-suit-tint'),'sunset');
     assert.deepEqual(errors,[]);
     console.log('Browser smoke test passed: WebGL, cameras, villain damage, civilian interaction and swing takeoff/release.');
   } finally {await browser.close();}

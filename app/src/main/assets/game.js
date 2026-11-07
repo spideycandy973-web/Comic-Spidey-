@@ -1,7 +1,7 @@
 /* Local WebGL prototype. The simulation lives in physics.js; this file handles presentation and input. */
 (() => {
 'use strict';
-const $=id=>document.getElementById(id), P=window.ComicPhysics, City=window.ComicCity, Story=window.ComicStory, Combat=window.ComicCombat, Crime=window.ComicCrime, Weather=window.ComicWeather, Audio=window.ComicAudio, Gamepad=window.ComicGamepad;
+const $=id=>document.getElementById(id), P=window.ComicPhysics, City=window.ComicCity, Story=window.ComicStory, Combat=window.ComicCombat, Crime=window.ComicCrime, Weather=window.ComicWeather, Audio=window.ComicAudio, Gamepad=window.ComicGamepad, Progress=window.ComicProgress;
 let renderer;
 try { renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'}); }
 catch(e){ $('error').classList.remove('hidden'); return; }
@@ -14,7 +14,9 @@ let gamepadState={},gamepadInput={x:0,z:0,held:{}};const swingSources={touch:fal
 const input={forward:false,back:false,left:false,right:false,jx:0,jy:0,jump:false,climb:false,swing:false};
 function load(key,fallback){try{return JSON.parse(localStorage.getItem(key))||fallback;}catch(e){return fallback;}}
 function save(key,value){try{localStorage.setItem(key,JSON.stringify(value));}catch(e){}}
-const settings=Object.assign({lighting:'sunset',assist:true,weather:'clear',quality:'high',touchSize:'normal',swapControls:false,sound:true},load('comic3d-settings',{}));
+const progress=Progress.create(load('comic-progress-v1',null),load('comic-crimes-solved',0));
+const settings=Object.assign({suitTint:'classic',lighting:'sunset',assist:true,weather:'clear',quality:'high',touchSize:'normal',swapControls:false,sound:true},load('comic3d-settings',{}));
+if(!Progress.unlocked(progress,settings.suitTint))settings.suitTint='classic';
 if(!['sunset','day','night','cycle'].includes(settings.lighting))settings.lighting='sunset';
 if(!['clear','rain','cycle'].includes(settings.weather))settings.weather='clear';
 if(!['low','balanced','high'].includes(settings.quality))settings.quality='high';
@@ -84,18 +86,19 @@ function makeBoss(id){
  return {group:g,ring,l,r};
 }
 const hero=makeHero();scene.add(hero.group);
-let heroMixer=null,heroActions={},heroActionName='',heroHand=null,docTemplate=null;
+let heroMixer=null,heroActions={},heroActionName='',heroHand=null,docTemplate=null,wasAirborne=false,landingTime=0,heroMaterials=[];const fallbackHeroParts=hero.group.children.slice();
 function bytesFromBase64(value){const binary=atob(value),bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return bytes.buffer;}
 // User-supplied rigged Spider-Man FBX plus compatible Mixamo clips. No network request is needed.
 try{
  const data=window.ComicModelData, fbx=new window.ComicLoaders.FBXLoader(), model=fbx.parse(bytesFromBase64(data.heroFbx),'');
  if(!model.animations.length||!model.getObjectByName('mixamorigRightHand'))throw new Error('Hero rig or idle clip missing');
- const fallbackParts=hero.group.children.slice();fallbackParts.forEach(part=>part.visible=false);
- model.scale.setScalar(1.12);model.rotation.y=Math.PI;hero.group.add(model);heroHand=model.getObjectByName('mixamorigRightHand');
+ fallbackHeroParts.forEach(part=>part.visible=false);
+ model.scale.setScalar(1.12);model.rotation.y=Math.PI;model.traverse(o=>{if(o.isMesh){for(const m of (Array.isArray(o.material)?o.material:[o.material]))if(m&&m.color)heroMaterials.push({material:m,base:m.color.clone()});}});applySuitTint();hero.group.add(model);heroHand=model.getObjectByName('mixamorigRightHand');
  heroMixer=new THREE.AnimationMixer(model);
  heroActions.idle=heroMixer.clipAction(model.animations[0]);heroActions.run=heroMixer.clipAction(THREE.AnimationClip.parse(data.run));heroActions.swing=heroMixer.clipAction(THREE.AnimationClip.parse(data.swing));
- heroActions.idle.play();heroActionName='idle';document.body.dataset.heroModel='loaded';data.heroFbx=null;data.run=null;data.swing=null;
-}catch(error){console.error('Hero model unavailable:',error);document.body.dataset.heroModel='fallback';$('modelStatus').textContent='SPIDER-MAN MODEL FAILED • ORIGINAL PLACEHOLDER IN USE';$('modelStatus').classList.remove('hidden');}
+ for(const name of ['jump','fall','land']){heroActions[name]=heroMixer.clipAction(THREE.AnimationClip.parse(window.ComicMovementClips[name]));if(name!=='land'){heroActions[name].setLoop(THREE.LoopOnce,1);heroActions[name].clampWhenFinished=true;}}
+ window.ComicMovementClips=null;heroActions.idle.play();heroActionName='idle';document.body.dataset.heroModel='loaded';data.heroFbx=null;data.run=null;data.swing=null;
+}catch(error){fallbackHeroParts.forEach(part=>part.visible=true);for(const part of hero.group.children.slice())if(!fallbackHeroParts.includes(part))hero.group.remove(part);heroMixer=null;heroHand=null;heroMaterials=[];console.error('Hero model unavailable:',error);document.body.dataset.heroModel='fallback';$('modelStatus').textContent='SPIDER-MAN MODEL FAILED • ORIGINAL PLACEHOLDER IN USE';$('modelStatus').classList.remove('hidden');}
 let enemy=makeBoss('volt');scene.add(enemy.group);
 try{
  const data=window.ComicModelData;
@@ -108,7 +111,24 @@ try{
   if(boss&&boss.id==='docock'){scene.remove(enemy.group);enemy=makeBoss('docock');scene.add(enemy.group);document.body.dataset.bossModel=enemy.group.userData.model||'placeholder';}
  },error=>{console.error('Doctor Octopus model unavailable:',error);document.body.dataset.docModel='fallback';$('modelStatus').textContent='DOCTOR OCTOPUS MODEL FAILED • PLACEHOLDER IN USE';$('modelStatus').classList.remove('hidden');});
 }catch(error){console.error('Doctor Octopus model unavailable:',error);document.body.dataset.docModel='fallback';$('modelStatus').textContent='DOCTOR OCTOPUS MODEL FAILED • PLACEHOLDER IN USE';$('modelStatus').classList.remove('hidden');}
-function animateHero(dt){if(!heroMixer)return;const next=player.rope?'swing':(player.grounded&&Math.hypot(player.vx,player.vz)>.8?'run':'idle');if(next!==heroActionName){heroActions[heroActionName].fadeOut(.18);heroActions[next].reset().fadeIn(.18).play();heroActionName=next;}document.body.dataset.heroAction=next;if(state==='playing'||state==='menu')heroMixer.update(dt);}
+function applySuitTint(){
+ const tint=new THREE.Color(Progress.tints[settings.suitTint].color);
+ for(const entry of heroMaterials)entry.material.color.copy(entry.base).multiply(tint);
+ document.body.dataset.suitTint=settings.suitTint;document.body.dataset.suitColor=heroMaterials.length?heroMaterials[0].material.color.getHexString():'';
+}
+function saveProgress(){save('comic-progress-v1',progress);}
+function animateHero(dt){
+ if(!heroMixer)return;
+ if(state==='playing'){
+  const airborne=!player.grounded&&!player.rope;
+  if(wasAirborne&&player.grounded)landingTime=.4;
+  if(!player.grounded||player.rope)landingTime=0;
+  let next=player.rope?'swing':airborne?(player.vy>0?'jump':'fall'):(Math.hypot(player.vx,player.vz)>.8?'run':landingTime>0?'land':'idle');
+  landingTime=Math.max(0,landingTime-dt);wasAirborne=airborne;
+  if(next!==heroActionName){heroActions[heroActionName].fadeOut(.18);heroActions[next].reset().fadeIn(.18).play();heroActionName=next;}
+ }
+ document.body.dataset.heroAction=heroActionName;if(state==='playing'||state==='menu')heroMixer.update(dt);
+}
 
 // First-person forearms are attached to the camera and hidden in third-person view.
 const hands=new THREE.Group();camera.add(hands);
@@ -231,10 +251,10 @@ const shotLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THRE
 function crimeTick(dt){
  const result=Crime.tick(crime,player,dt,world.bound);
  if(result==='spawned'){Audio.play('web');clearCrimeModels();crimeModels=crime.enemies.map(makeThug);crimeBeacon.position.set(crime.location.x,7.5,crime.location.z);crimeBeacon.visible=true;message('CRIME REPORTED • FOLLOW THE RED BEACON',4);}
- if(result==='completed'){Audio.play('success');clearCrimeModels();crimeBeacon.visible=false;save('comic-crimes-solved',(load('comic-crimes-solved',0)||0)+1);message('CRIME STOPPED • HEALTH RESTORED',4);}
+ if(result==='completed'){Audio.play('success');clearCrimeModels();crimeBeacon.visible=false;Progress.awardCrime(progress);saveProgress();save('comic-crimes-solved',progress.crimes);message('CRIME STOPPED • HEALTH RESTORED',4);}
  for(const e of crime.enemies)P.stepBoss(e,player,dt,world);
  if(crime.phase==='active'){$('objective').textContent='Stop the street crime';$('tip').textContent=crime.enemies.filter(e=>e.hp>0).length+' enemies remaining';}
- else {$('objective').textContent='Explore the city';$('tip').textContent='Crimes stopped: '+(load('comic-crimes-solved',0)||0);}
+ else {$('objective').textContent='Explore the city';$('tip').textContent='Crimes stopped: '+progress.crimes;}
  document.body.dataset.crimePhase=crime.phase;
 }
 const web=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,1,6),new THREE.MeshBasicMaterial({color:0xe8ffff}));web.visible=false;scene.add(web);
@@ -263,13 +283,13 @@ function applyStoryStage(){
  $('talk').setAttribute('aria-label',stage.type==='interact'?'Use nearby mission object':'Talk to a nearby civilian');
  document.body.dataset.storyType=stage.type;document.body.dataset.storyEnemies=String(storyEnemies.length);saveStory();
 }
-function advanceStory(event){const next=Story.advance(storyStage,event);if(next!==storyStage){storyStage=next;applyStoryStage();}}
+function advanceStory(event){const next=Story.advance(storyStage,event);if(next!==storyStage){if(Progress.awardStory(progress,storyStage))saveProgress();storyStage=next;applyStoryStage();}}
 updateContinue();
 function message(text,seconds=3){$('notice').textContent=text;noticeTimer=seconds;$('notice').classList.remove('hidden');}
 function clearInput(){Object.assign(swingSources,{touch:false,key:false,pad:false});Object.assign(input,{forward:false,back:false,left:false,right:false,jx:0,jy:0,jump:false,climb:false,swing:false});player.rope=null;$('stick').style.transform='translate(0,0)';document.querySelectorAll('.pressed').forEach(x=>x.classList.remove('pressed'));}
 function setBoss(index){bossIndex=index;boss=P.createBoss(index);scene.remove(enemy.group);if(boss){enemy=makeBoss(boss.id);scene.add(enemy.group);document.body.dataset.bossModel=enemy.group.userData.model||'placeholder';$('bossHud').classList.remove('hidden');$('bossName').textContent=boss.name;$('bossSubtitle').textContent=boss.subtitle;$('objective').textContent='Defeat '+boss.name;message(boss.name+' HAS ENTERED THE FIGHT!',3);}else{$('bossHud').classList.add('hidden');finish(true);}}
 function start(selectedMode='story',continueSaved=false){
- clearInput();Audio.unlock();mode=selectedMode;player=P.createPlayer();combat=Combat.create();crime=Crime.create();clearCrimeModels();crimeBeacon.visible=false;missionProp.visible=false;escortRing.visible=false;escort=null;storyEnemies=[];shotTarget=null;shotTime=0;yaw=0;pitch=0;view='third';state='playing';last=0;
+ clearInput();Audio.unlock();mode=selectedMode;wasAirborne=false;landingTime=0;player=P.createPlayer();combat=Combat.create();crime=Crime.create();clearCrimeModels();crimeBeacon.visible=false;missionProp.visible=false;escortRing.visible=false;escort=null;storyEnemies=[];shotTarget=null;shotTime=0;yaw=0;pitch=0;view='third';state='playing';last=0;
  storyStage=continueSaved?(savedStage()??0):0;
  if(mode==='story'){const spawn=Story.stage(storyStage).spawn;player.x=spawn.x;player.z=spawn.z;}
  camera.position.set(player.x,4,player.z+7);updateChunks(player.x,player.z);
@@ -277,7 +297,7 @@ function start(selectedMode='story',continueSaved=false){
  if(mode==='story')applyStoryStage();else{hideBoss();beacon.visible=false;$('talk').innerHTML='✦<small>TALK</small>';$('talk').setAttribute('aria-label','Talk to a nearby civilian');$('objective').textContent='Explore the city';$('tip').textContent='Drag the view to look around';message('HOLD SWING TO LAUNCH • DRAG TO LOOK',5);}
  updateHud();drawMap();
 }
-function showDialog(panel){$('dialog').classList.remove('hidden');['pause','settings','result'].forEach(p=>$(p+'Panel').classList.toggle('hidden',p!==panel));$('lighting').value=settings.lighting;$('assist').checked=!!settings.assist;$('weather').value=settings.weather;$('quality').value=settings.quality;$('touchSize').value=settings.touchSize;$('swapControls').checked=!!settings.swapControls;$('sound').checked=!!settings.sound;}
+function showDialog(panel){$('dialog').classList.remove('hidden');['pause','settings','result'].forEach(p=>$(p+'Panel').classList.toggle('hidden',p!==panel));$('lighting').value=settings.lighting;$('suitTint').value=settings.suitTint;for(const o of $('suitTint').options)o.disabled=!Progress.unlocked(progress,o.value);$('suitTint').disabled=heroMaterials.length===0;$('assist').checked=!!settings.assist;$('weather').value=settings.weather;$('quality').value=settings.quality;$('touchSize').value=settings.touchSize;$('swapControls').checked=!!settings.swapControls;$('sound').checked=!!settings.sound;}
 function pause(){if(state!=='playing')return;clearInput();state='paused';previous='paused';showDialog('pause');}
 function resume(){state='playing';last=0;$('dialog').classList.add('hidden');}
 function menu(){clearInput();clearCrimeModels();crimeBeacon.visible=false;missionProp.visible=false;escortRing.visible=false;escort=null;storyEnemies=[];shotTime=0;state='menu';$('dialog').classList.add('hidden');$('hud').classList.add('hidden');$('menu').classList.remove('hidden');beacon.visible=false;updateContinue();}
@@ -287,6 +307,7 @@ $('settingsOpen').onclick=()=>{previous='menu';showDialog('settings');};$('pause
 function closeSettings(){if(previous==='paused')showDialog('pause');else $('dialog').classList.add('hidden');}
 $('settingsDone').onclick=closeSettings;$('closeDialog').onclick=()=>{if(!$('settingsPanel').classList.contains('hidden'))closeSettings();else if(state==='paused')resume();else if(state==='result')menu();};
 $('lighting').onchange=e=>{settings.lighting=e.target.value;save('comic3d-settings',settings);lighting();};$('assist').onchange=e=>{settings.assist=e.target.checked;save('comic3d-settings',settings);};
+$('suitTint').onchange=e=>{if(!Progress.unlocked(progress,e.target.value)){e.target.value=settings.suitTint;return;}settings.suitTint=e.target.value;applySuitTint();save('comic3d-settings',settings);};
 $('weather').onchange=e=>{settings.weather=e.target.value;Weather.setMode(weatherState,settings.weather);updateWeather(0);save('comic3d-settings',settings);};
 for(const id of ['quality','touchSize','swapControls','sound'])$(id).onchange=e=>{settings[id]=e.target.type==='checkbox'?e.target.checked:e.target.value;applyPreferences();if(id==='sound')Audio.unlock();save('comic3d-settings',settings);};
 function updateView(){hands.visible=view==='first';hero.group.visible=view!=='first';const label={third:'3RD',first:'1ST',overhead:'TOP'};const next={third:'first person',first:'overhead',overhead:'third person'};$('camera').innerHTML='◉<small>'+label[view]+'</small>';$('camera').setAttribute('aria-label','Switch to '+next[view]);}
@@ -302,16 +323,17 @@ function talk(){
 }
 $('talk').onclick=talk;
 function targets(){return boss?[boss]:(mode==='story'?storyEnemies:crime.enemies);}
+function canHitTarget(t){return P.lineClear(world,{x:player.x,y:player.y+1.4,z:player.z},{x:t.x,y:(t.y||0)+1.2,z:t.z});}
 function hit(){
- if(state!=='playing')return;const result=Combat.melee(combat,player,targets());
+ if(state!=='playing')return;const result=Combat.melee(combat,player,targets(),canHitTarget);
  if(result.ok){Audio.play('hit');message('HIT • COMBO '+result.combo,1);if(result.target===boss&&boss.hp<=0){player.health=Math.min(100,player.health+35);if(mode==='story')advanceStory({type:'defeated',boss:bossIndex});}}
- else if(result.reason==='range')message('GET CLOSER TO ATTACK',1);
+ else if(result.reason==='range')message('NO REACHABLE ENEMY IN RANGE',1);
 }
 function shootWeb(){
- if(state!=='playing')return;const result=Combat.web(combat,player,targets());
+ if(state!=='playing')return;const result=Combat.web(combat,player,targets(),canHitTarget);
  if(result.ok){Audio.play('web');shotTarget=result.target;shotTime=.22;message('WEB HIT • ENEMY STUNNED',1.2);}
  else if(result.reason==='energy')message('WEB ENERGY RECHARGING',1.5);
- else if(result.reason==='range')message('NO ENEMY IN WEB RANGE',1.5);
+ else if(result.reason==='range')message('NO VISIBLE ENEMY IN WEB RANGE',1.5);
 }
 function dodge(){
  if(state!=='playing')return;
@@ -346,7 +368,7 @@ function pollGamepad(dt){
  if(next.pressed.attack)hit();if(next.pressed.web)shootWeb();if(next.pressed.dodge)dodge();if(next.pressed.talk)talk();if(next.pressed.camera)toggleCamera();
  if(next.pressed.swing){swingSources.pad=true;syncSwing();}
 }
-function updateHud(){ $('webStatus').textContent=(player.rope?'WEB ATTACHED • '+Math.round(player.y)+'M':'WEB READY')+' • '+Math.round(combat.energy)+'%';$('webStatus').dataset.energy=String(Math.round(combat.energy));$('webStatus').dataset.altitude=player.y.toFixed(2);document.body.dataset.wallRunning=String(player.wallRunning);$('talk').dataset.nearby=City.nearest(citizens,player)?'true':'false';$('webStatus').classList.toggle('attached',!!player.rope);$('playerHealth').textContent=Math.ceil(player.health);$('playerBar').style.width=player.health+'%';if(boss){$('bossBar').style.width=(boss.hp/boss.health*100)+'%';$('bossPhase').textContent=boss.hp<=boss.health/2?'PHASE 2':'PHASE 1';} }
+function updateHud(){ $('rank').textContent='RANK '+Progress.rank(progress)+' • '+progress.xp+' XP';document.body.dataset.xp=String(progress.xp);$('webStatus').textContent=(player.rope?'WEB ATTACHED • '+Math.round(player.y)+'M':'WEB READY')+' • '+Math.round(combat.energy)+'%';$('webStatus').dataset.energy=String(Math.round(combat.energy));$('webStatus').dataset.altitude=player.y.toFixed(2);document.body.dataset.wallRunning=String(player.wallRunning);$('talk').dataset.nearby=City.nearest(citizens,player)?'true':'false';$('webStatus').classList.toggle('attached',!!player.rope);$('playerHealth').textContent=Math.ceil(player.health);$('playerBar').style.width=player.health+'%';if(boss){$('bossBar').style.width=(boss.hp/boss.health*100)+'%';$('bossPhase').textContent=boss.hp<=boss.health/2?'PHASE 2':'PHASE 1';} }
 // A north-up local map is redrawn at low frequency; it shows the same simulated buildings.
 const mapCanvas=$('minimap'),mapCtx=mapCanvas.getContext('2d');let mapTimer=0;
 function drawMap(){

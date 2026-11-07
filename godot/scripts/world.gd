@@ -12,6 +12,9 @@ var roof_material: StandardMaterial3D
 var grass_material: StandardMaterial3D
 var leaf_material: StandardMaterial3D
 var trunk_material: StandardMaterial3D
+var glass_material: StandardMaterial3D
+var awning_material: StandardMaterial3D
+var metal_material: StandardMaterial3D
 
 func _ready() -> void:
 	paint_material = material(Color("ded9bb"))
@@ -19,6 +22,9 @@ func _ready() -> void:
 	grass_material = material(Color("54794a"))
 	leaf_material = material(Color("386839"))
 	trunk_material = material(Color("6b5035"))
+	glass_material = material(Color("223b4b"))
+	awning_material = material(Color("a84b40"))
+	metal_material = material(Color("38474c"))
 	var ground := StaticBody3D.new()
 	var ground_shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
@@ -78,6 +84,9 @@ func make_chunk(key: Vector2i) -> void:
 	chunks[key] = chunk
 	var roofs: Array[Vector3] = []
 	var rooftop_details: Array[Transform3D] = []
+	var doors: Array[Transform3D] = []
+	var awnings: Array[Transform3D] = []
+	var street_furniture: Array[Transform3D] = []
 	var road_marks: Array[Transform3D] = []
 	var rng := RandomNumberGenerator.new()
 	rng.seed = absi(key.x * 73856093 ^ key.y * 19349663) + 913
@@ -99,6 +108,11 @@ func make_chunk(key: Vector2i) -> void:
 		road_marks.append(Transform3D(Basis.from_scale(Vector3(0.55, 0.02, 2.0)), Vector3(ox + i * 1.7, 0.03, oz + 6)))
 		road_marks.append(Transform3D(Basis.from_scale(Vector3(2.0, 0.02, 0.55)), Vector3(ox + 6, 0.03, oz + i * 1.7)))
 	add_instances(chunk, road_marks, paint_material)
+	# Street lights stay outside the drivable road and are batched per block.
+	for dz in [9.0, 35.0]:
+		street_furniture.append(Transform3D(Basis.from_scale(Vector3(0.18, 4.0, 0.18)), Vector3(ox + 5.2, 2, oz + dz)))
+		street_furniture.append(Transform3D(Basis.from_scale(Vector3(0.6, 0.18, 0.4)), Vector3(ox + 5.0, 4, oz + dz)))
+	add_instances(chunk, street_furniture, metal_material)
 	if is_park:
 		add_park(chunk, key, rng)
 		chunk.set_meta("anchors", roofs)
@@ -126,10 +140,15 @@ func make_chunk(key: Vector2i) -> void:
 			building.add_child(collision)
 			chunk.add_child(building)
 			rooftop_details.append(Transform3D(Basis.from_scale(Vector3(2.8, 1.3, 2.3)), center + Vector3(0, height + 0.65, 0)))
+			rooftop_details.append(Transform3D(Basis.from_scale(Vector3(size.x + 0.3, 0.35, size.z + 0.3)), center + Vector3.UP * height))
+			doors.append(Transform3D(Basis.from_scale(Vector3(0.1, 3.0, 2.3)), center + Vector3(dx * (size.x * 0.5 + 0.06), 1.5, 0)))
+			awnings.append(Transform3D(Basis.from_scale(Vector3(1.1, 0.25, 3.2)), center + Vector3(dx * (size.x * 0.5 + 0.5), 3.2, 0)))
 			for side_x in [-1, 1]:
 				for side_z in [-1, 1]:
 					roofs.append(center + Vector3(side_x * (size.x * 0.5 + 0.3), height + 0.25, side_z * (size.z * 0.5 + 0.3)))
 	add_instances(chunk, rooftop_details, roof_material)
+	add_instances(chunk, doors, glass_material)
+	add_instances(chunk, awnings, awning_material)
 	chunk.set_meta("anchors", roofs)
 
 func add_park(parent: Node3D, key: Vector2i, rng: RandomNumberGenerator) -> void:

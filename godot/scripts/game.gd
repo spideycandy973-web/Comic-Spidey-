@@ -130,6 +130,7 @@ func start_mode(selected: String) -> void:
 	if selected not in ["Story", "Free Roam"]:
 		return
 	mode = selected
+	print("Native mode started: ", mode)
 	stage = 0
 	crime_sequence = 0
 	crime_completed = 0

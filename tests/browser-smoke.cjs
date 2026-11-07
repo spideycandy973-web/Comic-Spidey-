@@ -95,6 +95,7 @@ const assert = require('node:assert/strict');
     await page.evaluate(()=>localStorage.setItem('comic-story-v1',JSON.stringify({stage:5})));
     await page.reload(); await page.click('#continueStory');
     assert.equal(await page.locator('body').getAttribute('data-story-type'),'interact');
+    await page.waitForFunction(()=>document.body.dataset.trafficCenter==='80,-160',null,{timeout:30000});
     assert.match(await page.locator('#talk').innerText(),/USE/);
     await page.keyboard.press('e'); assert.equal(await page.locator('body').getAttribute('data-story-type'),'interact');
     await page.keyboard.down('w');

@@ -1,7 +1,7 @@
 /* Local WebGL prototype. The simulation lives in physics.js; this file handles presentation and input. */
 (() => {
 'use strict';
-const $=id=>document.getElementById(id), P=window.ComicPhysics, City=window.ComicCity, Story=window.ComicStory, Combat=window.ComicCombat, Crime=window.ComicCrime, Weather=window.ComicWeather, Audio=window.ComicAudio, Gamepad=window.ComicGamepad, Progress=window.ComicProgress, Layout=window.ComicLayout;
+const $=id=>document.getElementById(id), P=window.ComicPhysics, City=window.ComicCity, Story=window.ComicStory, Combat=window.ComicCombat, Crime=window.ComicCrime, Weather=window.ComicWeather, Audio=window.ComicAudio, Gamepad=window.ComicGamepad, Progress=window.ComicProgress, Layout=window.ComicLayout, Traffic=window.ComicTraffic;
 let renderer;
 try { renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'}); }
 catch(e){ $('error').classList.remove('hidden'); return; }
@@ -240,8 +240,8 @@ try{
   document.body.dataset.citizenModel='loaded';window.ComicCitizenData=null;
  },error=>{console.error('Citizen model unavailable:',error);document.body.dataset.citizenModel='fallback';});
 }catch(error){console.error('Citizen model unavailable:',error);document.body.dataset.citizenModel='fallback';}
-// Traffic is decorative: it moves on streets but has no collision/damage simulation yet.
-const cars=[];
+// Traffic follows the player and slows for nearby pedestrians; there is no collision damage.
+const traffic=Traffic.create(),cars=[];
 for(let i=0;i<4;i++){const g=new THREE.Group(),paint=mat([0xf3b84c,0x67a7bc,0xe77b6e,0xd8d8c7][i]);box(g,2.5,.7,1.25,paint,0,.55,0);box(g,1.2,.6,1.05,mat(0x9dc8d2),-.1,1.15,0);for(const x of [-.8,.8])for(const z of [-.65,.65])sphere(g,.25,ink,x,.28,z);scene.add(g);cars.push(g);}
 // Crime encounters use independent simulation records and lightweight original NPC meshes.
 const thugJacket=mat(0x824353),thugPants=mat(0x263144),thugSkin=mat(0xc99372);
@@ -434,7 +434,7 @@ function frame(now){const dt=last?Math.min((now-last)/1000,1/30):0;last=now;cloc
   const sx=(input.right?1:0)-(input.left?1:0)+input.jx+gamepadInput.x,sz=(input.back?1:0)-(input.forward?1:0)+input.jy+gamepadInput.z;
   const mx=Math.cos(yaw)*sx+Math.sin(yaw)*sz,mz=-Math.sin(yaw)*sx+Math.cos(yaw)*sz;
   updateWeather(dt);const previousHealth=player.health;
-  City.recenter(citizens,player,world.bound);City.step(citizens,dt);
+  City.recenter(citizens,player,world.bound);City.step(citizens,dt);Traffic.recenter(traffic,player,world.bound);Traffic.step(traffic,[player,...citizens],dt);document.body.dataset.trafficCenter=traffic[0].centerX+','+traffic[0].centerZ;
   if(mode==='story'&&escort){
    const blocked=(x,z)=>P.nearbyBuildings(world,x,z,15).some(b=>Math.abs(x-b.x)<b.w/2+.4&&Math.abs(z-b.z)<b.d/2+.4);
    Story.stepEscort(escort,player,dt,blocked);Object.assign(citizens[0],{x:escort.x,z:escort.z,angle:escort.angle});escortRing.position.set(escort.x,.1,escort.z);document.body.dataset.escortZ=escort.z.toFixed(2);
@@ -456,7 +456,7 @@ function frame(now){const dt=last?Math.min((now-last)/1000,1/30):0;last=now;cloc
  shotLine.visible=shotTime>0&&!!shotTarget;
  if(shotLine.visible){hero.group.updateMatrixWorld(true);const a=view==='first'?(camera.updateMatrixWorld(true),hands.localToWorld(new THREE.Vector3(.32,-.35,-1.05))):(heroHand?heroHand.getWorldPosition(new THREE.Vector3()):new THREE.Vector3(player.x,player.y+1.5,player.z));shotLine.geometry.setFromPoints([a,new THREE.Vector3(shotTarget.x,1.2,shotTarget.z)]);}
  citizens.forEach((npc,i)=>{const m=citizenModels[i];m.g.position.set(npc.x,0,npc.z);m.g.rotation.y=npc.angle;if(m.mixer){if(state==='playing'||state==='menu')m.mixer.update(dt);}else{m.left.rotation.x=Math.sin(clock*6+i)*.25;m.right.rotation.x=-m.left.rotation.x;}});
- cars.forEach((car,i)=>{const pos=((clock*(i%2?7:9)+i*36)%144)-72;car.position.set(i<2?pos:(i===2?-3:3),0,i<2?(i===0?-3:3):pos);car.rotation.y=i<2?(i===0?0:Math.PI):(i===2?-Math.PI/2:Math.PI/2);});
+ cars.forEach((car,i)=>{const t=traffic[i];car.position.set(t.x,0,t.z);car.rotation.y=t.axis==='x'?(t.direction>0?0:Math.PI):(t.direction>0?-Math.PI/2:Math.PI/2);});
  web.visible=!!player.rope;anchorMarker.visible=!!player.rope;
  if(player.rope){if(view==='first'){camera.updateMatrixWorld(true);hands.localToWorld(webStart.set(.32,-.35,-1.05));document.body.dataset.webOrigin='first-person-hand';}else{hero.group.updateMatrixWorld(true);if(heroHand){heroHand.getWorldPosition(webStart);document.body.dataset.webOrigin='rigged-hand';}else{hero.armR.localToWorld(webStart.set(0,-.76,0));document.body.dataset.webOrigin='placeholder-hand';}}webEnd.set(player.rope.x,player.rope.y,player.rope.z);web.position.copy(webStart).add(webEnd).multiplyScalar(.5);web.scale.y=webStart.distanceTo(webEnd);web.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),webEnd.sub(webStart).normalize());anchorMarker.position.set(player.rope.x,player.rope.y,player.rope.z);}
  if(state==='menu'){camera.position.set(15+Math.sin(clock*.13)*2,8,20);camera.lookAt(0,2,0);hero.group.visible=true;hands.visible=false;}

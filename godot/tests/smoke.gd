@@ -48,7 +48,18 @@ func run_test() -> void:
 	check(scene.sound.samples.size() == 5, "offline sound cues were generated")
 	scene.hero.attach_web(Vector3(0, 0, -1))
 	check(scene.hero.rope_active and scene.hero.rope_length > 0, "web finds an unobstructed roof")
-	scene.hero.rope_active = false
+	var swing_start: Vector3 = scene.hero.position
+	scene.controls.buttons_down["swing"] = true
+	scene.controls.movement = Vector2(0, -1)
+	for frame in range(60):
+		scene.hero._physics_process(1.0 / 60.0)
+	check(scene.hero.rope_active and scene.hero.position.distance_to(swing_start) > 1.0, "held web permits physical movement")
+	scene.controls.buttons_down.erase("swing")
+	scene.controls.movement = Vector2.ZERO
+	scene.hero._physics_process(1.0 / 60.0)
+	check(not scene.hero.rope_active and not scene.hero.web.visible, "releasing web ends rope")
+	scene.hero.position = Vector3(0, 0.1, 0)
+	scene.hero.velocity = Vector3.ZERO
 	scene.interact()
 	check(scene.controls.message.begins_with("Civilian:"), "nearby civilian can be interacted with")
 
@@ -111,6 +122,18 @@ func run_test() -> void:
 			scene.interact()
 		check(scene.crime_phase == "waiting", "crime resolves")
 	check(scene.crime_completed == 3, "free roam tracks resolved crimes")
+	scene.crime_sequence = 2
+	scene.start_crime()
+	scene.pause_game()
+	check(not scene.mission_enemies[0].is_physics_processing(), "pause stops enemy AI")
+	scene.resume_game()
+	scene.update_crime(100)
+	check(scene.crime_phase == "waiting" and scene.crime_failed == 1, "timed emergencies can fail")
+	scene.hero.position = Vector3(440, 0.1, 440)
+	scene.recenter_civilians()
+	for npc in scene.people:
+		if npc.local_civilian:
+			check(npc.position.distance_to(scene.hero.position) < 20, "civilians follow the player between neighborhoods")
 
 	# Use a real user:// slot to test round-trip and malformed saves.
 	scene.save_enabled = true

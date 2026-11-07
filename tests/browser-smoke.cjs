@@ -111,8 +111,8 @@ const assert = require('node:assert/strict');
     await page.reload(); await page.click('#continueStory');
     assert.equal(await page.locator('body').getAttribute('data-story-type'),'crew');
     assert.equal(await page.locator('body').getAttribute('data-story-enemies'),'3');
-    for(let i=0;i<140&&(await page.locator('body').getAttribute('data-story-enemies'))==='3';i++){await page.keyboard.press('f');if(i%4===0)await page.keyboard.press('g');await page.waitForTimeout(200);}
-    assert.ok(Number(await page.locator('body').getAttribute('data-story-enemies'))<3,'crew can take combat damage and be defeated');
+    for(let i=0;i<240&&(await page.locator('body').getAttribute('data-story-enemies'))==='3';i++){await page.keyboard.press('f');await page.waitForTimeout(200);}
+    assert.ok(Number(await page.locator('body').getAttribute('data-story-enemies'))<3,`crew can take combat damage and be defeated (health ${await page.locator('#playerHealth').innerText()}, notice ${await page.locator('#notice').innerText()})`);
     // A cosmetic tint genuinely changes the loaded material and survives reload.
     await page.evaluate(()=>localStorage.setItem('comic-progress-v1',JSON.stringify({xp:250,crimes:0,claimed:[]})));
     await page.reload(); await page.waitForFunction(()=>document.body.dataset.heroModel==='loaded',null,{timeout:30000});

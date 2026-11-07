@@ -6,8 +6,13 @@ const RADIUS := 2
 var chunks: Dictionary = {}
 var anchors: Array[Vector3] = []
 var player: CharacterBody3D
+const FACADE = preload("res://scripts/facade.gdshader")
+var paint_material: StandardMaterial3D
+var roof_material: StandardMaterial3D
 
 func _ready() -> void:
+	paint_material = material(Color("ded9bb"))
+	roof_material = material(Color("585f62"))
 	var ground := StaticBody3D.new()
 	var ground_shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
@@ -66,6 +71,8 @@ func make_chunk(key: Vector2i) -> void:
 	add_child(chunk)
 	chunks[key] = chunk
 	var roofs: Array[Vector3] = []
+	var rooftop_details: Array[Transform3D] = []
+	var road_marks: Array[Transform3D] = []
 	var rng := RandomNumberGenerator.new()
 	rng.seed = absi(key.x * 73856093 ^ key.y * 19349663) + 913
 	var sidewalk := MeshInstance3D.new()
@@ -75,6 +82,16 @@ func make_chunk(key: Vector2i) -> void:
 	sidewalk.position = Vector3((key.x + 0.5) * CELL, 0.01, (key.y + 0.5) * CELL)
 	sidewalk.material_override = material(Color("777d7e"))
 	chunk.add_child(sidewalk)
+	# Dashed lane markings and pedestrian crossings, batched per city block.
+	var ox := key.x * CELL
+	var oz := key.y * CELL
+	for i in range(4):
+		road_marks.append(Transform3D(Basis.from_scale(Vector3(0.12, 0.02, 3.0)), Vector3(ox, 0.025, oz + 11 + i * 8)))
+		road_marks.append(Transform3D(Basis.from_scale(Vector3(3.0, 0.02, 0.12)), Vector3(ox + 11 + i * 8, 0.025, oz)))
+	for i in range(-2, 3):
+		road_marks.append(Transform3D(Basis.from_scale(Vector3(0.55, 0.02, 2.0)), Vector3(ox + i * 1.7, 0.03, oz + 6)))
+		road_marks.append(Transform3D(Basis.from_scale(Vector3(2.0, 0.02, 0.55)), Vector3(ox + 6, 0.03, oz + i * 1.7)))
+	add_instances(chunk, road_marks, paint_material)
 	for dx in [-1, 1]:
 		for dz in [-1, 1]:
 			var center := Vector3((key.x + 0.5) * CELL + dx * 8.2, 0, (key.y + 0.5) * CELL + dz * 8.2)
@@ -88,13 +105,31 @@ func make_chunk(key: Vector2i) -> void:
 			cube.size = size
 			shape.size = size
 			visual.mesh = cube
-			visual.material_override = material(Color.from_hsv(rng.randf_range(0.04, 0.14), 0.13, rng.randf_range(0.42, 0.67)))
+			var facade := ShaderMaterial.new()
+			facade.shader = FACADE
+			facade.set_shader_parameter("building_color", Color.from_hsv(rng.randf_range(0.04, 0.14), 0.13, rng.randf_range(0.42, 0.67)))
+			visual.material_override = facade
 			building.add_child(visual)
 			var collision := CollisionShape3D.new()
 			collision.shape = shape
 			building.add_child(collision)
 			chunk.add_child(building)
+			rooftop_details.append(Transform3D(Basis.from_scale(Vector3(2.8, 1.3, 2.3)), center + Vector3(0, height + 0.65, 0)))
 			for side_x in [-1, 1]:
 				for side_z in [-1, 1]:
 					roofs.append(center + Vector3(side_x * (size.x * 0.5 + 0.3), height + 0.25, side_z * (size.z * 0.5 + 0.3)))
+	add_instances(chunk, rooftop_details, roof_material)
 	chunk.set_meta("anchors", roofs)
+
+func add_instances(parent: Node3D, transforms: Array[Transform3D], mat: Material) -> void:
+	var mesh := BoxMesh.new()
+	mesh.material = mat
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = transforms.size()
+	for i in range(transforms.size()):
+		multi.set_instance_transform(i, transforms[i])
+	var instance := MultiMeshInstance3D.new()
+	instance.multimesh = multi
+	parent.add_child(instance)

@@ -8,6 +8,7 @@ var visual: Node3D
 var animator: AnimationPlayer
 var skeleton: Skeleton3D
 var hand_bone := -1
+var arm_bone := -1
 var health := 100.0
 var yaw := 0.0
 var pitch := 0.25
@@ -15,6 +16,10 @@ var rope_active := false
 var anchor := Vector3.ZERO
 var rope_length := 0.0
 var attack_cooldown := 0.0
+var shot_cooldown := 0.0
+var shot_timer := 0.0
+var shot_end := Vector3.ZERO
+var shot_line: MeshInstance3D
 var web: MeshInstance3D
 var punch_flash: MeshInstance3D
 var punch_timer := 0.0
@@ -39,6 +44,7 @@ func setup() -> void:
 	if not skeletons.is_empty():
 		skeleton = skeletons[0]
 		hand_bone = skeleton.find_bone("mixamorigRightHand")
+		arm_bone = skeleton.find_bone("mixamorigRightArm")
 	camera = Camera3D.new()
 	camera.fov = 65
 	game.add_child(camera)
@@ -55,6 +61,11 @@ func setup() -> void:
 	web.material_override = mat
 	game.add_child(web)
 	web.visible = false
+	shot_line = MeshInstance3D.new()
+	shot_line.mesh = cylinder
+	shot_line.material_override = mat
+	game.add_child(shot_line)
+	shot_line.visible = false
 	punch_flash = MeshInstance3D.new()
 	var spark := SphereMesh.new()
 	spark.radius = 0.16
@@ -71,13 +82,22 @@ func _physics_process(delta: float) -> void:
 		game.pause_game()
 		return
 	attack_cooldown = maxf(0, attack_cooldown - delta)
+	shot_cooldown = maxf(0, shot_cooldown - delta)
+	shot_timer = maxf(0, shot_timer - delta)
+	shot_line.visible = shot_timer > 0
+	if shot_line.visible:
+		draw_line(shot_line, hand_position(), shot_end)
 	punch_timer = maxf(0, punch_timer - delta)
 	punch_flash.visible = punch_timer > 0
+	if skeleton and arm_bone >= 0:
+		skeleton.clear_bones_global_pose_override()
+		if punch_timer > 0:
+			var pose := skeleton.get_bone_global_pose(arm_bone)
+			var strike := sin((0.2 - punch_timer) / 0.2 * PI)
+			pose.basis = pose.basis * Basis(Vector3.FORWARD, -strike * 1.35)
+			skeleton.set_bone_global_pose_override(arm_bone, pose, 1.0, true)
 	if punch_flash.visible:
-		var hand := global_position + Vector3.UP * 1.3
-		if skeleton and hand_bone >= 0:
-			hand = skeleton.global_transform * skeleton.get_bone_global_pose(hand_bone).origin
-		punch_flash.global_position = hand
+		punch_flash.global_position = hand_position()
 	yaw -= controls.look_delta.x * 0.004
 	pitch = clampf(pitch - controls.look_delta.y * 0.004, -0.25, 1.05)
 	controls.look_delta = Vector2.ZERO
@@ -109,6 +129,8 @@ func _physics_process(delta: float) -> void:
 		attack()
 	if controls.consume("talk"):
 		game.interact()
+	if controls.consume("shot"):
+		shoot_web(forward)
 	var swinging: bool = controls.held("swing") or Input.is_key_pressed(KEY_SHIFT)
 	if swinging and not rope_active:
 		attach_web(forward)
@@ -179,14 +201,50 @@ func attach_web(forward: Vector3) -> void:
 	else:
 		game.show_message("No reachable rooftop ahead")
 
-func update_web() -> void:
-	var start := global_position + Vector3.UP * 1.3
+func hand_position() -> Vector3:
 	if skeleton and hand_bone >= 0:
-		start = skeleton.global_transform * skeleton.get_bone_global_pose(hand_bone).origin
-	var line := anchor - start
-	web.global_position = start + line * 0.5
-	web.quaternion = Quaternion(Vector3.UP, line.normalized())
-	web.scale = Vector3(1, line.length(), 1)
+		return skeleton.global_transform * skeleton.get_bone_global_pose(hand_bone).origin
+	return global_position + Vector3.UP * 1.3
+
+func draw_line(mesh: MeshInstance3D, from: Vector3, to: Vector3) -> void:
+	var line := to - from
+	if line.length_squared() < 0.0001:
+		mesh.visible = false
+		return
+	mesh.global_position = from + line * 0.5
+	mesh.quaternion = Quaternion(Vector3.UP, line.normalized())
+	mesh.scale = Vector3(1, line.length(), 1)
+
+func update_web() -> void:
+	draw_line(web, hand_position(), anchor)
+
+func shoot_web(forward: Vector3) -> void:
+	if shot_cooldown > 0 or not playing:
+		return
+	shot_cooldown = 1.0
+	var closest
+	var best := 19.0
+	for npc in game.people:
+		if not is_instance_valid(npc) or npc.is_queued_for_deletion() or not npc.is_enemy or npc.health <= 0:
+			continue
+		var direction: Vector3 = npc.global_position - global_position
+		var distance := direction.length()
+		if distance < best and direction.normalized().dot(forward) > 0.4:
+			var query := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP, npc.global_position + Vector3.UP, 1)
+			if get_world_3d().direct_space_state.intersect_ray(query).is_empty():
+				closest = npc
+				best = distance
+	shot_end = global_position + Vector3.UP * 1.2 + forward * 18.0
+	if closest:
+		shot_end = closest.global_position + Vector3.UP
+		closest.hit(10, forward)
+		closest.stun = 2.0
+		game.show_message("Web hit! Enemy slowed.")
+	else:
+		game.show_message("No enemy in range ahead.")
+	shot_timer = 0.25
+	shot_line.visible = true
+	draw_line(shot_line, hand_position(), shot_end)
 
 func attack() -> void:
 	if attack_cooldown > 0 or not playing:

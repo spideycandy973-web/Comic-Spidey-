@@ -154,7 +154,13 @@ func begin_play() -> void:
 	hero.rope_active = false
 	hero.web.visible = false
 	hero.punch_flash.visible = false
+	hero.shot_line.visible = false
+	hero.punch_timer = 0
+	hero.shot_timer = 0
+	hero.shot_cooldown = 0
 	hero.attack_cooldown = 0
+	if hero.skeleton:
+		hero.skeleton.clear_bones_global_pose_override()
 	controls.touch_points.clear()
 	controls.buttons_down.clear()
 	controls.pressed_once.clear()

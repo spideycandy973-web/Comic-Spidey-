@@ -21,7 +21,7 @@ func _ready() -> void:
 
 func button_positions() -> Dictionary:
 	var s := get_viewport().get_visible_rect().size
-	return {"menu": Vector2(s.x - 48, 50), "swing": Vector2(s.x - 82, s.y - 190), "attack": Vector2(s.x - 165, s.y - 85), "jump": Vector2(s.x - 72, s.y - 85), "talk": Vector2(s.x - 165, s.y - 190)}
+	return {"menu": Vector2(s.x - 48, 50), "swing": Vector2(s.x - 82, s.y - 190), "shot": Vector2(s.x - 255, s.y - 85), "attack": Vector2(s.x - 165, s.y - 85), "jump": Vector2(s.x - 72, s.y - 85), "talk": Vector2(s.x - 165, s.y - 190)}
 
 func _input(event: InputEvent) -> void:
 	if not active:
@@ -31,6 +31,7 @@ func _input(event: InputEvent) -> void:
 		match event.keycode:
 			KEY_SPACE: name = "jump"
 			KEY_F: name = "attack"
+			KEY_Q: name = "shot"
 			KEY_E: name = "talk"
 			KEY_ESCAPE, KEY_BACK: name = "menu"
 		if name != "":
@@ -88,7 +89,7 @@ func draw_controls() -> void:
 	var center := Vector2(100, s.y - 100)
 	surface.draw_circle(center, 70, Color(0.03, 0.08, 0.12, 0.55))
 	surface.draw_circle(center + movement * 48, 27, Color(0.75, 0.85, 0.9, 0.8))
-	var labels := {"menu": "II", "swing": "WEB", "attack": "HIT", "jump": "JUMP", "talk": "TALK"}
+	var labels := {"menu": "II", "swing": "WEB", "shot": "SHOT", "attack": "HIT", "jump": "JUMP", "talk": "TALK"}
 	for name in button_positions():
 		var p: Vector2 = button_positions()[name]
 		var color := Color(0.60, 0.12, 0.16, 0.85) if name == "attack" else Color(0.09, 0.19, 0.27, 0.85)

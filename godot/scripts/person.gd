@@ -73,14 +73,14 @@ func _physics_process(delta: float) -> void:
 			windup -= delta
 			velocity.x = move_toward(velocity.x, 0, delta * 15)
 			velocity.z = move_toward(velocity.z, 0, delta * 15)
-			if windup <= 0 and distance < (3.0 if is_boss else 2.0):
+			if windup <= 0 and distance < (3.0 if is_boss else 2.0) and has_line_of_sight():
 				hero.take_damage(18.0 if is_boss else 10.0)
-		elif stun <= 0 and distance < 24 and distance > 1.5:
+		elif stun <= 0 and distance < 24 and distance > (2.2 if is_boss else 1.5):
 			var direction: Vector3 = flat.normalized()
 			velocity.x = direction.x * 3.0
 			velocity.z = direction.z * 3.0
-			visual.rotation.y = atan2(direction.x, direction.z)
-		elif stun <= 0 and distance <= 2.0 and attack_cooldown <= 0:
+			visual.rotation.y = atan2(direction.x, direction.z) + PI
+		elif stun <= 0 and distance <= (2.5 if is_boss else 2.0) and attack_cooldown <= 0 and has_line_of_sight():
 			windup = 0.65
 			attack_cooldown = 2.0
 		else:
@@ -91,7 +91,7 @@ func _physics_process(delta: float) -> void:
 		if distance > 2.8 and distance < 30 and absf(hero.global_position.y - global_position.y) < 3:
 			velocity.x = direction.x * 4.5
 			velocity.z = direction.z * 4.5
-			visual.rotation.y = atan2(direction.x, direction.z)
+			visual.rotation.y = atan2(direction.x, direction.z) + PI
 		else:
 			velocity.x = 0
 			velocity.z = 0
@@ -105,10 +105,20 @@ func _physics_process(delta: float) -> void:
 			direction = (origin - global_position).normalized()
 		velocity.x = direction.x * 0.8
 		velocity.z = direction.z * 0.8
-		visual.rotation.y = atan2(direction.x, direction.z)
+		visual.rotation.y = atan2(direction.x, direction.z) + PI
+	if is_enemy:
+		# Telegraph the attack with a visible lunge. The supplied Doc Ock mesh is not rigged.
+		var lunge := sin((0.65 - maxf(windup, 0.0)) / 0.65 * PI) * 0.45 if windup > 0 else 0.0
+		visual.position = flat.normalized() * lunge
+	if anim:
+		anim.speed_scale = 1.0 if Vector2(velocity.x, velocity.z).length() > 0.1 else 0.0
 	if marker_material:
 		marker_material.albedo_color = Color(1.0, 0.08, 0.04, 0.9) if windup > 0 else Color(1.0, 0.55, 0.06, 0.8)
 	move_and_slide()
+
+func has_line_of_sight() -> bool:
+	var query := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP, hero.global_position + Vector3.UP, 1)
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 func hit(damage: float, direction: Vector3) -> void:
 	if health <= 0:

@@ -70,6 +70,9 @@ func run_test() -> void:
 				scene.hero.attack()
 				check(enemy.health == previous - 25, "hero attack damages enemy in stage %d" % expected)
 				if expected == 1:
+					scene.hero.shoot_web(Vector3.FORWARD)
+					check(enemy.health == previous - 35 and enemy.stun == 2.0, "web shot damages and stuns enemy")
+				if expected == 1:
 					enemy.stun = 0
 					enemy.attack_cooldown = 0
 					enemy._physics_process(0.05)
@@ -122,6 +125,12 @@ func run_test() -> void:
 	check(scene.mission_enemies[0].health == 35, "story restores enemy health")
 	check(not Saves.valid({"version": 1, "mode": "Story", "stage": 500, "health": 100, "position": [0,0,0]}, "Story"), "out of range stage rejected")
 	check(not Saves.valid({"version": 1, "mode": "Story", "stage": 0, "health": 100, "position": [0,0,0], "crime_sequence": []}, "Story"), "malformed optional state rejected")
+	scene.hero.update_camera(1.0)
+	await process_frame
+	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
+	image.resize(384, 216)
+	image.save_jpg("/tmp/native-scene.jpg", 0.4)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Saves.slot_path("Story")))
 	if not failed:
 		print("Native scene smoke checks passed")

@@ -1,5 +1,15 @@
-# Native Android engine migration (incomplete)
+# Native Godot Android game — work in progress
 
-This is a separate Godot 4.3 project, not the WebView app in `../app`. It is early migration work, not a finished game or release. It has two selectable modes, a small procedural city, the supplied animated Spider-Man and static Doctor Octopus, two citizen variants, basic NPC dialogue, native physics movement, a rooftop rope, touch controls, and simple damage logic. The story here is a short placeholder and **does not yet match the old WebView's campaign**. There is no save system, proper punch or villain animation, detailed city art, full NPC behavior, or production balancing. Performance, control ergonomics, asset appearance, swinging, and combat require testing on actual Android devices. This cannot be represented as the full game the user requested.
+This Godot 4.3 project is a native Android game, separate from the legacy WebView in `../app`. It is **not yet a finished release**. It contains a 13-objective Story sequence, repeatable Free Roam emergencies, checkpoint retry and separate local saves, touch controls, an original procedurally generated city with parks, and the supplied Spider-Man and Doctor Octopus models. Citizens use two generated rigged variants. Combat has melee, web shots, enemy AI and health; swinging uses a physics rope attached to rooftops. The game works offline and uses original synthesized sound effects.
 
-Open the project in Godot 4.3 and run `main.tscn`. Keyboard: WASD, Space jump, Shift hold web, F attack, E talk, Escape pause. On touchscreens use the left stick, drag empty space to look, and use the action buttons; hold WEB and release it to let go. The pause button opens a menu for resuming or starting a mode. The debug workflow builds an unsigned-for-release debug APK; it does not publish a release. The older `app/` and its tests remain available for reference during migration.
+Important limitations: the city and vehicles do not yet have the detailed finished artwork requested. The Doctor Octopus model is not rigged and only lunges as a whole; Spider-Man's punch uses a procedural arm pose rather than a supplied combat animation. Pedestrian dialogue and behavior are basic, and only two citizen models are used. Swinging, combat feel, performance and screen layouts have not been validated on physical Android devices. This must not be described or distributed as the finished game.
+
+## Controls
+
+On touchscreens use the left stick, drag empty space to look, hold WEB and release to let go, HIT for melee, SHOT for web shots, JUMP and TALK. Use the pause button for resume, restarting modes and sound. Keyboard: WASD, Space jump, Shift hold web, F attack, Q web shot, E talk, Escape pause.
+
+Progress is autosaved locally per mode, at Story checkpoints, periodically during play, and on pause. Starting a new mode replaces that mode's save. No account or internet connection is required. This build's separate package ID means it does not import saves from the older WebView app.
+
+## Development verification
+
+Open `project.godot` in Godot 4.3 and run `main.tscn`. The native workflow imports models, tests objective transitions, combat, multitouch and saves, exports a debug APK and attempts Android emulator installation, launch and touch input. An emulator and automated checks do not replace hands-on testing on real devices. No signed final release is produced by this workflow.

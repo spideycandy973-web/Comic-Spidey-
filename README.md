@@ -1,6 +1,6 @@
 # Project status
 
-The Android WebView game described below is the legacy implementation and does not satisfy the request for a native-engine Android game. An incomplete native Godot migration is in [`godot/`](godot/README.md). Neither project is a finished release.
+The Android WebView game described below is the legacy implementation and does not satisfy the request for a native-engine Android game. The native Godot game under development is in [`godot/`](godot/README.md). Neither project is a finished release.
 
 # Comic Spidey — development build
 

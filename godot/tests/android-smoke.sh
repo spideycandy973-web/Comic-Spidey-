@@ -15,6 +15,10 @@ adb shell pidof "$package" >/dev/null
 adb exec-out screencap -p > /tmp/android-menu.png
 adb shell input tap 640 230
 sleep 20
+# Exercise the touch buttons and movement joystick through Android, not injected Godot events.
+adb shell input tap 1115 635
+adb shell input swipe 100 620 100 550 1500
+sleep 5
 adb shell pidof "$package" >/dev/null
 adb shell dumpsys activity activities | grep -q "$package"
 adb logcat -d > /tmp/native-android-log.txt
@@ -32,6 +36,10 @@ for i in range(0,len(s),3500): print('::notice::ANDROID_SCREENSHOT_%d=%s' % (i//
 PYSCREEN
   grep -iE 'godot|comicspidey|fatal|exception' /tmp/native-android-log.txt | tail -20 | while IFS= read -r line; do echo "::notice::$line"; done
   echo '::error::Story mode did not start after the emulator touch'
+  exit 1
+fi
+if ! grep -q 'Native attack input received' /tmp/native-android-log.txt || ! grep -q 'Native movement input received' /tmp/native-android-log.txt; then
+  echo '::error::Touch attack or movement input did not reach native gameplay'
   exit 1
 fi
 if grep -E 'FATAL EXCEPTION|SCRIPT ERROR|AndroidRuntime.*FATAL' /tmp/native-android-log.txt; then

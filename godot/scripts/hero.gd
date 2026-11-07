@@ -24,6 +24,7 @@ var web: MeshInstance3D
 var punch_flash: MeshInstance3D
 var punch_timer := 0.0
 var playing := false
+var debug_movement_reported := false
 
 func setup() -> void:
 	var shape := CollisionShape3D.new()
@@ -111,6 +112,9 @@ func _physics_process(delta: float) -> void:
 	var forward := Vector3(-sin(yaw), 0, -cos(yaw))
 	var right := Vector3(cos(yaw), 0, -sin(yaw))
 	var desired := (right * input.x - forward * input.y).limit_length(1.0)
+	if OS.is_debug_build() and desired.length() > 0.1 and not debug_movement_reported:
+		debug_movement_reported = true
+		print("Native movement input received")
 	if desired.length() > 0.05:
 		visual.rotation.y = lerp_angle(visual.rotation.y, atan2(desired.x, desired.z) + PI, delta * 10)
 	var accel := 13.0 if is_on_floor() else (8.0 if rope_active else 4.0)
@@ -260,6 +264,8 @@ func attack() -> void:
 	if attack_cooldown > 0 or not playing:
 		return
 	attack_cooldown = 0.45
+	if OS.is_debug_build():
+		print("Native attack input received")
 	game.sound.play_effect("hit")
 	punch_timer = 0.2
 	var nearest

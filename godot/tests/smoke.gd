@@ -70,7 +70,7 @@ func run_test() -> void:
 				scene.hero.attack()
 				check(enemy.health == previous - 25, "hero attack damages enemy in stage %d" % expected)
 				if expected == 1:
-					scene.hero.shoot_web(Vector3.FORWARD)
+					scene.hero.shoot_web(Vector3.BACK)
 					check(enemy.health == previous - 35 and enemy.stun == 2.0, "web shot damages and stuns enemy")
 				if expected == 1:
 					enemy.stun = 0
@@ -129,8 +129,8 @@ func run_test() -> void:
 	await process_frame
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
-	image.resize(384, 216)
-	image.save_jpg("/tmp/native-scene.jpg", 0.4)
+	image.resize(192, 108)
+	image.save_jpg("/tmp/native-scene.jpg", 0.25)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Saves.slot_path("Story")))
 	if not failed:
 		print("Native scene smoke checks passed")

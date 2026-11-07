@@ -13,7 +13,7 @@ sleep 20
 adb shell pidof "$package" >/dev/null
 # Record the actual menu before selecting New Story on the landscape screen.
 adb exec-out screencap -p > /tmp/android-menu.png
-adb shell input tap 640 230
+adb shell input tap 640 285
 sleep 20
 # Exercise the touch buttons and movement joystick through Android, not injected Godot events.
 adb shell input tap 1115 635

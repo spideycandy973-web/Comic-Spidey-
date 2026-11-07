@@ -111,10 +111,57 @@ func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
 	if can_retry:
 		add_menu_button(box, "Retry checkpoint", retry_checkpoint)
 	add_menu_button(box, "Sound: " + ("On" if sound.enabled else "Off"), toggle_sound)
+	add_menu_button(box, "Credits and licenses", show_credits)
 	for label in ["Story", "Free Roam"]:
 		if save_enabled and not Saves.read(label).is_empty():
 			add_menu_button(box, "Continue " + label, continue_mode.bind(label))
 		add_menu_button(box, "New " + label, start_mode.bind(label))
+
+func show_credits() -> void:
+	if is_instance_valid(menu):
+		menu.queue_free()
+	menu = CanvasLayer.new()
+	menu.layer = 3
+	add_child(menu)
+	var panel := ColorRect.new()
+	panel.color = Color(0.02, 0.04, 0.08, 0.98)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	menu.add_child(panel)
+	var box := VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = 40
+	box.offset_right = -40
+	box.offset_top = 20
+	box.offset_bottom = -20
+	panel.add_child(box)
+	add_menu_button(box, "Back", close_credits)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(scroll)
+	var text := Label.new()
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.custom_minimum_size.x = 1100
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.text = """COMIC SPIDEY — CREDITS AND LICENSES
+
+Spider-Man character and animation: supplied by the user; animations identify Mixamo. Permission to redistribute supplied by the user. No official endorsement is implied.
+
+Doctor Octopus model: LombaxLover2K. Licensed under Creative Commons Attribution 4.0. Source: https://sketchfab.com/3d-models/doctor-octopus-spider-man-2-ps2-32b278b99a9c400d8f34a46f0e401859
+License: https://creativecommons.org/licenses/by/4.0/
+
+Citizens: generated using Citizen Maker by Janelle Ghanem, MIT license, and MakeHuman CC0 base geometry. The Citizen Maker license is reproduced below.
+
+Godot Engine and its dependencies are credited and licensed below. The city geometry and synthesized audio are original to this project.
+
+"""
+	text.text += FileAccess.get_file_as_string("res://credits/CITIZEN-MAKER-LICENSE.txt")
+	text.text += "\n\nGODOT ENGINE LICENSE\n" + Engine.get_license_text()
+	for license_name in Engine.get_license_info():
+		text.text += "\n\n" + str(license_name) + "\n" + str(Engine.get_license_info()[license_name])
+	scroll.add_child(text)
+
+func close_credits() -> void:
+	show_menu(is_instance_valid(hero) and not hero.playing and hero.health > 0 and not mode.is_empty(), is_instance_valid(hero) and hero.health <= 0)
 
 func toggle_sound() -> void:
 	sound.toggle()
@@ -228,7 +275,7 @@ func setup_story_stage() -> void:
 		"escort":
 			escort = spawn_person(at, false, false, 1)
 			escort.escorting = true
-	show_message(mission.title)
+	show_message("City secured! Pause to start Free Roam." if mission.type == "complete" else mission.title)
 	update_beacon()
 
 func advance_story() -> void:

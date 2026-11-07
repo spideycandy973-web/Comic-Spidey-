@@ -307,6 +307,8 @@ func update_beacon() -> void:
 	var target = current_target()
 	beacon.visible = target != null
 	if target != null:
+		# Hide the column nearby so it cannot obscure the hero or a fight.
+		beacon.visible = Vector2(hero.position.x - target.x, hero.position.z - target.z).length() > 8.0
 		beacon.position = target + Vector3.UP * 4.5
 
 func _process(delta: float) -> void:

@@ -25,7 +25,7 @@ jobs:
         run: |
           set +e
           /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --path godot --editor --import --quit > /tmp/native-import.log 2>&1
-          /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --path godot --script res://tests/smoke.gd >> /tmp/native-import.log 2>&1
+          timeout 60s /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --path godot --script res://tests/smoke.gd >> /tmp/native-import.log 2>&1
           result=$?
           cat /tmp/native-import.log
           if [ "$result" -ne 0 ] || grep -qE 'SCRIPT ERROR|ERROR:' /tmp/native-import.log; then

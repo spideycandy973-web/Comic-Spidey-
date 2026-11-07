@@ -40,6 +40,9 @@ func setup() -> void:
 	var animators := visual.find_children("*", "AnimationPlayer", true, false)
 	if not animators.is_empty():
 		animator = animators[0]
+		for clip in ["idle", "run", "swing"]:
+			if animator.has_animation(clip):
+				animator.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 	var skeletons := visual.find_children("*", "Skeleton3D", true, false)
 	if not skeletons.is_empty():
 		skeleton = skeletons[0]
@@ -235,6 +238,10 @@ func shoot_web(forward: Vector3) -> void:
 				closest = npc
 				best = distance
 	shot_end = global_position + Vector3.UP * 1.2 + forward * 18.0
+	if not closest:
+		var obstacle := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 1.2, shot_end, 1))
+		if not obstacle.is_empty():
+			shot_end = obstacle.position
 	if closest:
 		shot_end = closest.global_position + Vector3.UP
 		closest.hit(10, forward)

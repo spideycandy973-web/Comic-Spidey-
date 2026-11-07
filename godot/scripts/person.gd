@@ -56,6 +56,7 @@ func setup(model: PackedScene, enemy: bool, boss: bool = false) -> void:
 	if not players.is_empty():
 		anim = players[0]
 		if anim.has_animation("walk"):
+			anim.get_animation("walk").loop_mode = Animation.LOOP_LINEAR
 			anim.play("walk")
 	origin = position
 

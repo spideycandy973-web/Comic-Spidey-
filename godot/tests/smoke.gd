@@ -125,6 +125,8 @@ func run_test() -> void:
 	check(scene.mission_enemies[0].health == 35, "story restores enemy health")
 	check(not Saves.valid({"version": 1, "mode": "Story", "stage": 500, "health": 100, "position": [0,0,0]}, "Story"), "out of range stage rejected")
 	check(not Saves.valid({"version": 1, "mode": "Story", "stage": 0, "health": 100, "position": [0,0,0], "crime_sequence": []}, "Story"), "malformed optional state rejected")
+	scene.hero.update_animation(Vector3.ZERO)
+	scene.hero.animator.advance(0.5)
 	scene.hero.update_camera(1.0)
 	await process_frame
 	await RenderingServer.frame_post_draw

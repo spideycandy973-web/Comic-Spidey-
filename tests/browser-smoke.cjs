@@ -76,7 +76,7 @@ const assert = require('node:assert/strict');
     assert.ok(nearby,'can approach a moving civilian');
     await page.keyboard.press('e'); assert.match(await page.locator('#notice').innerText(),/CIVILIAN:/);
     await page.reload(); await page.click('#freeRoam');
-    await page.keyboard.down('Shift'); await page.waitForTimeout(700);
+    await page.keyboard.down('Shift'); await page.waitForFunction(()=>Number(document.querySelector('#webStatus').dataset.altitude)>.5,null,{timeout:30000});
     assert.match(await page.locator('#webStatus').innerText(), /WEB ATTACHED/);
     assert.equal(await page.locator('body').getAttribute('data-hero-action'),'swing','rig animation switched to swing');
     assert.equal(await page.locator('body').getAttribute('data-web-origin'),'rigged-hand','web starts from the rigged hand');

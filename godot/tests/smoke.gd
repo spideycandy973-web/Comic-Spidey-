@@ -129,7 +129,7 @@ func run_test() -> void:
 	await process_frame
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
-	image.resize(192, 108)
+	image.resize(384, 216)
 	image.save_jpg("/tmp/native-scene.jpg", 0.25)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Saves.slot_path("Story")))
 	if not failed:

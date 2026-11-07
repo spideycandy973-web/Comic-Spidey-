@@ -45,7 +45,7 @@ jobs:
       - name: Export Android debug APK
         run: |
           set +e
-          /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --path godot --export-debug Android /tmp/comic-spidey-native-debug.apk > /tmp/native-export.log 2>&1
+          /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --verbose --path godot --export-debug Android /tmp/comic-spidey-native-debug.apk > /tmp/native-export.log 2>&1
           result=$?
           cat /tmp/native-export.log
           if [ "$result" -ne 0 ]; then

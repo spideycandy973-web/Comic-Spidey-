@@ -4,6 +4,8 @@ apk="$1"
 package=com.comicspidey.nativegame
 adb install -r "$apk"
 adb shell wm size 720x1280
+# Avoid the OS first-use immersive-mode education dialog covering the game.
+adb shell settings put secure immersive_mode_confirmations confirmed
 adb logcat -c
 adb shell monkey -p "$package" -c android.intent.category.LAUNCHER 1
 # Allow engine startup and model import to finish on software rendering.

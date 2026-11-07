@@ -13,6 +13,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('body').getAttribute('data-hero-model'),'loaded','rigged Spider-Man model loaded');
     assert.equal(await page.locator('body').getAttribute('data-doc-model'),'loaded','Doctor Octopus model loaded');
     assert.equal(await page.locator('body').getAttribute('data-citizen-model'),'loaded','rigged citizen models loaded');
+    assert.equal(await page.locator('body').getAttribute('data-citizen-variants'),'2','two citizen models loaded');
     await page.click('#play');
     assert.match(await page.locator('#objective').innerText(), /Investigate the plaza/);
     assert.equal(await page.locator('#districtName').innerText(),'DOWNTOWN');
@@ -102,6 +103,7 @@ const assert = require('node:assert/strict');
     assert.ok(parseInt(await page.locator('body').getAttribute('data-loaded-chunks'),10)<=9,'rendered chunks stay bounded');
     assert.equal(await page.locator('#bossName').innerText(),'DOCTOR OCTOPUS');
     assert.equal(await page.locator('body').getAttribute('data-boss-model'),'docock','actual Doctor Octopus mesh is in the scene');
+    await page.waitForFunction(()=>document.body.dataset.docTentacles==='2'&&Number(document.body.dataset.docDeformation)>.001,null,{timeout:30000});
     // Continue directly at a mission checkpoint and verify that USE requires proximity.
     await page.evaluate(()=>{window.comicGame.pause();localStorage.setItem('comic-story-v1',JSON.stringify({stage:5}));});
     await page.reload(); await page.click('#continueStory');

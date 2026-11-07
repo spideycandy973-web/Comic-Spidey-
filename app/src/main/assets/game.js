@@ -1,7 +1,7 @@
 /* Local WebGL prototype. The simulation lives in physics.js; this file handles presentation and input. */
 (() => {
 'use strict';
-const $=id=>document.getElementById(id), P=window.ComicPhysics, City=window.ComicCity, Story=window.ComicStory, Combat=window.ComicCombat, Crime=window.ComicCrime, Weather=window.ComicWeather, Audio=window.ComicAudio, Gamepad=window.ComicGamepad, Progress=window.ComicProgress, Layout=window.ComicLayout, Traffic=window.ComicTraffic, SaveGame=window.ComicSave;
+const $=id=>document.getElementById(id), P=window.ComicPhysics, City=window.ComicCity, Story=window.ComicStory, Combat=window.ComicCombat, Crime=window.ComicCrime, Weather=window.ComicWeather, Audio=window.ComicAudio, Gamepad=window.ComicGamepad, Progress=window.ComicProgress, Layout=window.ComicLayout, Traffic=window.ComicTraffic, SaveGame=window.ComicSave, Tentacles=window.ComicTentacles;
 let renderer;
 try { renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'}); }
 catch(e){ $('error').classList.remove('hidden'); return; }
@@ -80,9 +80,11 @@ function makeHero(){
 function makeBoss(id){
  const g=new THREE.Group(), primary=id==='volt'?purple:steel,accent=id==='volt'?cyan:gold;
  if(id==='docock' && docTemplate){
-  g.add(docTemplate.clone(true));const left=new THREE.Group(),right=new THREE.Group();g.add(left,right);
+  const model=docTemplate.clone(true),deformers=[];
+  model.traverse(o=>{if(o.isMesh&&['Object_3','Object_4'].includes(o.name)){o.geometry=o.geometry.clone();o.frustumCulled=false;const attr=o.geometry.getAttribute('position'),base=new Float32Array(attr.array);let sample=0;for(let k=1;k<base.length;k+=3)if(base[k]>base[sample+1])sample=k-1;deformers.push({geometry:o.geometry,attr,base,sample});}});
+  g.add(model);const left=new THREE.Group(),right=new THREE.Group();g.add(left,right);
   const ring=new THREE.Mesh(new THREE.RingGeometry(1.3,1.48,32),new THREE.MeshBasicMaterial({color:0xffcb51,side:THREE.DoubleSide,transparent:true,opacity:.9}));ring.rotation.x=-Math.PI/2;ring.position.y=.03;g.add(ring);
-  g.userData.model='docock';return {group:g,ring,l:left,r:right};
+  g.userData.model='docock';return {group:g,ring,l:left,r:right,deformers};
  }
  box(g,1.25,1.35,.7,primary,0,1.3,0);box(g,1.3,.25,.75,ink,0,.75,0);sphere(g,.46,primary,0,2.25,0);
  box(g,.55,.12,.04,accent,0,2.29,-.44);box(g,.2,.55,.05,accent,0,1.45,-.37);
@@ -108,6 +110,12 @@ try{
  window.ComicMovementClips=null;heroActions.idle.play();heroActionName='idle';document.body.dataset.heroModel='loaded';data.heroFbx=null;data.run=null;data.swing=null;
 }catch(error){fallbackHeroParts.forEach(part=>part.visible=true);for(const part of hero.group.children.slice())if(!fallbackHeroParts.includes(part))hero.group.remove(part);heroMixer=null;heroHand=null;heroMaterials=[];console.error('Hero model unavailable:',error);document.body.dataset.heroModel='fallback';$('modelStatus').textContent='SPIDER-MAN MODEL FAILED • ORIGINAL PLACEHOLDER IN USE';$('modelStatus').classList.remove('hidden');}
 let enemy=makeBoss('volt');scene.add(enemy.group);
+function removeEnemy(){
+ if(!enemy||enemy.disposed)return;scene.remove(enemy.group);enemy.disposed=true;
+ if(enemy.deformers){for(const d of enemy.deformers)d.geometry.dispose();enemy.ring.geometry.dispose();}
+ else enemy.group.traverse(o=>{if(o.geometry)o.geometry.dispose();});
+ enemy.ring.material.dispose();
+}
 try{
  const data=window.ComicModelData;
  new window.ComicLoaders.GLTFLoader().parse(bytesFromBase64(data.docGlb),'',gltf=>{
@@ -116,7 +124,7 @@ try{
   if(!Number.isFinite(size.y)||size.y<=0){document.body.dataset.docModel='fallback';return;}
   const scale=2.8/size.y;docTemplate.scale.setScalar(scale);docTemplate.position.set(-center.x*scale,-bounds.min.y*scale,-center.z*scale);
   document.body.dataset.docModel='loaded';data.docGlb=null;
-  if(boss&&boss.id==='docock'){scene.remove(enemy.group);enemy=makeBoss('docock');scene.add(enemy.group);document.body.dataset.bossModel=enemy.group.userData.model||'placeholder';}
+  if(boss&&boss.id==='docock'){removeEnemy();enemy=makeBoss('docock');scene.add(enemy.group);document.body.dataset.bossModel=enemy.group.userData.model||'placeholder';}
  },error=>{console.error('Doctor Octopus model unavailable:',error);document.body.dataset.docModel='fallback';$('modelStatus').textContent='DOCTOR OCTOPUS MODEL FAILED • PLACEHOLDER IN USE';$('modelStatus').classList.remove('hidden');});
 }catch(error){console.error('Doctor Octopus model unavailable:',error);document.body.dataset.docModel='fallback';$('modelStatus').textContent='DOCTOR OCTOPUS MODEL FAILED • PLACEHOLDER IN USE';$('modelStatus').classList.remove('hidden');}
 function applySuitTint(){
@@ -227,19 +235,17 @@ for(let i=0;i<citizens.length;i++){
  const left=box(g,.2,.63,.23,navy,-.19,.32,0),right=box(g,.2,.63,.23,navy,.19,.32,0);
  box(g,.18,.65,.2,clothes,-.43,1.1,0);box(g,.18,.65,.2,clothes,.43,1.1,0);scene.add(g);citizenModels.push({g,left,right});
 }
-// Four rigged pedestrians, generated from CC0 MakeHuman geometry using the MIT-licensed Citizen Maker.
-// Four lighter placeholders remain to keep the prototype's crowd rendering cost bounded.
-try{
- new window.ComicLoaders.GLTFLoader().parse(bytesFromBase64(window.ComicCitizenData),'',gltf=>{
-  for(let i=0;i<citizenModels.length;i+=2){
-   const old=citizenModels[i];scene.remove(old.g);old.g.traverse(o=>{if(o.geometry)o.geometry.dispose();});
-   const wrapper=new THREE.Group(),model=window.ComicLoaders.cloneRig(gltf.scene);model.rotation.y=Math.PI;wrapper.add(model);scene.add(wrapper);
-   const mixer=new THREE.AnimationMixer(model);if(gltf.animations.length)mixer.clipAction(gltf.animations[0]).play();
-   citizenModels[i]={g:wrapper,left:new THREE.Group(),right:new THREE.Group(),mixer};
-  }
-  document.body.dataset.citizenModel='loaded';window.ComicCitizenData=null;
- },error=>{console.error('Citizen model unavailable:',error);document.body.dataset.citizenModel='fallback';});
-}catch(error){console.error('Citizen model unavailable:',error);document.body.dataset.citizenModel='fallback';}
+// Two generated human characters are cloned with independent skeletons for the crowd.
+function parseCitizen(data){return new Promise((resolve,reject)=>{try{new window.ComicLoaders.GLTFLoader().parse(bytesFromBase64(data),'',resolve,reject);}catch(error){reject(error);}});}
+Promise.all([parseCitizen(window.ComicCitizenData),parseCitizen(window.ComicCitizen2Data)]).then(gltfs=>{
+ for(let i=0;i<citizenModels.length;i++){
+  const gltf=gltfs[i%gltfs.length],old=citizenModels[i];scene.remove(old.g);old.g.traverse(o=>{if(o.geometry)o.geometry.dispose();});
+  const wrapper=new THREE.Group(),model=window.ComicLoaders.cloneRig(gltf.scene);model.rotation.y=Math.PI;wrapper.add(model);scene.add(wrapper);
+  const mixer=new THREE.AnimationMixer(model);if(gltf.animations.length)mixer.clipAction(gltf.animations[0]).play();
+  citizenModels[i]={g:wrapper,left:new THREE.Group(),right:new THREE.Group(),mixer};
+ }
+ document.body.dataset.citizenModel='loaded';document.body.dataset.citizenVariants=String(gltfs.length);window.ComicCitizenData=null;window.ComicCitizen2Data=null;
+}).catch(error=>{console.error('Citizen models unavailable:',error);document.body.dataset.citizenModel='fallback';$('modelStatus').textContent='CITIZEN MODELS FAILED • PLACEHOLDERS IN USE';$('modelStatus').classList.remove('hidden');});
 // Traffic follows the player and slows for nearby pedestrians; there is no collision damage.
 const traffic=Traffic.create(),cars=[];
 for(let i=0;i<4;i++){const g=new THREE.Group(),paint=mat([0xf3b84c,0x67a7bc,0xe77b6e,0xd8d8c7][i]);box(g,2.5,.7,1.25,paint,0,.55,0);box(g,1.2,.6,1.05,mat(0x9dc8d2),-.1,1.15,0);for(const x of [-.8,.8])for(const z of [-.65,.65])sphere(g,.25,ink,x,.28,z);scene.add(g);cars.push(g);}
@@ -307,7 +313,7 @@ function savedStage(){const saved=load('comic-story-v1',null);return saved&&Stor
 function savedFree(){return SaveGame.restore(load('comic-free-v1',null),world,P.nearbyBuildings);}
 function saveFree(){if(mode!=='free'||state!=='playing'||player.health<=0)return;const data=SaveGame.snapshot(player,combat,yaw,pitch);if(SaveGame.valid(data,world.bound))save('comic-free-v1',data);}
 function updateContinue(){$('continueStory').classList.toggle('hidden',savedStage()===null);$('continueFree').classList.toggle('hidden',!savedFree());}
-function hideBoss(){boss=null;scene.remove(enemy.group);$('bossHud').classList.add('hidden');}
+function hideBoss(){boss=null;removeEnemy();$('bossHud').classList.add('hidden');}
 function applyStoryStage(persist=true){
  const stage=Story.stage(storyStage);$('objective').textContent=stage.title;$('tip').textContent=stage.hint;
  clearCrimeModels();storyEnemies=[];escort=null;escortRing.visible=false;missionProp.visible=false;
@@ -326,7 +332,7 @@ function advanceStory(event){const next=Story.advance(storyStage,event);if(next!
 updateContinue();
 function message(text,seconds=3){$('notice').textContent=text;noticeTimer=seconds;$('notice').classList.remove('hidden');}
 function clearInput(){Object.assign(swingSources,{touch:false,key:false,pad:false});Object.assign(input,{forward:false,back:false,left:false,right:false,jx:0,jy:0,jump:false,climb:false,swing:false});player.rope=null;$('stick').style.transform='translate(0,0)';document.querySelectorAll('.pressed').forEach(x=>x.classList.remove('pressed'));}
-function setBoss(index){bossIndex=index;boss=P.createBoss(index);scene.remove(enemy.group);if(boss){enemy=makeBoss(boss.id);scene.add(enemy.group);document.body.dataset.bossModel=enemy.group.userData.model||'placeholder';$('bossHud').classList.remove('hidden');$('bossName').textContent=boss.name;$('bossSubtitle').textContent=boss.subtitle;$('objective').textContent='Defeat '+boss.name;message(boss.name+' HAS ENTERED THE FIGHT!',3);}else{$('bossHud').classList.add('hidden');finish(true);}}
+function setBoss(index){bossIndex=index;boss=P.createBoss(index);removeEnemy();if(boss){enemy=makeBoss(boss.id);scene.add(enemy.group);document.body.dataset.bossModel=enemy.group.userData.model||'placeholder';$('bossHud').classList.remove('hidden');$('bossName').textContent=boss.name;$('bossSubtitle').textContent=boss.subtitle;$('objective').textContent='Defeat '+boss.name;message(boss.name+' HAS ENTERED THE FIGHT!',3);}else{$('bossHud').classList.add('hidden');finish(true);}}
 function start(selectedMode='story',continueSaved=false,checkpointOnly=false){
  clearInput();Audio.unlock();mode=selectedMode;wasAirborne=false;landingTime=0;player=P.createPlayer();combat=Combat.create();crime=Crime.create();clearCrimeModels();crimeBeacon.visible=false;missionProp.visible=false;escortRing.visible=false;escort=null;storyEnemies=[];shotTarget=null;shotTime=0;yaw=0;pitch=0;view='third';state='playing';last=0;
  const storyRecord=continueSaved&&mode==='story'&&!checkpointOnly?load('comic-story-v1',null):null;
@@ -478,6 +484,7 @@ function frame(now){const dt=last?Math.min((now-last)/1000,1/30):0;last=now;cloc
   updateHud();mapTimer-=dt;if(mapTimer<=0){drawMap();mapTimer=.25;}
  }
  hero.group.position.set(player.x,player.y,player.z);animateHero(dt);const moving=Math.hypot(player.vx,player.vz)>.8&&player.grounded;hero.group.rotation.x=player.rope?Math.max(-.38,Math.min(.38,-player.vy*.025)):0;hero.group.rotation.z=player.rope?Math.max(-.2,Math.min(.2,player.vx*.015)):0;hero.legL.rotation.x=moving?Math.sin(clock*9)*.45:(player.rope?.45:0);hero.legR.rotation.x=moving?-hero.legL.rotation.x:(player.rope?-.35:0);hero.armL.rotation.x=player.rope?-.7:-hero.legL.rotation.x;hero.armR.rotation.x=player.rope?-2:hero.legL.rotation.x;
+ if(boss&&enemy.deformers&&(state==='playing'||state==='menu')){for(const d of enemy.deformers){Tentacles.deform(d.base,d.attr.array,clock,boss.state==='windup');d.attr.needsUpdate=true;}document.body.dataset.docTentacles=String(enemy.deformers.length);if(enemy.deformers[0]){const d=enemy.deformers[0];document.body.dataset.docDeformation=Math.abs(d.attr.array[d.sample]-d.base[d.sample]).toFixed(5);}}
  if(boss){enemy.group.position.set(boss.x,0,boss.z);enemy.group.rotation.y=Math.atan2(boss.x-player.x,boss.z-player.z);enemy.ring.material.color.setHex(boss.state==='windup'?0xff3939:(boss.id==='volt'?0x62f3f5:0xffcb51));enemy.ring.scale.setScalar(boss.state==='windup'?1.2+Math.sin(clock*20)*.15:1);enemy.l.rotation.x=boss.state==='windup'?-1:Math.sin(clock*6)*.12;enemy.r.rotation.x=enemy.l.rotation.x;}
  crimeModels.forEach((m,i)=>{const c=mode==='story'?storyEnemies[i]:crime.enemies[i];if(!c)return;m.group.visible=c.hp>0;m.group.position.set(c.x,0,c.z);m.group.rotation.y=Math.atan2(c.x-player.x,c.z-player.z);m.ring.material.color.setHex(c.stun>0?0x83dcff:c.state==='windup'?0xff3030:0xff9c63);m.left.rotation.x=c.state==='windup'?-1:Math.sin(clock*6+i)*.15;m.right.rotation.x=-m.left.rotation.x;m.hpFill.scale.x=Math.max(.001,c.hp/c.health);});
  shotLine.visible=shotTime>0&&!!shotTarget;

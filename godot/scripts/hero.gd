@@ -16,6 +16,8 @@ var anchor := Vector3.ZERO
 var rope_length := 0.0
 var attack_cooldown := 0.0
 var web: MeshInstance3D
+var punch_flash: MeshInstance3D
+var punch_timer := 0.0
 var playing := false
 
 func setup() -> void:
@@ -53,11 +55,26 @@ func setup() -> void:
 	web.material_override = mat
 	game.add_child(web)
 	web.visible = false
+	punch_flash = MeshInstance3D.new()
+	var spark := SphereMesh.new()
+	spark.radius = 0.16
+	spark.height = 0.32
+	punch_flash.mesh = spark
+	punch_flash.material_override = mat
+	game.add_child(punch_flash)
+	punch_flash.visible = false
 
 func _physics_process(delta: float) -> void:
 	if not playing:
 		return
 	attack_cooldown = maxf(0, attack_cooldown - delta)
+	punch_timer = maxf(0, punch_timer - delta)
+	punch_flash.visible = punch_timer > 0
+	if punch_flash.visible:
+		var hand := global_position + Vector3.UP * 1.3
+		if skeleton and hand_bone >= 0:
+			hand = skeleton.global_transform * skeleton.get_bone_global_pose(hand_bone).origin
+		punch_flash.global_position = hand
 	yaw -= controls.look_delta.x * 0.004
 	pitch = clampf(pitch - controls.look_delta.y * 0.004, -0.25, 1.05)
 	controls.look_delta = Vector2.ZERO
@@ -172,6 +189,7 @@ func attack() -> void:
 	if attack_cooldown > 0 or not playing:
 		return
 	attack_cooldown = 0.45
+	punch_timer = 0.2
 	var nearest
 	var best := 2.8
 	for npc in game.people:

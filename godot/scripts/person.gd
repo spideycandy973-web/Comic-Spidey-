@@ -12,6 +12,8 @@ var anim: AnimationPlayer
 var origin: Vector3
 var walk_time := 0.0
 var line := "Stay safe out there, Spider-Man."
+var marker: MeshInstance3D
+var marker_material: StandardMaterial3D
 
 func setup(model: PackedScene, enemy: bool, boss: bool = false) -> void:
 	is_enemy = enemy
@@ -31,6 +33,20 @@ func setup(model: PackedScene, enemy: bool, boss: bool = false) -> void:
 	shape.shape = capsule
 	shape.position.y = 0.9
 	add_child(shape)
+	if is_enemy:
+		marker = MeshInstance3D.new()
+		var disc := CylinderMesh.new()
+		disc.top_radius = 0.75 if is_boss else 0.55
+		disc.bottom_radius = disc.top_radius
+		disc.height = 0.04
+		marker.mesh = disc
+		marker.position.y = 0.05
+		marker_material = StandardMaterial3D.new()
+		marker_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		marker_material.albedo_color = Color(1.0, 0.55, 0.06, 0.8)
+		marker_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		marker.material_override = marker_material
+		add_child(marker)
 	collision_layer = 2
 	collision_mask = 1
 	var players := visual.find_children("*", "AnimationPlayer", true, false)
@@ -75,6 +91,8 @@ func _physics_process(delta: float) -> void:
 		velocity.x = direction.x * 0.8
 		velocity.z = direction.z * 0.8
 		visual.rotation.y = atan2(direction.x, direction.z)
+	if marker_material:
+		marker_material.albedo_color = Color(1.0, 0.08, 0.04, 0.9) if windup > 0 else Color(1.0, 0.55, 0.06, 0.8)
 	move_and_slide()
 
 func hit(damage: float, direction: Vector3) -> void:

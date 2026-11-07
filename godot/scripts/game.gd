@@ -397,7 +397,9 @@ func interact() -> void:
 		elif nearest.escorting:
 			show_message("Civilian: I'll follow you to safety!")
 		else:
-			show_message("Civilian: " + nearest.line)
+			var replies := [nearest.line, "I heard sirens nearby. Stay alert.", "Thanks for helping people in this city."]
+			show_message("Civilian: " + str(replies[nearest.conversations % replies.size()]))
+			nearest.conversations += 1
 	else:
 		show_message("Move closer to someone or an objective to use TALK.")
 

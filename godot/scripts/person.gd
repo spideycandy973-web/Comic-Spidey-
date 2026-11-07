@@ -15,6 +15,7 @@ var local_civilian := false
 var escorting := false
 var stationary := false
 var line := "Stay safe out there, Spider-Man."
+var conversations := 0
 var marker: MeshInstance3D
 var marker_material: StandardMaterial3D
 

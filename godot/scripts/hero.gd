@@ -129,7 +129,7 @@ func _physics_process(delta: float) -> void:
 	if controls.consume("jump") and is_on_floor():
 		velocity.y = 8.5
 		game.sound.play_effect("jump")
-	if controls.consume("attack"):
+	if controls.consume("attack") or controls.held("attack") or Input.is_key_pressed(KEY_F):
 		attack()
 	if controls.consume("talk"):
 		game.interact()
@@ -276,6 +276,8 @@ func attack() -> void:
 		if get_world_3d().direct_space_state.intersect_ray(ray).is_empty():
 			var direction: Vector3 = (nearest.global_position - global_position).normalized()
 			visual.rotation.y = atan2(direction.x, direction.z) + PI
+			velocity.x += direction.x * 2.0
+			velocity.z += direction.z * 2.0
 			nearest.hit(25, direction)
 			game.show_message("Hit! Enemy health: %d" % maxi(0, ceili(nearest.health)))
 			return

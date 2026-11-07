@@ -9,3 +9,8 @@
 .dodge,.web-shot{width:48px;height:48px;font-size:18px;background:#283655d9}.web-shot{color:#bfeaff}.dodge{color:#ffe684}@media(max-height:500px){.actions{gap:6px}.actions span{font-size:7px;letter-spacing:0}.dodge,.web-shot{width:40px;height:40px}}
 
 .dialog{touch-action:pan-y}.hud-bottom.swapped{flex-direction:row-reverse}.movement,.actions{transform:scale(var(--touch-scale,1));transform-origin:bottom left}.actions{transform-origin:bottom right}.hud-bottom.swapped .movement{transform-origin:bottom right}.hud-bottom.swapped .actions{transform-origin:bottom left}
+
+/* Custom layout elements use viewport-relative centers and remain interactive. */
+#hud.custom-layout .movement,#hud.custom-layout .actions>div{position:fixed;transform:translate(-50%,-50%) scale(var(--touch-scale,1));transform-origin:center;pointer-events:auto}
+#hud.custom-layout .actions{transform:none}#hud.layout-edit .movement,#hud.layout-edit .actions>div{outline:2px dashed #ffe17a;background:#171e3488;border-radius:12px;touch-action:none;cursor:move}
+.layout-toolbar{position:fixed;z-index:8;top:max(3px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;background:#12192bf2;border:1px solid #fff8;padding:6px;font-size:9px;font-weight:bold;white-space:nowrap}.layout-toolbar button{background:#ffd749;color:#151a2b;padding:8px;font-weight:bold;font-size:10px}

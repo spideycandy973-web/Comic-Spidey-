@@ -1,7 +1,7 @@
 /* Local WebGL prototype. The simulation lives in physics.js; this file handles presentation and input. */
 (() => {
 'use strict';
-const $=id=>document.getElementById(id), P=window.ComicPhysics, City=window.ComicCity, Story=window.ComicStory, Combat=window.ComicCombat, Crime=window.ComicCrime, Weather=window.ComicWeather, Audio=window.ComicAudio, Gamepad=window.ComicGamepad, Progress=window.ComicProgress;
+const $=id=>document.getElementById(id), P=window.ComicPhysics, City=window.ComicCity, Story=window.ComicStory, Combat=window.ComicCombat, Crime=window.ComicCrime, Weather=window.ComicWeather, Audio=window.ComicAudio, Gamepad=window.ComicGamepad, Progress=window.ComicProgress, Layout=window.ComicLayout;
 let renderer;
 try { renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'}); }
 catch(e){ $('error').classList.remove('hidden'); return; }
@@ -16,6 +16,7 @@ function load(key,fallback){try{return JSON.parse(localStorage.getItem(key))||fa
 function save(key,value){try{localStorage.setItem(key,JSON.stringify(value));}catch(e){}}
 const progress=Progress.create(load('comic-progress-v1',null),load('comic-crimes-solved',0));
 const settings=Object.assign({suitTint:'classic',lighting:'sunset',assist:true,weather:'clear',quality:'high',touchSize:'normal',swapControls:false,sound:true},load('comic3d-settings',{}));
+if(!Layout.valid(settings.touchLayout))settings.touchLayout=null;
 if(!Progress.unlocked(progress,settings.suitTint))settings.suitTint='classic';
 if(!['sunset','day','night','cycle'].includes(settings.lighting))settings.lighting='sunset';
 if(!['clear','rain','cycle'].includes(settings.weather))settings.weather='clear';
@@ -25,9 +26,16 @@ const weatherState=Weather.create(settings.weather);
 function applyPreferences(){
  renderer.setPixelRatio(Math.min(devicePixelRatio||1,{low:.75,balanced:1,high:1.5}[settings.quality]));renderer.setSize(innerWidth,innerHeight);
  document.documentElement.style.setProperty('--touch-scale',({small:.85,normal:1,large:1.15})[settings.touchSize]);
- document.querySelector('.hud-bottom').classList.toggle('swapped',!!settings.swapControls);document.body.dataset.quality=settings.quality;Audio.configure(settings.sound);
+ document.querySelector('.hud-bottom').classList.toggle('swapped',!!settings.swapControls);applyTouchLayout();document.body.dataset.quality=settings.quality;Audio.configure(settings.sound);
 }
 applyPreferences();
+// Layout positions are normalized against the viewport so they scale across devices.
+function applyTouchLayout(){
+ const hud=$('hud');hud.classList.toggle('custom-layout',Layout.valid(settings.touchLayout));
+ if(!Layout.valid(settings.touchLayout)){for(const el of hud.querySelectorAll('[data-layout]')){el.style.left='';el.style.top='';}return;}
+ for(const el of hud.querySelectorAll('[data-layout]')){const p=settings.touchLayout[el.dataset.layout];el.style.left=(p.x*100)+'vw';el.style.top=(p.y*100)+'vh';}
+ if(!hud.classList.contains('hidden'))for(const el of hud.querySelectorAll('[data-layout]')){const r=el.getBoundingClientRect(),p=settings.touchLayout[el.dataset.layout],q=Layout.point(p.x*innerWidth,p.y*innerHeight,innerWidth,innerHeight,r.width/2,r.height/2);el.style.left=(q.x*100)+'vw';el.style.top=(q.y*100)+'vh';}
+}
 const palettes={sunset:{sky:0xe89b88,fog:0xe89b88,ambient:0xffd5bb,sun:0xffe5c8},day:{sky:0x93c7dc,fog:0x93c7dc,ambient:0xe2efff,sun:0xfff4d8},night:{sky:0x222d50,fog:0x222d50,ambient:0x7088c4,sun:0x819ade}};
 const ambient=new THREE.HemisphereLight(0xffffff,0x39435b,2);scene.add(ambient);
 const sun=new THREE.DirectionalLight(0xffffff,2.1);sun.position.set(-25,60,15);scene.add(sun);
@@ -250,12 +258,24 @@ const crimeBeacon=new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,15,10),new T
 const shotLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),new THREE.LineBasicMaterial({color:0xe7ffff}));shotLine.visible=false;scene.add(shotLine);
 function crimeTick(dt){
  const result=Crime.tick(crime,player,dt,world.bound);
- if(result==='spawned'){Audio.play('web');clearCrimeModels();crimeModels=crime.enemies.map(makeThug);crimeBeacon.position.set(crime.location.x,7.5,crime.location.z);crimeBeacon.visible=true;message('CRIME REPORTED • FOLLOW THE RED BEACON',4);}
- if(result==='completed'){Audio.play('success');clearCrimeModels();crimeBeacon.visible=false;Progress.awardCrime(progress);saveProgress();save('comic-crimes-solved',progress.crimes);message('CRIME STOPPED • HEALTH RESTORED',4);}
+ if(result==='spawned'){
+  Audio.play('web');clearCrimeModels();crimeModels=crime.enemies.map(makeThug);crimeBeacon.position.set(crime.location.x,7.5,crime.location.z);crimeBeacon.visible=true;
+  if(crime.type==='sabotage'){missionProp.position.set(crime.location.x,0,crime.location.z);missionProp.visible=true;}
+  if(crime.type==='rescue')escortRing.visible=true;
+  message(({assault:'STREET CRIME • RED BEACON',rescue:'CIVILIAN IN DANGER • RED BEACON',sabotage:'SABOTAGE • STOP THE TIMER'})[crime.type],4);
+ }
+ if(result==='ready')message(crime.type==='rescue'?'CIVILIAN CLEAR • PRESS USE TO HELP':'DEVICE CLEAR • PRESS USE TO DISARM',4);
+ if(result==='completed'||result==='failed'){
+  clearCrimeModels();crimeBeacon.visible=false;missionProp.visible=false;escortRing.visible=false;$('talk').innerHTML='✦<small>TALK</small>';$('talk').setAttribute('aria-label','Talk to a nearby civilian');
+  if(result==='completed'){Audio.play('success');Progress.awardCrime(progress);saveProgress();save('comic-crimes-solved',progress.crimes);message('CRIME STOPPED • HEALTH RESTORED',4);}
+  else message('SABOTAGE FAILED • RESPOND FASTER NEXT TIME',4);
+ }
  for(const e of crime.enemies)P.stepBoss(e,player,dt,world);
- if(crime.phase==='active'){$('objective').textContent='Stop the street crime';$('tip').textContent=crime.enemies.filter(e=>e.hp>0).length+' enemies remaining';}
+ if(crime.phase==='active'){$('objective').textContent=({assault:'Stop the street crime',rescue:'Protect the civilian',sabotage:'Stop the sabotage'})[crime.type];$('tip').textContent=crime.enemies.filter(e=>e.hp>0).length+' enemies remaining'+(crime.type==='sabotage'?' • '+Math.ceil(crime.remaining)+'s':'');}
+ else if(crime.phase==='rescue'||crime.phase==='disarm'){$('objective').textContent=crime.phase==='rescue'?'Help the civilian':'Disarm the device';$('tip').textContent='Get close and press USE'+(crime.phase==='disarm'?' • '+Math.ceil(crime.remaining)+'s':'');$('talk').innerHTML='✦<small>USE</small>';$('talk').setAttribute('aria-label','Use nearby mission object');}
  else {$('objective').textContent='Explore the city';$('tip').textContent='Crimes stopped: '+progress.crimes;}
- document.body.dataset.crimePhase=crime.phase;
+ if(crime.type==='rescue'&&crime.location){Object.assign(citizens[0],{x:crime.location.x,z:crime.location.z,angle:0});escortRing.position.set(crime.location.x,.1,crime.location.z);}
+ document.body.dataset.crimePhase=crime.phase;document.body.dataset.crimeType=crime.type||'';
 }
 const web=new THREE.Mesh(new THREE.CylinderGeometry(.045,.045,1,6),new THREE.MeshBasicMaterial({color:0xe8ffff}));web.visible=false;scene.add(web);
 const anchorMarker=new THREE.Mesh(new THREE.SphereGeometry(.24,10,8),new THREE.MeshBasicMaterial({color:0xffe36f}));anchorMarker.visible=false;scene.add(anchorMarker);
@@ -293,7 +313,7 @@ function start(selectedMode='story',continueSaved=false){
  storyStage=continueSaved?(savedStage()??0):0;
  if(mode==='story'){const spawn=Story.stage(storyStage).spawn;player.x=spawn.x;player.z=spawn.z;}
  camera.position.set(player.x,4,player.z+7);updateChunks(player.x,player.z);
- $('menu').classList.add('hidden');$('dialog').classList.add('hidden');$('hud').classList.remove('hidden');updateView();
+ $('menu').classList.add('hidden');$('dialog').classList.add('hidden');$('hud').classList.remove('hidden');applyTouchLayout();updateView();
  if(mode==='story')applyStoryStage();else{hideBoss();beacon.visible=false;$('talk').innerHTML='✦<small>TALK</small>';$('talk').setAttribute('aria-label','Talk to a nearby civilian');$('objective').textContent='Explore the city';$('tip').textContent='Drag the view to look around';message('HOLD SWING TO LAUNCH • DRAG TO LOOK',5);}
  updateHud();drawMap();
 }
@@ -310,11 +330,32 @@ $('lighting').onchange=e=>{settings.lighting=e.target.value;save('comic3d-settin
 $('suitTint').onchange=e=>{if(!Progress.unlocked(progress,e.target.value)){e.target.value=settings.suitTint;return;}settings.suitTint=e.target.value;applySuitTint();save('comic3d-settings',settings);};
 $('weather').onchange=e=>{settings.weather=e.target.value;Weather.setMode(weatherState,settings.weather);updateWeather(0);save('comic3d-settings',settings);};
 for(const id of ['quality','touchSize','swapControls','sound'])$(id).onchange=e=>{settings[id]=e.target.type==='checkbox'?e.target.checked:e.target.value;applyPreferences();if(id==='sound')Audio.unlock();save('comic3d-settings',settings);};
+let editingLayout=null;
+function captureDefaultLayout(){
+ const result={};for(const el of $('hud').querySelectorAll('[data-layout]')){const r=el.getBoundingClientRect();result[el.dataset.layout]=Layout.point(r.left+r.width/2,r.top+r.height/2,innerWidth,innerHeight,r.width/2,r.height/2);}return result;
+}
+function beginLayout(){
+ clearInput();editingLayout={from:previous,drag:null};state='layout';$('dialog').classList.add('hidden');$('menu').classList.add('hidden');$('hud').classList.remove('hidden');$('hud').classList.add('layout-edit');$('layoutToolbar').classList.remove('hidden');
+ if(!Layout.valid(settings.touchLayout)){settings.touchLayout=captureDefaultLayout();applyTouchLayout();}
+}
+function resetLayout(){settings.touchLayout=null;applyTouchLayout();settings.touchLayout=captureDefaultLayout();applyTouchLayout();}
+function endLayout(){
+ if(!editingLayout)return;const from=editingLayout.from;editingLayout=null;save('comic3d-settings',settings);$('layoutToolbar').classList.add('hidden');$('hud').classList.remove('layout-edit');
+ state=from==='menu'?'menu':'paused';if(from==='menu'){$('menu').classList.remove('hidden');$('hud').classList.add('hidden');}showDialog('settings');
+}
+$('editControls').onclick=beginLayout;$('resetLayout').onclick=resetLayout;$('finishLayout').onclick=endLayout;
+for(const el of $('hud').querySelectorAll('[data-layout]')){
+ el.addEventListener('pointerdown',e=>{if(state!=='layout')return;e.preventDefault();e.stopImmediatePropagation();const r=el.getBoundingClientRect();editingLayout.drag={id:e.pointerId,el,dx:r.left+r.width/2-e.clientX,dy:r.top+r.height/2-e.clientY};el.setPointerCapture(e.pointerId);},true);
+ el.addEventListener('pointermove',e=>{const d=editingLayout&&editingLayout.drag;if(!d||d.id!==e.pointerId||d.el!==el)return;e.preventDefault();e.stopImmediatePropagation();const r=el.getBoundingClientRect();settings.touchLayout[el.dataset.layout]=Layout.point(e.clientX+d.dx,e.clientY+d.dy,innerWidth,innerHeight,r.width/2,r.height/2);applyTouchLayout();},true);
+ const stop=e=>{if(editingLayout&&editingLayout.drag&&editingLayout.drag.id===e.pointerId){e.preventDefault();e.stopImmediatePropagation();editingLayout.drag=null;}};
+ el.addEventListener('pointerup',stop,true);el.addEventListener('pointercancel',stop,true);el.addEventListener('lostpointercapture',stop,true);
+}
 function updateView(){hands.visible=view==='first';hero.group.visible=view!=='first';const label={third:'3RD',first:'1ST',overhead:'TOP'};const next={third:'first person',first:'overhead',overhead:'third person'};$('camera').innerHTML='◉<small>'+label[view]+'</small>';$('camera').setAttribute('aria-label','Switch to '+next[view]);}
 function toggleCamera(){if(state!=='playing')return;view=({third:'first',first:'overhead',overhead:'third'})[view];updateView();message(({first:'FIRST-PERSON CAMERA',third:'THIRD-PERSON CAMERA',overhead:'OVERHEAD CAMERA'})[view],2);}
 $('camera').onclick=toggleCamera;
 function talk(){
  if(state!=='playing')return;
+ if(mode==='free'&&['rescue','disarm'].includes(crime.phase)){if(Crime.interact(crime,player))Audio.play('success');else message('MOVE CLOSER TO THE MISSION OBJECT',2);return;}
  if(mode==='story'&&Story.stage(storyStage).type==='interact'){
   const before=storyStage;advanceStory({type:'interact',x:player.x,y:player.y,z:player.z});
   if(before===storyStage)message('MOVE CLOSER TO THE MISSION OBJECT',2);else Audio.play('success');return;
@@ -385,7 +426,7 @@ function drawMap(){
  ctx.save();ctx.translate(w/2,w/2);ctx.rotate(-yaw);ctx.fillStyle='#fff6df';ctx.beginPath();ctx.moveTo(0,-7);ctx.lineTo(5,5);ctx.lineTo(0,3);ctx.lineTo(-5,5);ctx.closePath();ctx.fill();ctx.restore();
  $('districtName').textContent=P.districtAt(player.x,player.z);document.body.dataset.district=P.districtAt(player.x,player.z);
 }
-function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);}window.addEventListener('resize',resize);
+function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);applyTouchLayout();}window.addEventListener('resize',resize);
 const desired=new THREE.Vector3(),target=new THREE.Vector3(), ray=new THREE.Raycaster(),rayDirection=new THREE.Vector3(),webStart=new THREE.Vector3(),webEnd=new THREE.Vector3();
 function frame(now){const dt=last?Math.min((now-last)/1000,1/30):0;last=now;clock+=dt;pollGamepad(dt);
  if(state==='playing'){

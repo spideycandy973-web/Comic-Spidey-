@@ -121,6 +121,20 @@ const assert = require('node:assert/strict');
     assert.notEqual(await page.locator('body').getAttribute('data-suit-color'),originalTint);
     await page.click('#settingsDone'); await page.reload(); await page.waitForFunction(()=>document.body.dataset.heroModel==='loaded',null,{timeout:30000});
     assert.equal(await page.locator('body').getAttribute('data-suit-tint'),'sunset');
+    // Customize a real touch control, persist it, and use it in gameplay.
+    await page.click('#settingsOpen'); await page.click('#editControls');
+    assert.equal(await page.locator('#layoutToolbar').isVisible(),true);
+    const before=await page.locator('[data-layout="jump"]').boundingBox();
+    await page.mouse.move(before.x+before.width/2,before.y+before.height/2); await page.mouse.down(); await page.mouse.move(320,205,{steps:6}); await page.mouse.up();
+    const moved=await page.locator('[data-layout="jump"]').boundingBox();
+    assert.ok(Math.abs((moved.x+moved.width/2)-320)<5,'jump control moved to selected position');
+    await page.click('#finishLayout'); await page.click('#settingsDone');
+    const savedLayout=await page.evaluate(()=>JSON.parse(localStorage.getItem('comic3d-settings')).touchLayout.jump);
+    assert.ok(Math.abs(savedLayout.x-.5)<.02);
+    await page.reload(); await page.click('#freeRoam');
+    const restored=await page.locator('[data-layout="jump"]').boundingBox();
+    assert.ok(Math.abs((restored.x+restored.width/2)-320)<5,'custom position survives reload');
+    await page.click('#jump'); await page.waitForFunction(()=>Number(document.querySelector('#webStatus').dataset.altitude)>.1,null,{timeout:30000});
     assert.deepEqual(errors,[]);
     console.log('Browser smoke test passed: WebGL, cameras, villain damage, civilian interaction and swing takeoff/release.');
   } finally {await browser.close();}

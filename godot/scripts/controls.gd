@@ -9,6 +9,7 @@ var buttons_down: Dictionary = {}
 var surface: Control
 var status := ""
 var message := ""
+var objective := ""
 var joystick := Vector2.ZERO
 
 func _ready() -> void:
@@ -94,4 +95,5 @@ func draw_controls() -> void:
 		surface.draw_circle(p, 38, color)
 		surface.draw_string(ThemeDB.fallback_font, p + Vector2(-25, 6), labels[name], HORIZONTAL_ALIGNMENT_CENTER, 50, 15, Color.WHITE)
 	surface.draw_string(ThemeDB.fallback_font, Vector2(20, 32), status, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color.WHITE)
-	surface.draw_string(ThemeDB.fallback_font, Vector2(20, 62), message, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, 18, Color.WHITE)
+	surface.draw_string(ThemeDB.fallback_font, Vector2(20, 62), objective, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, 18, Color(0.75, 0.95, 1))
+	surface.draw_string(ThemeDB.fallback_font, Vector2(20, 90), message, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, 18, Color.WHITE)

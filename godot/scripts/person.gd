@@ -11,6 +11,9 @@ var visual: Node3D
 var anim: AnimationPlayer
 var origin: Vector3
 var walk_time := 0.0
+var local_civilian := false
+var escorting := false
+var stationary := false
 var line := "Stay safe out there, Spider-Man."
 var marker: MeshInstance3D
 var marker_material: StandardMaterial3D
@@ -83,6 +86,18 @@ func _physics_process(delta: float) -> void:
 		else:
 			velocity.x = move_toward(velocity.x, 0, delta * 12)
 			velocity.z = move_toward(velocity.z, 0, delta * 12)
+	elif escorting:
+		var direction: Vector3 = flat.normalized()
+		if distance > 2.8 and distance < 30 and absf(hero.global_position.y - global_position.y) < 3:
+			velocity.x = direction.x * 4.5
+			velocity.z = direction.z * 4.5
+			visual.rotation.y = atan2(direction.x, direction.z)
+		else:
+			velocity.x = 0
+			velocity.z = 0
+	elif stationary:
+		velocity.x = 0
+		velocity.z = 0
 	else:
 		walk_time += delta
 		var direction := Vector3(sin(walk_time * 0.3), 0, cos(walk_time * 0.3))

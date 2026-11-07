@@ -23,6 +23,17 @@ func _ready() -> void:
 	ground_mesh.position.y = -0.11
 	ground_mesh.material_override = material(Color("424b54"))
 	add_child(ground_mesh)
+	# The floor is finite; invisible boundaries prevent falling beyond it.
+	for side in [-1, 1]:
+		for axis in [0, 1]:
+			var wall := StaticBody3D.new()
+			var wall_shape := CollisionShape3D.new()
+			var wall_box := BoxShape3D.new()
+			wall_box.size = Vector3(4, 500, 1900) if axis == 0 else Vector3(1900, 500, 4)
+			wall_shape.shape = wall_box
+			wall.position = Vector3(side * 925, 200, 0) if axis == 0 else Vector3(0, 200, side * 925)
+			wall.add_child(wall_shape)
+			add_child(wall)
 
 func material(color: Color) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
@@ -36,6 +47,8 @@ func update_chunks(at: Vector3) -> void:
 	for x in range(cx - RADIUS, cx + RADIUS + 1):
 		for z in range(cz - RADIUS, cz + RADIUS + 1):
 			var key := Vector2i(x, z)
+			if abs(x) > 21 or abs(z) > 21:
+				continue
 			if not chunks.has(key):
 				make_chunk(key)
 	for key in chunks.keys():

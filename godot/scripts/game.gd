@@ -4,17 +4,33 @@ const WorldScript = preload("res://scripts/world.gd")
 const HeroScript = preload("res://scripts/hero.gd")
 const PersonScript = preload("res://scripts/person.gd")
 const ControlsScript = preload("res://scripts/controls.gd")
+const Missions = preload("res://scripts/missions.gd")
+const Saves = preload("res://scripts/saves.gd")
 const CITIZENS = [preload("res://assets/citizen.glb"), preload("res://assets/citizen2.glb")]
 const DOCTOR = preload("res://assets/doctor_octopus.glb")
 var world
 var hero
 var controls
 var people: Array = []
+var mission_enemies: Array = []
+var escort
+var beacon: MeshInstance3D
 var menu: CanvasLayer
 var mode := ""
 var stage := 0
 var message_timer := 0.0
 var chunk_timer := 0.0
+var save_timer := 15.0
+var save_enabled := true
+var checkpoint := Vector3.ZERO
+var crime_sequence := 0
+var crime_phase := "waiting"
+var crime_type := ""
+var crime_target := Vector3.ZERO
+var crime_timer := 12.0
+var crime_completed := 0
+var crime_failed := 0
+var crime_civilian
 
 func _ready() -> void:
 	var env := WorldEnvironment.new()
@@ -45,79 +61,247 @@ func _ready() -> void:
 	add_child(hero)
 	hero.position = Vector3(0, 0.2, 0)
 	hero.setup()
+	make_beacon()
 	show_menu()
 
-func show_menu(can_resume: bool = false) -> void:
+func make_beacon() -> void:
+	beacon = MeshInstance3D.new()
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = 0.5
+	cylinder.bottom_radius = 0.5
+	cylinder.height = 9.0
+	beacon.mesh = cylinder
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.3, 0.8, 1.0, 0.6)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	beacon.material_override = mat
+	beacon.visible = false
+	add_child(beacon)
+
+func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
+	if is_instance_valid(menu):
+		menu.queue_free()
 	menu = CanvasLayer.new()
 	menu.layer = 3
 	add_child(menu)
 	var panel := ColorRect.new()
-	panel.color = Color(0.02, 0.04, 0.08, 0.88)
+	panel.color = Color(0.02, 0.04, 0.08, 0.92)
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	menu.add_child(panel)
 	var box := VBoxContainer.new()
 	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	box.offset_left = -180
-	box.offset_right = 180
-	box.offset_top = -120
-	box.offset_bottom = 120
+	box.offset_left = -190
+	box.offset_right = 190
+	box.offset_top = -250
+	box.offset_bottom = 250
 	panel.add_child(box)
 	var title := Label.new()
-	title.text = "COMIC SPIDEY\nNATIVE ENGINE DEVELOPMENT"
+	title.text = "COMIC SPIDEY" + ("\nDEFEATED" if can_retry else "")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 26)
 	box.add_child(title)
 	if can_resume:
-		var resume := Button.new()
-		resume.text = "Resume"
-		resume.custom_minimum_size = Vector2(360, 65)
-		resume.pressed.connect(resume_game)
-		box.add_child(resume)
+		add_menu_button(box, "Resume", resume_game)
+	if can_retry:
+		add_menu_button(box, "Retry checkpoint", retry_checkpoint)
 	for label in ["Story", "Free Roam"]:
-		var button := Button.new()
-		button.text = label
-		button.custom_minimum_size = Vector2(360, 65)
-		button.pressed.connect(start_mode.bind(label))
-		box.add_child(button)
+		if save_enabled and not Saves.read(label).is_empty():
+			add_menu_button(box, "Continue " + label, continue_mode.bind(label))
+		add_menu_button(box, "New " + label, start_mode.bind(label))
 
-func start_mode(selected: String) -> void:
-	if is_instance_valid(menu):
-		menu.queue_free()
-	mode = selected
-	stage = 0
-	hero.health = 100
-	hero.position = Vector3(0, 0.2, 0)
-	hero.velocity = Vector3.ZERO
-	hero.rope_active = false
-	hero.web.visible = false
-	controls.touch_points.clear()
-	controls.buttons_down.clear()
-	controls.pressed_once.clear()
-	controls.movement = Vector2.ZERO
-	hero.playing = true
-	controls.active = true
+func add_menu_button(box: VBoxContainer, text: String, callback: Callable) -> void:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(380, 54)
+	button.pressed.connect(callback)
+	box.add_child(button)
+
+func clear_people() -> void:
 	for npc in people:
 		if is_instance_valid(npc):
 			npc.queue_free()
 	people.clear()
-	for i in range(6):
-		spawn_person(Vector3(-4 + i * 1.5, 0.2, -4), false, false, i)
-	spawn_person(Vector3(3, 0.2, -7), true, false, 0)
-	spawn_person(Vector3(5, 0.2, -8), true, false, 1)
+	mission_enemies.clear()
+	escort = null
+	crime_civilian = null
+
+func start_mode(selected: String) -> void:
+	if selected not in ["Story", "Free Roam"]:
+		return
+	mode = selected
+	stage = 0
+	crime_sequence = 0
+	crime_completed = 0
+	crime_failed = 0
+	crime_phase = "waiting"
+	crime_timer = 12.0
+	hero.health = 100
+	hero.position = Vector3(0, 0.2, 0)
+	hero.velocity = Vector3.ZERO
+	checkpoint = hero.position
+	begin_play()
 	if mode == "Story":
-		show_message("Story: stop the attackers, then face Doctor Octopus.")
+		setup_story_stage()
 	else:
-		spawn_person(Vector3(8, 0.2, -10), true, true, 0)
-		show_message("Free Roam: explore, talk, and stop the attackers.")
+		show_message("Explore the city. Watch for emergency calls.")
+	save_game()
+
+func begin_play() -> void:
+	if is_instance_valid(menu):
+		menu.queue_free()
+	clear_people()
+	hero.rope_active = false
+	hero.web.visible = false
+	hero.punch_flash.visible = false
+	hero.attack_cooldown = 0
+	controls.touch_points.clear()
+	controls.buttons_down.clear()
+	controls.pressed_once.clear()
+	controls.movement = Vector2.ZERO
+	controls.look_delta = Vector2.ZERO
+	world.update_chunks(hero.position)
+	for i in range(6):
+		spawn_local_civilian(i)
+	hero.playing = true
+	controls.active = true
+
+func spawn_local_civilian(index: int) -> void:
+	var x := roundf(hero.position.x / 44.0) * 44.0 + float(index % 3 - 1) * 2.2
+	var z := roundf(hero.position.z / 44.0) * 44.0 + float(index / 3 - 1) * 3.0
+	var npc = spawn_person(Vector3(x, 0.2, z), false, false, index)
+	npc.line = ["Thanks for watching over us.", "I saw trouble near the crossing.", "Be careful up there!", "The city is lucky to have you.", "I hope everyone gets home safely.", "Doctor Octopus is causing chaos."][index % 6]
+	npc.local_civilian = true
 
 func spawn_person(pos: Vector3, enemy: bool, boss: bool, variant: int):
 	var npc = CharacterBody3D.new()
 	npc.set_script(PersonScript)
-	npc.position = pos
+	npc.position = pos + Vector3.UP * 0.2
 	npc.hero = hero
 	add_child(npc)
 	npc.setup(DOCTOR if boss else CITIZENS[variant % CITIZENS.size()], enemy, boss)
 	people.append(npc)
 	return npc
+
+func spawn_wave(at: Vector3, count: int, boss: bool = false) -> void:
+	mission_enemies.clear()
+	for i in range(count):
+		var npc = spawn_person(at + Vector3((i - (count - 1) * 0.5) * 2.0, 0, 2), true, boss, i)
+		mission_enemies.append(npc)
+
+func clear_mission_actors() -> void:
+	for enemy in mission_enemies:
+		if is_instance_valid(enemy):
+			enemy.queue_free()
+	mission_enemies.clear()
+	if is_instance_valid(escort):
+		escort.queue_free()
+	escort = null
+	if is_instance_valid(crime_civilian):
+		crime_civilian.queue_free()
+	crime_civilian = null
+
+func setup_story_stage() -> void:
+	clear_mission_actors()
+	var mission: Dictionary = Missions.story_stage(stage)
+	var at: Vector3 = mission.at
+	match mission.type:
+		"fight": spawn_wave(at, mission.count)
+		"boss": spawn_wave(at, 1, true)
+		"escort":
+			escort = spawn_person(at, false, false, 1)
+			escort.escorting = true
+	show_message(mission.title)
+	update_beacon()
+
+func advance_story() -> void:
+	if stage >= Missions.STORY.size() - 1:
+		return
+	stage += 1
+	checkpoint = hero.position
+	setup_story_stage()
+	save_game()
+
+func enemies_alive() -> int:
+	var count := 0
+	for npc in mission_enemies:
+		if is_instance_valid(npc) and not npc.is_queued_for_deletion() and npc.health > 0:
+			count += 1
+	return count
+
+func update_story() -> void:
+	var mission: Dictionary = Missions.story_stage(stage)
+	match mission.type:
+		"travel":
+			if Missions.near(hero.position, mission.at, 6.0):
+				advance_story()
+		"fight", "boss":
+			if enemies_alive() == 0:
+				advance_story()
+		"escort":
+			if is_instance_valid(escort) and Missions.near(hero.position, mission.destination, 9.0) and Missions.near(escort.position, mission.destination, 9.0):
+				advance_story()
+
+func start_crime() -> void:
+	crime_type = Missions.CRIMES[crime_sequence % Missions.CRIMES.size()]
+	crime_target = Missions.crime_location(hero.position, crime_sequence)
+	crime_sequence += 1
+	crime_phase = "fight"
+	crime_timer = 90.0 if crime_type == "sabotage" else 0.0
+	spawn_wave(crime_target, 3 if crime_type == "rescue" else 2)
+	if crime_type == "rescue":
+		crime_civilian = spawn_person(crime_target + Vector3(0, 0, -2), false, false, 1)
+		crime_civilian.stationary = true
+	show_message("Emergency: " + crime_type.capitalize() + " at the beacon!")
+	update_beacon()
+
+func finish_crime(success: bool) -> void:
+	if success:
+		crime_completed += 1
+		hero.health = minf(100, hero.health + 12)
+		show_message("Emergency resolved. Health restored.")
+	else:
+		crime_failed += 1
+		show_message("The emergency timed out.")
+	clear_mission_actors()
+	crime_phase = "waiting"
+	crime_timer = 25.0
+	update_beacon()
+	save_game()
+
+func update_crime(delta: float) -> void:
+	if crime_phase == "waiting":
+		crime_timer -= delta
+		if crime_timer <= 0:
+			start_crime()
+		return
+	if crime_type == "sabotage":
+		crime_timer -= delta
+		if crime_timer <= 0:
+			finish_crime(false)
+			return
+	if crime_phase == "fight" and enemies_alive() == 0:
+		if crime_type == "assault":
+			finish_crime(true)
+		else:
+			crime_phase = "interact"
+			show_message("Go to the beacon and press TALK to finish.")
+
+func current_target() -> Variant:
+	if mode == "Story":
+		var mission: Dictionary = Missions.story_stage(stage)
+		if mission.type == "complete":
+			return null
+		return mission.destination if mission.type == "escort" else mission.at
+	if crime_phase != "waiting":
+		return crime_target
+	return null
+
+func update_beacon() -> void:
+	var target = current_target()
+	beacon.visible = target != null
+	if target != null:
+		beacon.position = target + Vector3.UP * 4.5
 
 func _process(delta: float) -> void:
 	if not hero or not hero.playing:
@@ -125,28 +309,56 @@ func _process(delta: float) -> void:
 	chunk_timer -= delta
 	if chunk_timer <= 0:
 		world.update_chunks(hero.global_position)
+		recenter_civilians()
 		chunk_timer = 1
 	message_timer -= delta
 	if message_timer <= 0:
 		controls.message = ""
-	var remaining := 0
+	if mode == "Story":
+		update_story()
+	else:
+		update_crime(delta)
+	var target = current_target()
+	var distance := ""
+	if target != null:
+		distance = "  |  %dm" % roundi(Vector2(hero.position.x - target.x, hero.position.z - target.z).length())
+	controls.status = "%s  |  HEALTH %d  |  %s" % [mode.to_upper(), ceili(hero.health), "WEB ATTACHED" if hero.rope_active else "WEB READY"]
+	if mode == "Story":
+		controls.objective = Missions.story_stage(stage).title + distance
+	else:
+		controls.objective = ("Patrol the city" if crime_phase == "waiting" else "%s: %s" % [crime_type.capitalize(), "defeat attackers" if crime_phase == "fight" else "press TALK at beacon"]) + distance
+		if crime_type == "sabotage" and crime_phase != "waiting":
+			controls.objective += "  |  %ds" % ceili(crime_timer)
+	update_beacon()
+	save_timer -= delta
+	if save_timer <= 0:
+		save_timer = 15
+		save_game()
+
+func recenter_civilians() -> void:
+	people = people.filter(func(npc): return is_instance_valid(npc) and not npc.is_queued_for_deletion())
+	var index := 0
 	for npc in people:
-		if is_instance_valid(npc) and npc.is_enemy and npc.health > 0:
-			remaining += 1
-	controls.status = "%s  |  HEALTH %d  |  ENEMIES %d  |  %s" % [mode.to_upper(), ceili(hero.health), remaining, "WEB ATTACHED" if hero.rope_active else "WEB READY"]
-	if mode == "Story" and stage == 0 and remaining == 0:
-		stage = 1
-		spawn_person(hero.global_position + Vector3(6, 0, -6), true, true, 0)
-		show_message("Doctor Octopus has arrived!")
-	elif mode == "Story" and stage == 1 and remaining == 0:
-		stage = 2
-		show_message("Doctor Octopus defeated.")
+		if is_instance_valid(npc) and not npc.is_queued_for_deletion() and npc.local_civilian:
+			if npc.global_position.distance_to(hero.global_position) > 75:
+				var pos := Vector3(roundf(hero.position.x / 44.0) * 44.0 + (index % 3 - 1) * 2.0, 0.2, roundf(hero.position.z / 44.0) * 44.0 + (index / 3 - 1) * 3.0)
+				npc.position = pos
+				npc.origin = pos
+			index += 1
 
 func interact() -> void:
+	if mode == "Story":
+		var mission: Dictionary = Missions.story_stage(stage)
+		if mission.type == "interact" and Missions.near(hero.position, mission.at, 5.0):
+			advance_story()
+			return
+	elif crime_phase == "interact" and Missions.near(hero.position, crime_target, 5.0):
+		finish_crime(true)
+		return
 	var nearest
 	var distance := 3.5
 	for npc in people:
-		if is_instance_valid(npc) and npc.health > 0:
+		if is_instance_valid(npc) and not npc.is_queued_for_deletion() and npc.health > 0:
 			var d: float = hero.global_position.distance_to(npc.global_position)
 			if d < distance:
 				distance = d
@@ -156,23 +368,25 @@ func interact() -> void:
 			show_message("Doctor Octopus: You cannot stop me!")
 		elif nearest.is_enemy:
 			show_message("Attacker: Get out of our way!")
+		elif nearest.escorting:
+			show_message("Civilian: I'll follow you to safety!")
 		else:
 			show_message("Civilian: " + nearest.line)
 	else:
-		show_message("Move closer to someone to talk.")
+		show_message("Move closer to someone or an objective to use TALK.")
 
 func show_message(text: String) -> void:
 	controls.message = text
 	message_timer = 4
 
 func pause_game() -> void:
+	save_game()
 	hero.playing = false
 	controls.active = false
 	controls.touch_points.clear()
 	controls.buttons_down.clear()
 	controls.pressed_once.clear()
 	controls.movement = Vector2.ZERO
-	# Enemy and civilian AI pauses with the hero.
 	for npc in people:
 		if is_instance_valid(npc):
 			npc.set_physics_process(false)
@@ -192,4 +406,101 @@ func game_over() -> void:
 	for npc in people:
 		if is_instance_valid(npc):
 			npc.set_physics_process(false)
-	show_menu()
+	show_menu(false, true)
+
+func retry_checkpoint() -> void:
+	hero.health = 100
+	hero.position = checkpoint
+	hero.velocity = Vector3.ZERO
+	begin_play()
+	if mode == "Story":
+		setup_story_stage()
+	else:
+		crime_phase = "waiting"
+		crime_timer = 12
+		show_message("Back on patrol.")
+	save_game()
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_PAUSED and is_instance_valid(hero) and hero.playing:
+		pause_game()
+
+func vector_data(v: Vector3) -> Array:
+	return [v.x, v.y, v.z]
+
+func data_vector(v: Array) -> Vector3:
+	return Vector3(float(v[0]), float(v[1]), float(v[2]))
+
+func save_game() -> void:
+	if not save_enabled or not is_instance_valid(hero) or not hero.playing or hero.health <= 0 or mode.is_empty():
+		return
+	var enemies: Array = []
+	for npc in mission_enemies:
+		if is_instance_valid(npc) and not npc.is_queued_for_deletion() and npc.health > 0:
+			enemies.append({"position": vector_data(npc.position), "health": npc.health})
+	var state := {
+		"version": Saves.VERSION, "mode": mode, "stage": stage,
+		"position": vector_data(hero.position), "health": hero.health,
+		"checkpoint": vector_data(checkpoint), "enemies": enemies,
+		"crime_sequence": crime_sequence, "crime_phase": crime_phase,
+		"crime_type": crime_type, "crime_target": vector_data(crime_target),
+		"crime_timer": crime_timer, "crime_completed": crime_completed, "crime_failed": crime_failed,
+	}
+	if is_instance_valid(escort):
+		state["escort"] = vector_data(escort.position)
+	if not Saves.write(mode, state):
+		show_message("Could not save progress on this device.")
+
+func continue_mode(selected: String) -> void:
+	var state: Dictionary = Saves.read(selected)
+	if state.is_empty():
+		return
+	mode = selected
+	stage = int(state.stage)
+	hero.position = data_vector(state.position)
+	hero.velocity = Vector3.ZERO
+	hero.health = float(state.health)
+	checkpoint = data_vector(state.checkpoint) if Saves.valid_position(state.get("checkpoint")) else hero.position
+	crime_sequence = clampi(int(state.get("crime_sequence", 0)), 0, 1000000)
+	crime_completed = clampi(int(state.get("crime_completed", 0)), 0, 1000000)
+	crime_failed = clampi(int(state.get("crime_failed", 0)), 0, 1000000)
+	crime_phase = str(state.get("crime_phase", "waiting"))
+	crime_type = str(state.get("crime_type", ""))
+	crime_timer = clampf(float(state.get("crime_timer", 12.0)), 0.0, 90.0)
+	crime_target = data_vector(state.crime_target) if Saves.valid_position(state.get("crime_target")) else Vector3.ZERO
+	if crime_phase not in ["waiting", "fight", "interact"] or (crime_phase != "waiting" and crime_type not in Missions.CRIMES):
+		crime_phase = "waiting"
+		crime_timer = 12.0
+	begin_play()
+	if mode == "Story":
+		setup_story_stage()
+		if is_instance_valid(escort) and Saves.valid_position(state.get("escort")):
+			escort.position = data_vector(state.escort)
+		if Missions.story_stage(stage).type in ["fight", "boss"]:
+			restore_enemies(state.get("enemies"), Missions.story_stage(stage).type == "boss")
+	elif crime_phase != "waiting":
+		if crime_phase == "fight":
+			restore_enemies(state.get("enemies"), false)
+		if crime_type == "rescue":
+			crime_civilian = spawn_person(crime_target + Vector3(0, 0, -2), false, false, 1)
+			crime_civilian.stationary = true
+	update_beacon()
+	show_message("Progress restored.")
+
+func restore_enemies(data, boss: bool) -> void:
+	if not data is Array or data.size() > 3:
+		return
+	for item in data:
+		if not item is Dictionary or not Saves.valid_position(item.get("position")):
+			return
+		var hp = item.get("health")
+		if not (hp is int or hp is float) or not is_finite(float(hp)) or float(hp) <= 0 or float(hp) > (200 if boss else 60):
+			return
+	for old in mission_enemies:
+		if is_instance_valid(old):
+			old.queue_free()
+	mission_enemies.clear()
+	for i in range(data.size()):
+		var npc = spawn_person(data_vector(data[i].position) - Vector3.UP * 0.2, true, boss, i)
+		npc.health = float(data[i].health)
+		mission_enemies.append(npc)

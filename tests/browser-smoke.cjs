@@ -22,6 +22,12 @@ const assert = require('node:assert/strict');
     await page.click('#camera'); assert.match(await page.locator('#camera').innerText(), /1ST/);
     await page.click('#camera'); assert.match(await page.locator('#camera').innerText(), /TOP/);
     await page.click('#camera'); assert.match(await page.locator('#camera').innerText(), /3RD/);
+    await page.evaluate(()=>{window.mockPad={connected:true,mapping:'standard',axes:[0,0,0,0],buttons:Array.from({length:16},()=>({pressed:false}))};Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[window.mockPad]});});
+    await page.waitForFunction(()=>document.body.dataset.gamepad==='connected',null,{timeout:20000});
+    await page.evaluate(()=>window.mockPad.buttons[5].pressed=true);
+    await page.waitForFunction(()=>document.querySelector('#camera').textContent.includes('1ST'),null,{timeout:20000});
+    await page.evaluate(()=>{window.mockPad.buttons[5].pressed=false;}); await page.click('#camera'); await page.click('#camera');
+    await page.evaluate(()=>Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[]}));
     await page.keyboard.down('w');
     let hit=false;
     for(let i=0;i<140;i++){
@@ -81,6 +87,28 @@ const assert = require('node:assert/strict');
     assert.ok(parseInt(await page.locator('body').getAttribute('data-loaded-chunks'),10)<=9,'rendered chunks stay bounded');
     assert.equal(await page.locator('#bossName').innerText(),'DOCTOR OCTOPUS');
     assert.equal(await page.locator('body').getAttribute('data-boss-model'),'docock','actual Doctor Octopus mesh is in the scene');
+    // Continue directly at a mission checkpoint and verify that USE requires proximity.
+    await page.evaluate(()=>localStorage.setItem('comic-story-v1',JSON.stringify({stage:5})));
+    await page.reload(); await page.click('#continueStory');
+    assert.equal(await page.locator('body').getAttribute('data-story-type'),'interact');
+    assert.match(await page.locator('#talk').innerText(),/USE/);
+    await page.keyboard.press('e'); assert.equal(await page.locator('body').getAttribute('data-story-type'),'interact');
+    await page.keyboard.down('w');
+    for(let i=0;i<100&&(await page.locator('body').getAttribute('data-story-type'))==='interact';i++){await page.keyboard.press('e');await page.waitForTimeout(150);}
+    await page.keyboard.up('w'); assert.equal(await page.locator('body').getAttribute('data-story-type'),'travel');
+    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('comic-story-v1')).stage),6);
+    // Escort follower is a visible citizen and moves as the player walks toward safety.
+    await page.evaluate(()=>localStorage.setItem('comic-story-v1',JSON.stringify({stage:7})));
+    await page.reload(); await page.click('#continueStory');
+    assert.equal(await page.locator('body').getAttribute('data-story-type'),'escort');
+    await page.keyboard.down('s'); await page.waitForFunction(()=>Number(document.body.dataset.escortZ)>-159,null,{timeout:60000}); await page.keyboard.up('s');
+    // A crew checkpoint creates actual combat targets.
+    await page.evaluate(()=>localStorage.setItem('comic-story-v1',JSON.stringify({stage:9})));
+    await page.reload(); await page.click('#continueStory');
+    assert.equal(await page.locator('body').getAttribute('data-story-type'),'crew');
+    assert.equal(await page.locator('body').getAttribute('data-story-enemies'),'3');
+    for(let i=0;i<140&&(await page.locator('body').getAttribute('data-story-enemies'))==='3';i++){await page.keyboard.press('f');if(i%4===0)await page.keyboard.press('g');await page.waitForTimeout(200);}
+    assert.ok(Number(await page.locator('body').getAttribute('data-story-enemies'))<3,'crew can take combat damage and be defeated');
     assert.deepEqual(errors,[]);
     console.log('Browser smoke test passed: WebGL, cameras, villain damage, civilian interaction and swing takeoff/release.');
   } finally {await browser.close();}

@@ -47,8 +47,11 @@ const assert = require('node:assert/strict');
     assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('comic-story-v1')).stage),1);
     assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('comic-progress-v1')).xp),25);
     await page.click('#pause'); assert.equal(await page.locator('#pausePanel').isVisible(),true);
+    const storySave=await page.evaluate(()=>JSON.parse(localStorage.getItem('comic-story-v1')));
+    assert.ok(storySave.boss.hp<100,'boss damage saved'); assert.ok(storySave.player,'story player state saved');
     await page.click('#toMenu'); assert.equal(await page.locator('#continueStory').isVisible(),true);
     await page.click('#continueStory'); assert.equal(await page.locator('#bossHud').isVisible(),true);
+    assert.equal(await page.locator('#bossBar').evaluate(el=>parseFloat(el.style.width)),storySave.boss.hp,'boss damage restored');
     await page.click('#pause'); await page.click('#resume'); assert.equal(await page.locator('#dialog').isVisible(),false);
     // Fresh free-roam session: interaction with a moving civilian and an actual assisted takeoff.
     await page.reload(); await page.click('#settingsOpen'); await page.selectOption('#lighting','cycle');

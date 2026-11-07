@@ -285,13 +285,30 @@ const beaconRing=new THREE.Mesh(new THREE.RingGeometry(2,2.4,32),new THREE.MeshB
 const missionProp=new THREE.Group();box(missionProp,1.7,1.5,1.2,steel,0,.75,0);box(missionProp,1.3,.15,1,gold,0,1.55,0);missionProp.visible=false;scene.add(missionProp);
 const escortRing=new THREE.Mesh(new THREE.RingGeometry(.7,.9,24),new THREE.MeshBasicMaterial({color:0x5af5c1,side:THREE.DoubleSide}));escortRing.rotation.x=-Math.PI/2;escortRing.position.y=.1;escortRing.visible=false;scene.add(escortRing);
 function makeStoryCrew(stage){return [-3,0,3].map((dx,i)=>({id:i,x:stage.x+dx,z:stage.z-3,y:0,hp:60,health:60,speed:2.6+i*.3,range:2.1,damage:8,windup:.8,cooldown:1.4,state:'chase',timer:0,stun:0,hitFlash:0}));}
-function saveStory(){save('comic-story-v1',{stage:storyStage});}
+function saveStory(){
+ const record={stage:storyStage};
+ if(mode==='story'&&player.health>0&&Story.stage(storyStage).type!=='complete'){
+  const p=SaveGame.snapshot(player,combat,yaw,pitch);if(SaveGame.valid(p,world.bound))record.player=p;
+  if(boss)record.boss={x:boss.x,z:boss.z,hp:boss.hp};
+  if(storyEnemies.length)record.crew=storyEnemies.map(e=>({x:e.x,z:e.z,hp:e.hp}));
+  if(escort)record.escort={x:escort.x,z:escort.z};
+ }
+ save('comic-story-v1',record);
+}
+function safeGroundPosition(a){return a&&Number.isFinite(a.x)&&Number.isFinite(a.z)&&Math.abs(a.x)<=world.bound&&Math.abs(a.z)<=world.bound&&!P.nearbyBuildings(world,a.x,a.z,16).some(b=>Math.abs(a.x-b.x)<b.w/2+.5&&Math.abs(a.z-b.z)<b.d/2+.5);}
+function restoreStoryActors(record){
+ if(!record)return;
+ if(boss&&SaveGame.actor(record.boss,world.bound,boss.health)&&safeGroundPosition(record.boss))Object.assign(boss,{x:record.boss.x,z:record.boss.z,hp:record.boss.hp});
+ if(Array.isArray(record.crew)&&record.crew.length===storyEnemies.length)storyEnemies.forEach((e,i)=>{const s=record.crew[i];if(SaveGame.actor(s,world.bound,e.health,true)&&safeGroundPosition(s))Object.assign(e,{x:s.x,z:s.z,hp:s.hp});});
+ if(escort&&safeGroundPosition(record.escort))Object.assign(escort,{x:record.escort.x,z:record.escort.z});
+}
+function saveCurrent(){if(state!=='playing'||player.health<=0)return;if(mode==='story')saveStory();else saveFree();}
 function savedStage(){const saved=load('comic-story-v1',null);return saved&&Story.valid(saved.stage)&&Story.stage(saved.stage).type!=='complete'?saved.stage:null;}
 function savedFree(){return SaveGame.restore(load('comic-free-v1',null),world,P.nearbyBuildings);}
 function saveFree(){if(mode!=='free'||state!=='playing'||player.health<=0)return;const data=SaveGame.snapshot(player,combat,yaw,pitch);if(SaveGame.valid(data,world.bound))save('comic-free-v1',data);}
 function updateContinue(){$('continueStory').classList.toggle('hidden',savedStage()===null);$('continueFree').classList.toggle('hidden',!savedFree());}
 function hideBoss(){boss=null;scene.remove(enemy.group);$('bossHud').classList.add('hidden');}
-function applyStoryStage(){
+function applyStoryStage(persist=true){
  const stage=Story.stage(storyStage);$('objective').textContent=stage.title;$('tip').textContent=stage.hint;
  clearCrimeModels();storyEnemies=[];escort=null;escortRing.visible=false;missionProp.visible=false;
  beacon.visible=['travel','interact','escort'].includes(stage.type);
@@ -303,30 +320,35 @@ function applyStoryStage(){
  else{hideBoss();finish(true);}
  $('talk').innerHTML=stage.type==='interact'?'✦<small>USE</small>':'✦<small>TALK</small>';
  $('talk').setAttribute('aria-label',stage.type==='interact'?'Use nearby mission object':'Talk to a nearby civilian');
- document.body.dataset.storyType=stage.type;document.body.dataset.storyEnemies=String(storyEnemies.length);saveStory();
+ document.body.dataset.storyType=stage.type;document.body.dataset.storyEnemies=String(storyEnemies.length);if(persist)saveStory();
 }
 function advanceStory(event){const next=Story.advance(storyStage,event);if(next!==storyStage){if(Progress.awardStory(progress,storyStage))saveProgress();storyStage=next;applyStoryStage();}}
 updateContinue();
 function message(text,seconds=3){$('notice').textContent=text;noticeTimer=seconds;$('notice').classList.remove('hidden');}
 function clearInput(){Object.assign(swingSources,{touch:false,key:false,pad:false});Object.assign(input,{forward:false,back:false,left:false,right:false,jx:0,jy:0,jump:false,climb:false,swing:false});player.rope=null;$('stick').style.transform='translate(0,0)';document.querySelectorAll('.pressed').forEach(x=>x.classList.remove('pressed'));}
 function setBoss(index){bossIndex=index;boss=P.createBoss(index);scene.remove(enemy.group);if(boss){enemy=makeBoss(boss.id);scene.add(enemy.group);document.body.dataset.bossModel=enemy.group.userData.model||'placeholder';$('bossHud').classList.remove('hidden');$('bossName').textContent=boss.name;$('bossSubtitle').textContent=boss.subtitle;$('objective').textContent='Defeat '+boss.name;message(boss.name+' HAS ENTERED THE FIGHT!',3);}else{$('bossHud').classList.add('hidden');finish(true);}}
-function start(selectedMode='story',continueSaved=false){
+function start(selectedMode='story',continueSaved=false,checkpointOnly=false){
  clearInput();Audio.unlock();mode=selectedMode;wasAirborne=false;landingTime=0;player=P.createPlayer();combat=Combat.create();crime=Crime.create();clearCrimeModels();crimeBeacon.visible=false;missionProp.visible=false;escortRing.visible=false;escort=null;storyEnemies=[];shotTarget=null;shotTime=0;yaw=0;pitch=0;view='third';state='playing';last=0;
+ const storyRecord=continueSaved&&mode==='story'&&!checkpointOnly?load('comic-story-v1',null):null;
  storyStage=continueSaved&&mode==='story'?(savedStage()??0):0;
- if(mode==='story'){const spawn=Story.stage(storyStage).spawn;player.x=spawn.x;player.z=spawn.z;}
+ if(mode==='story'){
+  const spawn=Story.stage(storyStage).spawn;player.x=spawn.x;player.z=spawn.z;
+  const restored=storyRecord&&storyRecord.stage===storyStage?SaveGame.restore(storyRecord.player,world,P.nearbyBuildings):null;
+  if(restored){Object.assign(player,{x:restored.x,y:restored.y,z:restored.z,health:restored.health,grounded:restored.grounded});combat.energy=restored.energy;yaw=restored.yaw;pitch=restored.pitch;}
+ }
  else if(continueSaved){const restored=savedFree();if(restored){Object.assign(player,{x:restored.x,y:restored.y,z:restored.z,health:restored.health,grounded:restored.grounded});combat.energy=restored.energy;yaw=restored.yaw;pitch=restored.pitch;}}
  freeSaveTimer=5;if(mode==='free')saveFree();
  camera.position.set(player.x,4,player.z+7);updateChunks(player.x,player.z);
  $('menu').classList.add('hidden');$('dialog').classList.add('hidden');$('hud').classList.remove('hidden');applyTouchLayout();updateView();
- if(mode==='story')applyStoryStage();else{hideBoss();beacon.visible=false;$('talk').innerHTML='✦<small>TALK</small>';$('talk').setAttribute('aria-label','Talk to a nearby civilian');$('objective').textContent='Explore the city';$('tip').textContent='Drag the view to look around';message('HOLD SWING TO LAUNCH • DRAG TO LOOK',5);}
+ if(mode==='story'){applyStoryStage(false);if(storyRecord)restoreStoryActors(storyRecord);saveStory();}else{hideBoss();beacon.visible=false;$('talk').innerHTML='✦<small>TALK</small>';$('talk').setAttribute('aria-label','Talk to a nearby civilian');$('objective').textContent='Explore the city';$('tip').textContent='Drag the view to look around';message('HOLD SWING TO LAUNCH • DRAG TO LOOK',5);}
  updateHud();drawMap();
 }
 function showDialog(panel){$('dialog').classList.remove('hidden');['pause','settings','result'].forEach(p=>$(p+'Panel').classList.toggle('hidden',p!==panel));$('lighting').value=settings.lighting;$('suitTint').value=settings.suitTint;for(const o of $('suitTint').options)o.disabled=!Progress.unlocked(progress,o.value);$('suitTint').disabled=heroMaterials.length===0;$('assist').checked=!!settings.assist;$('weather').value=settings.weather;$('quality').value=settings.quality;$('touchSize').value=settings.touchSize;$('swapControls').checked=!!settings.swapControls;$('sound').checked=!!settings.sound;}
-function pause(){if(state!=='playing')return;saveFree();clearInput();state='paused';previous='paused';showDialog('pause');}
+function pause(){if(state!=='playing')return;saveCurrent();clearInput();state='paused';previous='paused';showDialog('pause');}
 function resume(){state='playing';last=0;$('dialog').classList.add('hidden');}
-function menu(){saveFree();clearInput();clearCrimeModels();crimeBeacon.visible=false;missionProp.visible=false;escortRing.visible=false;escort=null;storyEnemies=[];shotTime=0;state='menu';$('dialog').classList.add('hidden');$('hud').classList.add('hidden');$('menu').classList.remove('hidden');beacon.visible=false;updateContinue();}
+function menu(){saveCurrent();clearInput();clearCrimeModels();crimeBeacon.visible=false;missionProp.visible=false;escortRing.visible=false;escort=null;storyEnemies=[];shotTime=0;state='menu';$('dialog').classList.add('hidden');$('hud').classList.add('hidden');$('menu').classList.remove('hidden');beacon.visible=false;updateContinue();}
 function finish(won){clearInput();state='result';$('resultTag').textContent=won?'CITY SAVED':'DOWN BUT NOT OUT';$('resultTitle').textContent=won?'VICTORY!':'DEFEATED';$('resultText').textContent=won?'The generator is stable and the civilian is safe. This original story remains a development build.':'You were defeated. Try again and dodge the warning rings.';showDialog('result');}
-window.comicGame={pause};$('play').onclick=()=>start('story');$('continueStory').onclick=()=>start('story',true);$('freeRoam').onclick=()=>start('free');$('continueFree').onclick=()=>start('free',true);$('retry').onclick=()=>start(mode,mode==='story');$('pause').onclick=pause;$('resume').onclick=resume;$('toMenu').onclick=menu;$('resultMenu').onclick=menu;
+window.comicGame={pause};$('play').onclick=()=>start('story');$('continueStory').onclick=()=>start('story',true);$('freeRoam').onclick=()=>start('free');$('continueFree').onclick=()=>start('free',true);$('retry').onclick=()=>start(mode,mode==='story',true);$('pause').onclick=pause;$('resume').onclick=resume;$('toMenu').onclick=menu;$('resultMenu').onclick=menu;
 $('settingsOpen').onclick=()=>{previous='menu';showDialog('settings');};$('pauseSettings').onclick=()=>{previous='paused';showDialog('settings');};
 function closeSettings(){if(previous==='paused')showDialog('pause');else $('dialog').classList.add('hidden');}
 $('settingsDone').onclick=closeSettings;$('closeDialog').onclick=()=>{if(!$('settingsPanel').classList.contains('hidden'))closeSettings();else if(state==='paused')resume();else if(state==='result')menu();};
@@ -434,7 +456,7 @@ function resize(){camera.aspect=innerWidth/innerHeight;camera.updateProjectionMa
 const desired=new THREE.Vector3(),target=new THREE.Vector3(), ray=new THREE.Raycaster(),rayDirection=new THREE.Vector3(),webStart=new THREE.Vector3(),webEnd=new THREE.Vector3();
 function frame(now){const dt=last?Math.min((now-last)/1000,1/30):0;last=now;clock+=dt;pollGamepad(dt);
  if(state==='playing'){
-  if(mode==='free'){freeSaveTimer-=dt;if(freeSaveTimer<=0){saveFree();freeSaveTimer=5;}}
+  freeSaveTimer-=dt;if(freeSaveTimer<=0){saveCurrent();freeSaveTimer=5;}
   if(settings.lighting==='cycle'){timeOfDay+=dt;lightTimer-=dt;if(lightTimer<=0){lighting();lightTimer=.25;}}
   const sx=(input.right?1:0)-(input.left?1:0)+input.jx+gamepadInput.x,sz=(input.back?1:0)-(input.forward?1:0)+input.jy+gamepadInput.z;
   const mx=Math.cos(yaw)*sx+Math.sin(yaw)*sz,mz=-Math.sin(yaw)*sx+Math.cos(yaw)*sz;

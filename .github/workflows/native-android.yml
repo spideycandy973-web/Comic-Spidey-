@@ -43,7 +43,15 @@ jobs:
           mkdir -p ~/.config/godot
           printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\nexport/android/debug_keystore = "/tmp/debug.keystore"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\n' "$ANDROID_HOME" "$JAVA_HOME" > ~/.config/godot/editor_settings-4.tres
       - name: Export Android debug APK
-        run: /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --path godot --export-debug Android /tmp/comic-spidey-native-debug.apk
+        run: |
+          set +e
+          /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --path godot --export-debug Android /tmp/comic-spidey-native-debug.apk > /tmp/native-export.log 2>&1
+          result=$?
+          cat /tmp/native-export.log
+          if [ "$result" -ne 0 ]; then
+            tail -60 /tmp/native-export.log | while IFS= read -r line; do echo "::error::$line"; done
+            exit "$result"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: comic-spidey-native-debug

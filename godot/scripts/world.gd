@@ -9,10 +9,16 @@ var player: CharacterBody3D
 const FACADE = preload("res://scripts/facade.gdshader")
 var paint_material: StandardMaterial3D
 var roof_material: StandardMaterial3D
+var grass_material: StandardMaterial3D
+var leaf_material: StandardMaterial3D
+var trunk_material: StandardMaterial3D
 
 func _ready() -> void:
 	paint_material = material(Color("ded9bb"))
 	roof_material = material(Color("585f62"))
+	grass_material = material(Color("54794a"))
+	leaf_material = material(Color("386839"))
+	trunk_material = material(Color("6b5035"))
 	var ground := StaticBody3D.new()
 	var ground_shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
@@ -80,7 +86,8 @@ func make_chunk(key: Vector2i) -> void:
 	slab.size = Vector3(33, 0.25, 33)
 	sidewalk.mesh = slab
 	sidewalk.position = Vector3((key.x + 0.5) * CELL, 0.01, (key.y + 0.5) * CELL)
-	sidewalk.material_override = material(Color("777d7e"))
+	var is_park := absi(key.x * 7 + key.y * 11) % 17 == 5
+	sidewalk.material_override = grass_material if is_park else material(Color("777d7e"))
 	chunk.add_child(sidewalk)
 	# Dashed lane markings and pedestrian crossings, batched per city block.
 	var ox := key.x * CELL
@@ -92,6 +99,10 @@ func make_chunk(key: Vector2i) -> void:
 		road_marks.append(Transform3D(Basis.from_scale(Vector3(0.55, 0.02, 2.0)), Vector3(ox + i * 1.7, 0.03, oz + 6)))
 		road_marks.append(Transform3D(Basis.from_scale(Vector3(2.0, 0.02, 0.55)), Vector3(ox + 6, 0.03, oz + i * 1.7)))
 	add_instances(chunk, road_marks, paint_material)
+	if is_park:
+		add_park(chunk, key, rng)
+		chunk.set_meta("anchors", roofs)
+		return
 	for dx in [-1, 1]:
 		for dz in [-1, 1]:
 			var center := Vector3((key.x + 0.5) * CELL + dx * 8.2, 0, (key.y + 0.5) * CELL + dz * 8.2)
@@ -121,8 +132,21 @@ func make_chunk(key: Vector2i) -> void:
 	add_instances(chunk, rooftop_details, roof_material)
 	chunk.set_meta("anchors", roofs)
 
-func add_instances(parent: Node3D, transforms: Array[Transform3D], mat: Material) -> void:
-	var mesh := BoxMesh.new()
+func add_park(parent: Node3D, key: Vector2i, rng: RandomNumberGenerator) -> void:
+	var trunks: Array[Transform3D] = []
+	var canopies: Array[Transform3D] = []
+	for x in [-1, 0, 1]:
+		for z in [-1, 1]:
+			var p := Vector3((key.x + 0.5) * CELL + x * 10.0, 0, (key.y + 0.5) * CELL + z * 8.0)
+			var height := rng.randf_range(3.0, 4.5)
+			trunks.append(Transform3D(Basis.from_scale(Vector3(0.55, height, 0.55)), p + Vector3.UP * height * 0.5))
+			canopies.append(Transform3D(Basis.from_scale(Vector3(2.6, 2.4, 2.6)), p + Vector3.UP * (height + 1.1)))
+	add_instances(parent, trunks, trunk_material)
+	var foliage := SphereMesh.new()
+	add_instances(parent, canopies, leaf_material, foliage)
+
+func add_instances(parent: Node3D, transforms: Array[Transform3D], mat: Material, supplied_mesh: PrimitiveMesh = null) -> void:
+	var mesh: PrimitiveMesh = supplied_mesh if supplied_mesh else BoxMesh.new()
 	mesh.material = mat
 	var multi := MultiMesh.new()
 	multi.transform_format = MultiMesh.TRANSFORM_3D

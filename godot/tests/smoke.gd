@@ -1,12 +1,14 @@
 extends SceneTree
 
+var failed := false
+
 func _initialize() -> void:
 	call_deferred("run_test")
 
 func check(condition: bool, message: String) -> void:
 	if not condition:
 		push_error("TEST FAILED: " + message)
-		quit(1)
+		failed = true
 
 func run_test() -> void:
 	var scene = load("res://main.tscn").instantiate()
@@ -39,4 +41,4 @@ func run_test() -> void:
 	scene.interact()
 	check(scene.controls.message != "Move closer to someone to talk.", "nearby person can be interacted with")
 	print("Native scene smoke checks passed")
-	quit(0)
+	quit(1 if failed else 0)

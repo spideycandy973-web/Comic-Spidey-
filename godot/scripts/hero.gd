@@ -72,8 +72,16 @@ func _physics_process(delta: float) -> void:
 		visual.rotation.y = lerp_angle(visual.rotation.y, atan2(desired.x, desired.z) + PI, delta * 10)
 	var accel := 13.0 if is_on_floor() else (8.0 if rope_active else 4.0)
 	var top_speed := 7.5 if is_on_floor() else 11.0
-	velocity.x = move_toward(velocity.x, desired.x * top_speed, accel * delta)
-	velocity.z = move_toward(velocity.z, desired.z * top_speed, accel * delta)
+	if rope_active:
+		# Do not brake horizontal momentum toward walking speed while swinging.
+		velocity.x += desired.x * 5.0 * delta
+		velocity.z += desired.z * 5.0 * delta
+		var horizontal_speed := Vector2(velocity.x, velocity.z).limit_length(25.0)
+		velocity.x = horizontal_speed.x
+		velocity.z = horizontal_speed.y
+	else:
+		velocity.x = move_toward(velocity.x, desired.x * top_speed, accel * delta)
+		velocity.z = move_toward(velocity.z, desired.z * top_speed, accel * delta)
 	velocity.y -= 18 * delta
 	if controls.consume("jump") and is_on_floor():
 		velocity.y = 8.5

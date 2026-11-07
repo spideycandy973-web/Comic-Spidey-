@@ -20,6 +20,24 @@ func run_test() -> void:
 	for npc in scene.people:
 		npc.set_physics_process(false)
 	await physics_frame
+	var touch := InputEventScreenTouch.new()
+	touch.index = 0
+	touch.pressed = true
+	touch.position = scene.controls.button_positions()["swing"]
+	scene.controls._input(touch)
+	check(scene.controls.held("swing"), "touch holds the swing button")
+	var drag := InputEventScreenTouch.new()
+	drag.index = 1
+	drag.pressed = true
+	drag.position = Vector2(140, 620)
+	scene.controls._input(drag)
+	check(scene.controls.movement.length() > 0, "joystick works while web is held")
+	touch.pressed = false
+	scene.controls._input(touch)
+	check(not scene.controls.held("swing"), "releasing touch releases web")
+	drag.pressed = false
+	scene.controls._input(drag)
+	check(scene.controls.movement == Vector2.ZERO, "releasing joystick stops input")
 	check(scene.people.size() == 8, "story spawns citizens and enemies")
 	check(scene.hero.animator != null, "hero animation player imported")
 	check(scene.hero.skeleton != null, "hero skeleton imported")
@@ -40,5 +58,6 @@ func run_test() -> void:
 	check(scene.hero.rope_length > 0, "rope length is set")
 	scene.interact()
 	check(scene.controls.message != "Move closer to someone to talk.", "nearby person can be interacted with")
-	print("Native scene smoke checks passed")
+	if not failed:
+		print("Native scene smoke checks passed")
 	quit(1 if failed else 0)

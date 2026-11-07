@@ -67,6 +67,9 @@ func setup() -> void:
 func _physics_process(delta: float) -> void:
 	if not playing:
 		return
+	if controls.consume("menu"):
+		game.pause_game()
+		return
 	attack_cooldown = maxf(0, attack_cooldown - delta)
 	punch_timer = maxf(0, punch_timer - delta)
 	punch_flash.visible = punch_timer > 0

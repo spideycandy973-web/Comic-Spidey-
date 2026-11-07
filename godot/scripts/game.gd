@@ -47,7 +47,7 @@ func _ready() -> void:
 	hero.setup()
 	show_menu()
 
-func show_menu() -> void:
+func show_menu(can_resume: bool = false) -> void:
 	menu = CanvasLayer.new()
 	menu.layer = 3
 	add_child(menu)
@@ -66,6 +66,12 @@ func show_menu() -> void:
 	title.text = "COMIC SPIDEY\nNATIVE ENGINE DEVELOPMENT"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
+	if can_resume:
+		var resume := Button.new()
+		resume.text = "Resume"
+		resume.custom_minimum_size = Vector2(360, 65)
+		resume.pressed.connect(resume_game)
+		box.add_child(resume)
 	for label in ["Story", "Free Roam"]:
 		var button := Button.new()
 		button.text = label
@@ -81,6 +87,12 @@ func start_mode(selected: String) -> void:
 	hero.health = 100
 	hero.position = Vector3(0, 0.2, 0)
 	hero.velocity = Vector3.ZERO
+	hero.rope_active = false
+	hero.web.visible = false
+	controls.touch_points.clear()
+	controls.buttons_down.clear()
+	controls.pressed_once.clear()
+	controls.movement = Vector2.ZERO
 	hero.playing = true
 	controls.active = true
 	for npc in people:
@@ -153,6 +165,31 @@ func show_message(text: String) -> void:
 	controls.message = text
 	message_timer = 4
 
+func pause_game() -> void:
+	hero.playing = false
+	controls.active = false
+	controls.touch_points.clear()
+	controls.buttons_down.clear()
+	controls.pressed_once.clear()
+	controls.movement = Vector2.ZERO
+	# Enemy and civilian AI pauses with the hero.
+	for npc in people:
+		if is_instance_valid(npc):
+			npc.set_physics_process(false)
+	show_menu(true)
+
+func resume_game() -> void:
+	if is_instance_valid(menu):
+		menu.queue_free()
+	for npc in people:
+		if is_instance_valid(npc):
+			npc.set_physics_process(true)
+	hero.playing = true
+	controls.active = true
+
 func game_over() -> void:
 	controls.active = false
+	for npc in people:
+		if is_instance_valid(npc):
+			npc.set_physics_process(false)
 	show_menu()

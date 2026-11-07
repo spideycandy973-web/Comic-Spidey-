@@ -95,7 +95,7 @@ const assert = require('node:assert/strict');
     await page.keyboard.up('Shift');
     await page.waitForFunction(()=>document.querySelector('#webStatus').textContent.includes('WEB READY'),null,{timeout:20000});
     assert.match(await page.locator('#webStatus').innerText(),/WEB READY/);
-    await page.evaluate(()=>localStorage.setItem('comic-story-v1',JSON.stringify({stage:3})));
+    await page.evaluate(()=>{window.comicGame.pause();localStorage.setItem('comic-story-v1',JSON.stringify({stage:3}));});
     await page.reload(); await page.waitForFunction(()=>document.body.dataset.docModel==='loaded',null,{timeout:30000});
     await page.click('#continueStory');
     assert.equal(await page.locator('body').getAttribute('data-city-chunk'),'0,-1','moving to a distant checkpoint loads the correct chunk');
@@ -103,7 +103,7 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('#bossName').innerText(),'DOCTOR OCTOPUS');
     assert.equal(await page.locator('body').getAttribute('data-boss-model'),'docock','actual Doctor Octopus mesh is in the scene');
     // Continue directly at a mission checkpoint and verify that USE requires proximity.
-    await page.evaluate(()=>localStorage.setItem('comic-story-v1',JSON.stringify({stage:5})));
+    await page.evaluate(()=>{window.comicGame.pause();localStorage.setItem('comic-story-v1',JSON.stringify({stage:5}));});
     await page.reload(); await page.click('#continueStory');
     assert.equal(await page.locator('body').getAttribute('data-story-type'),'interact');
     await page.waitForFunction(()=>document.body.dataset.trafficCenter==='80,-160',null,{timeout:30000});
@@ -114,12 +114,12 @@ const assert = require('node:assert/strict');
     await page.keyboard.up('w'); assert.equal(await page.locator('body').getAttribute('data-story-type'),'travel');
     assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('comic-story-v1')).stage),6);
     // Escort follower is a visible citizen and moves as the player walks toward safety.
-    await page.evaluate(()=>localStorage.setItem('comic-story-v1',JSON.stringify({stage:7})));
+    await page.evaluate(()=>{window.comicGame.pause();localStorage.setItem('comic-story-v1',JSON.stringify({stage:7}));});
     await page.reload(); await page.click('#continueStory');
     assert.equal(await page.locator('body').getAttribute('data-story-type'),'escort');
     await page.keyboard.down('s'); await page.waitForFunction(()=>Number(document.body.dataset.escortZ)>-159,null,{timeout:60000}); await page.keyboard.up('s');
     // A crew checkpoint creates actual combat targets.
-    await page.evaluate(()=>localStorage.setItem('comic-story-v1',JSON.stringify({stage:9})));
+    await page.evaluate(()=>{window.comicGame.pause();localStorage.setItem('comic-story-v1',JSON.stringify({stage:9}));});
     await page.reload(); await page.click('#continueStory');
     assert.equal(await page.locator('body').getAttribute('data-story-type'),'crew');
     assert.equal(await page.locator('body').getAttribute('data-story-enemies'),'3');

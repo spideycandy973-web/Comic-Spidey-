@@ -2,6 +2,7 @@ extends Node3D
 
 const WorldScript = preload("res://scripts/world.gd")
 const HeroScript = preload("res://scripts/hero.gd")
+const VehicleScript = preload("res://scripts/vehicle.gd")
 const PersonScript = preload("res://scripts/person.gd")
 const SoundScript = preload("res://scripts/sound.gd")
 const ControlsScript = preload("res://scripts/controls.gd")
@@ -14,6 +15,7 @@ var hero
 var controls
 var sound
 var people: Array = []
+var traffic: Array = []
 var mission_enemies: Array = []
 var escort
 var beacon: MeshInstance3D
@@ -175,6 +177,10 @@ func add_menu_button(box: VBoxContainer, text: String, callback: Callable) -> vo
 	box.add_child(button)
 
 func clear_people() -> void:
+	for car in traffic:
+		if is_instance_valid(car):
+			car.queue_free()
+	traffic.clear()
 	for npc in people:
 		if is_instance_valid(npc):
 			npc.queue_free()
@@ -227,6 +233,13 @@ func begin_play() -> void:
 	world.update_chunks(hero.position)
 	for i in range(6):
 		spawn_local_civilian(i)
+	for i in range(6):
+		var car := CharacterBody3D.new()
+		car.set_script(VehicleScript)
+		car.game = self
+		add_child(car)
+		car.setup(i)
+		traffic.append(car)
 	hero.playing = true
 	controls.active = true
 
@@ -465,6 +478,9 @@ func pause_game() -> void:
 	for npc in people:
 		if is_instance_valid(npc):
 			npc.set_physics_process(false)
+	for car in traffic:
+		if is_instance_valid(car):
+			car.set_physics_process(false)
 	show_menu(true)
 
 func resume_game() -> void:
@@ -473,6 +489,9 @@ func resume_game() -> void:
 	for npc in people:
 		if is_instance_valid(npc):
 			npc.set_physics_process(true)
+	for car in traffic:
+		if is_instance_valid(car):
+			car.set_physics_process(true)
 	hero.playing = true
 	controls.active = true
 
@@ -481,6 +500,9 @@ func game_over() -> void:
 	for npc in people:
 		if is_instance_valid(npc):
 			npc.set_physics_process(false)
+	for car in traffic:
+		if is_instance_valid(car):
+			car.set_physics_process(false)
 	show_menu(false, true)
 
 func retry_checkpoint() -> void:

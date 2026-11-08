@@ -75,7 +75,7 @@ func run_test() -> void:
 	scene.hero.position = Vector3(0, 0.1, 0)
 	car.recenter(0)
 	check(scene.hero.animator != null and scene.hero.skeleton != null, "hero model and skeleton imported")
-	var hero_meshes := scene.hero.visual.find_children("*", "MeshInstance3D", true, false)
+	var hero_meshes: Array = scene.hero.visual.find_children("*", "MeshInstance3D", true, false)
 	check(not hero_meshes.is_empty(), "hero model has visible mesh")
 	if not hero_meshes.is_empty():
 		var hero_material = hero_meshes[0].get_active_material(0)

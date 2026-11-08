@@ -194,6 +194,9 @@ func run_test() -> void:
 					target.hit(999, Vector3.FORWARD)
 				scene.update_story()
 			"interact":
+				scene.hero.position = mission.at + Vector3(0, 0.1, 4)
+				scene.interact()
+				check(scene.stage == expected, "interaction requires being close to the visible prop")
 				scene.hero.position = mission.at + Vector3.UP * 0.1
 				scene.interact()
 			"escort":
@@ -278,6 +281,18 @@ func run_test() -> void:
 	scene.save_game()
 	scene.continue_mode("Free Roam")
 	check(scene.crime_phase == "interact" and is_instance_valid(scene.crime_civilian), "free roam restores rescue interaction")
+	scene.start_mode("Free Roam")
+	scene.crime_sequence = 2
+	scene.start_crime()
+	for target in scene.mission_enemies:
+		target.hit(999, Vector3.FORWARD)
+	scene.update_crime(0.01)
+	scene.save_game()
+	scene.continue_mode("Free Roam")
+	check(scene.crime_phase == "interact" and is_instance_valid(scene.mission_prop) and scene.mission_prop.kind == "device", "free roam restores the sabotage device")
+	scene.hero.position = scene.mission_prop.position + Vector3.UP * 0.1
+	scene.interact()
+	check(scene.crime_phase == "waiting", "restored sabotage device can be disarmed")
 	check(not Saves.valid({"version": 1, "mode": "Story", "stage": 500, "health": 100, "position": [0,0,0]}, "Story"), "out of range stage rejected")
 	check(not Saves.valid({"version": 1, "mode": "Story", "stage": 0, "health": 100, "position": [0,0,0], "crime_sequence": []}, "Story"), "malformed optional state rejected")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Saves.slot_path("Story")))

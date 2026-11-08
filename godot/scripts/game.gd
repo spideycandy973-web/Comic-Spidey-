@@ -8,7 +8,7 @@ const SoundScript = preload("res://scripts/sound.gd")
 const ControlsScript = preload("res://scripts/controls.gd")
 const Missions = preload("res://scripts/missions.gd")
 const Saves = preload("res://scripts/saves.gd")
-const CITIZENS = [preload("res://assets/citizen.glb"), preload("res://assets/citizen2.glb")]
+const CITIZENS = [preload("res://assets/citizen.glb"), preload("res://assets/citizen2.glb"), preload("res://assets/citizen3.glb"), preload("res://assets/citizen4.glb")]
 const DOCTOR = preload("res://assets/doctor_octopus.glb")
 var world
 var hero

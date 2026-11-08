@@ -69,8 +69,10 @@ func setup(model: PackedScene, enemy: bool, boss: bool = false) -> void:
 	var players := visual.find_children("*", "AnimationPlayer", true, false)
 	if not players.is_empty():
 		anim = players[0]
+		for motion in ["walk", "run"]:
+			if anim.has_animation(motion):
+				anim.get_animation(motion).loop_mode = Animation.LOOP_LINEAR
 		if anim.has_animation("walk"):
-			anim.get_animation("walk").loop_mode = Animation.LOOP_LINEAR
 			anim.play("walk")
 	origin = position
 
@@ -174,7 +176,11 @@ func _physics_process(delta: float) -> void:
 		var lunge := sin((0.65 - maxf(windup, 0.0)) / 0.65 * PI) * 0.45 if windup > 0 else 0.0
 		visual.position = flat.normalized() * lunge
 	if anim:
-		anim.speed_scale = 1.0 if Vector2(velocity.x, velocity.z).length() > 0.1 else 0.0
+		var movement_speed := Vector2(velocity.x, velocity.z).length()
+		var motion := "run" if movement_speed > 2.5 and anim.has_animation("run") else "walk"
+		if anim.has_animation(motion) and anim.current_animation != motion:
+			anim.play(motion)
+		anim.speed_scale = 1.0 if movement_speed > 0.1 else 0.0
 	if marker_material:
 		marker_material.albedo_color = Color(1.0, 0.08, 0.04, 0.9) if windup > 0 else Color(1.0, 0.55, 0.06, 0.8)
 	move_and_slide()

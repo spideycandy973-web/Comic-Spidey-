@@ -193,6 +193,7 @@ func run_test() -> void:
 	check(not scene.hero.playing and not scene.controls.active, "pause stops gameplay and touch")
 	scene.show_credits()
 	check(is_instance_valid(scene.menu), "credits open")
+	check(FileAccess.file_exists("res://fonts/BANGERS-OFL.txt"), "comic font license is included")
 	scene.close_credits()
 	scene.resume_game()
 	check(scene.hero.playing and scene.controls.active, "resume restarts gameplay")

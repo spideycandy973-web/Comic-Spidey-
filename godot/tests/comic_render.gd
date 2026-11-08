@@ -7,9 +7,17 @@ func run_test() -> void:
 	var scene = load("res://main.tscn").instantiate()
 	root.add_child(scene)
 	await physics_frame
-	await process_frame
-	await RenderingServer.frame_post_draw
+	# Wait for initial desktop/window resize events before inspecting the menu.
+	for i in range(8):
+		await process_frame
+		await RenderingServer.frame_post_draw
 	var menu := root.get_texture().get_image()
+	print("Menu viewport: ", menu.get_size(), " panel: ", scene.menu.get_child(0).size)
+	var corner := menu.get_pixel(menu.get_width() - 10, menu.get_height() - 10)
+	if corner.r > 0.35 and absf(corner.r - corner.g) < 0.03 and absf(corner.g - corner.b) < 0.03:
+		push_error("TEST FAILED: comic menu does not fill the viewport")
+		quit(1)
+		return
 	menu.resize(480, 270)
 	menu.save_jpg("/tmp/comic-menu.jpg", 0.4)
 	scene.save_enabled = false

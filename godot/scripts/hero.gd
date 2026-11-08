@@ -305,7 +305,7 @@ func shoot_web(forward: Vector3) -> void:
 		shot_end = closest.global_position + Vector3.UP
 		closest.hit(10, forward)
 		closest.stun = 2.0
-		game.show_message("Web hit! Enemy slowed.")
+		game.show_message("THWIP! Enemy webbed.")
 	else:
 		game.show_message("No enemy in range ahead.")
 	shot_timer = 0.25
@@ -337,7 +337,7 @@ func attack() -> void:
 		velocity.x += direction.x * 2.0
 		velocity.z += direction.z * 2.0
 		nearest.hit(25, direction)
-		game.show_message("Hit! Enemy health: %d" % maxi(0, ceili(nearest.health)))
+		game.show_message("POW! Enemy health: %d" % maxi(0, ceili(nearest.health)))
 		return
 	game.show_message("Attack: move closer to an enemy")
 

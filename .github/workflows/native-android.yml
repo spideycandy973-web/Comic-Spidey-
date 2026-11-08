@@ -35,6 +35,9 @@ jobs:
             timeout 90s xvfb-run -a /tmp/godot/Godot_v4.3-stable_linux.x86_64 --audio-driver Dummy --path godot --script res://tests/comic_render.gd > /tmp/native-comic.log 2>&1
             result=$?
           fi
+          if [ -f /tmp/comic-game.jpg ]; then
+            python3 -c 'import base64; [(print("::notice::%s_%d=%s"%(name,i//3500,content[i:i+3500]))) for name,path in [("COMIC_GAME", "/tmp/comic-game.jpg"), ("COMIC_MENU", "/tmp/comic-menu.jpg")] for content in [base64.b64encode(open(path,"rb").read()).decode()] for i in range(0,len(content),3500)]'
+          fi
           for log in /tmp/native-import.log /tmp/native-smoke.log /tmp/native-render.log /tmp/native-comic.log; do
             if [ -f "$log" ]; then
               echo "::notice::$log error count: $(grep -cE 'SCRIPT ERROR|ERROR:' "$log" || true)"

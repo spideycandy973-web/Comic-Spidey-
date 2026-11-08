@@ -7,6 +7,8 @@ var chunks: Dictionary = {}
 var anchors: Array[Vector3] = []
 var player: CharacterBody3D
 const FACADE = preload("res://scripts/facade.gdshader")
+const SIGN_TEXTURES = [preload("res://assets/signs/comics.png"), preload("res://assets/signs/pizza.png"), preload("res://assets/signs/bugle.png"), preload("res://assets/signs/cafe.png")]
+var sign_materials: Array[StandardMaterial3D] = []
 var paint_material: StandardMaterial3D
 var roof_material: StandardMaterial3D
 var grass_material: StandardMaterial3D
@@ -20,6 +22,11 @@ var facade_material: ShaderMaterial
 func _ready() -> void:
 	facade_material = ShaderMaterial.new()
 	facade_material.shader = FACADE
+	for texture in SIGN_TEXTURES:
+		var sign := StandardMaterial3D.new()
+		sign.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		sign.albedo_texture = texture
+		sign_materials.append(sign)
 	paint_material = material(Color("f9eab8"))
 	roof_material = material(Color("28354b"))
 	grass_material = material(Color("68a968"))
@@ -95,6 +102,10 @@ func make_chunk(key: Vector2i) -> void:
 	var awnings: Array[Transform3D] = []
 	var street_furniture: Array[Transform3D] = []
 	var road_marks: Array[Transform3D] = []
+	var sign_comics: Array[Transform3D] = []
+	var sign_pizza: Array[Transform3D] = []
+	var sign_bugle: Array[Transform3D] = []
+	var sign_cafe: Array[Transform3D] = []
 	var rng := RandomNumberGenerator.new()
 	rng.seed = absi(key.x * 73856093 ^ key.y * 19349663) + 913
 	var sidewalk := MeshInstance3D.new()
@@ -144,6 +155,13 @@ func make_chunk(key: Vector2i) -> void:
 			rooftop_details.append(Transform3D(Basis.from_scale(Vector3(size.x + 0.3, 0.35, size.z + 0.3)), center + Vector3.UP * height))
 			doors.append(Transform3D(Basis.from_scale(Vector3(0.1, 3.0, 2.3)), center + Vector3(dx * (size.x * 0.5 + 0.06), 1.5, 0)))
 			awnings.append(Transform3D(Basis.from_scale(Vector3(1.1, 0.25, 3.2)), center + Vector3(dx * (size.x * 0.5 + 0.5), 3.2, 0)))
+			var sign_basis := Basis(Vector3.UP, dx * PI * 0.5) * Basis.from_scale(Vector3(3.5, 1.3, 1))
+			var sign_transform := Transform3D(sign_basis, center + Vector3(dx * (size.x * 0.5 + 0.08), 4.6, 0))
+			match rng.randi_range(0, 3):
+				0: sign_comics.append(sign_transform)
+				1: sign_pizza.append(sign_transform)
+				2: sign_bugle.append(sign_transform)
+				3: sign_cafe.append(sign_transform)
 			for side_x in [-1, 1]:
 				for side_z in [-1, 1]:
 					roofs.append(center + Vector3(side_x * (size.x * 0.5 + 0.3), height + 0.25, side_z * (size.z * 0.5 + 0.3)))
@@ -151,7 +169,17 @@ func make_chunk(key: Vector2i) -> void:
 	add_instances(chunk, rooftop_details, roof_material)
 	add_instances(chunk, doors, glass_material)
 	add_instances(chunk, awnings, awning_material)
+	add_signs(chunk, sign_comics, sign_materials[0])
+	add_signs(chunk, sign_pizza, sign_materials[1])
+	add_signs(chunk, sign_bugle, sign_materials[2])
+	add_signs(chunk, sign_cafe, sign_materials[3])
 	chunk.set_meta("anchors", roofs)
+
+func add_signs(parent: Node3D, transforms: Array[Transform3D], mat: Material) -> void:
+	if transforms.is_empty():
+		return
+	var quad := QuadMesh.new()
+	add_instances(parent, transforms, mat, quad)
 
 func add_park(parent: Node3D, key: Vector2i, rng: RandomNumberGenerator) -> void:
 	var trunks: Array[Transform3D] = []

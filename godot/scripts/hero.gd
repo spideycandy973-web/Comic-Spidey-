@@ -320,22 +320,22 @@ func attack() -> void:
 	var nearest
 	var best := 2.8
 	for npc in game.people:
-		if not is_instance_valid(npc) or not npc.is_enemy or npc.health <= 0:
+		if not is_instance_valid(npc) or npc.is_queued_for_deletion() or not npc.is_enemy or npc.health <= 0:
 			continue
 		var dist := global_position.distance_to(npc.global_position)
 		if dist < best:
-			best = dist
-			nearest = npc
+			var ray := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP, npc.global_position + Vector3.UP, 1)
+			if get_world_3d().direct_space_state.intersect_ray(ray).is_empty():
+				best = dist
+				nearest = npc
 	if nearest:
-		var ray := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP, nearest.global_position + Vector3.UP, 1)
-		if get_world_3d().direct_space_state.intersect_ray(ray).is_empty():
-			var direction: Vector3 = (nearest.global_position - global_position).normalized()
-			visual.rotation.y = atan2(direction.x, direction.z) + PI
-			velocity.x += direction.x * 2.0
-			velocity.z += direction.z * 2.0
-			nearest.hit(25, direction)
-			game.show_message("Hit! Enemy health: %d" % maxi(0, ceili(nearest.health)))
-			return
+		var direction: Vector3 = (nearest.global_position - global_position).normalized()
+		visual.rotation.y = atan2(direction.x, direction.z) + PI
+		velocity.x += direction.x * 2.0
+		velocity.z += direction.z * 2.0
+		nearest.hit(25, direction)
+		game.show_message("Hit! Enemy health: %d" % maxi(0, ceili(nearest.health)))
+		return
 	game.show_message("Attack: move closer to an enemy")
 
 func take_damage(amount: float) -> void:

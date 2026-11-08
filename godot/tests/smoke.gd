@@ -91,6 +91,16 @@ func run_test() -> void:
 	check(not scene.hero.rope_active and not scene.hero.web.visible, "releasing web ends rope")
 	scene.hero.position = Vector3(0, 0.1, 0)
 	scene.hero.velocity = Vector3.ZERO
+	scene.hero.attach_web(Vector3.FORWARD)
+	scene.controls.buttons_down["swing"] = true
+	scene.controls.pressed_once["jump"] = true
+	scene.hero._physics_process(1.0 / 60.0)
+	check(not scene.hero.rope_active and scene.hero.velocity.y > 0 and scene.hero.swing_blocked_until_release, "jump releases web with an upward boost")
+	scene.controls.buttons_down.erase("swing")
+	scene.hero._physics_process(1.0 / 60.0)
+	check(not scene.hero.swing_blocked_until_release, "web can be used again after releasing the button")
+	scene.hero.position = Vector3(0, 0.1, 0)
+	scene.hero.velocity = Vector3.ZERO
 	scene.interact()
 	check(scene.controls.message.begins_with("Civilian:"), "nearby civilian can be interacted with")
 
@@ -206,9 +216,26 @@ func run_test() -> void:
 	check(scene.stage == 1 and not scene.hero.playing, "new story asks before replacing existing progress")
 	scene.close_credits()
 	scene.resume_game()
+	scene.start_mode("Free Roam")
+	scene.crime_sequence = 1
+	scene.start_crime()
+	scene.mission_enemies[0].health = 35
+	scene.hero.health = 82
+	scene.save_game()
+	scene.continue_mode("Free Roam")
+	check(scene.crime_type == "rescue" and scene.crime_phase == "fight", "free roam restores active rescue")
+	check(scene.mission_enemies.size() == 3 and scene.mission_enemies[0].health == 35 and scene.hero.health == 82, "free roam restores combat and player health")
+	check(is_instance_valid(scene.crime_civilian), "free roam restores rescue civilian")
+	for target in scene.mission_enemies:
+		target.hit(999, Vector3.FORWARD)
+	scene.update_crime(0.01)
+	scene.save_game()
+	scene.continue_mode("Free Roam")
+	check(scene.crime_phase == "interact" and is_instance_valid(scene.crime_civilian), "free roam restores rescue interaction")
 	check(not Saves.valid({"version": 1, "mode": "Story", "stage": 500, "health": 100, "position": [0,0,0]}, "Story"), "out of range stage rejected")
 	check(not Saves.valid({"version": 1, "mode": "Story", "stage": 0, "health": 100, "position": [0,0,0], "crime_sequence": []}, "Story"), "malformed optional state rejected")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Saves.slot_path("Story")))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(Saves.slot_path("Free Roam")))
 	if not failed:
 		print("Native scene smoke checks passed")
 	quit(1 if failed else 0)

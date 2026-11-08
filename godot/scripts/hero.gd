@@ -16,6 +16,9 @@ var rope_active := false
 var anchor := Vector3.ZERO
 var rope_length := 0.0
 var web_retry := 0.0
+var swing_blocked_until_release := false
+var was_grounded := false
+var landing_timer := 0.0
 var attack_cooldown := 0.0
 var shot_cooldown := 0.0
 var shot_timer := 0.0
@@ -87,6 +90,7 @@ func _physics_process(delta: float) -> void:
 		game.pause_game()
 		return
 	web_retry = maxf(0, web_retry - delta)
+	landing_timer = maxf(0, landing_timer - delta)
 	attack_cooldown = maxf(0, attack_cooldown - delta)
 	shot_cooldown = maxf(0, shot_cooldown - delta)
 	shot_timer = maxf(0, shot_timer - delta)
@@ -132,9 +136,15 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, desired.x * top_speed, accel * delta)
 		velocity.z = move_toward(velocity.z, desired.z * top_speed, accel * delta)
 	velocity.y -= 18 * delta
-	if controls.consume("jump") and is_on_floor():
-		velocity.y = 8.5
-		game.sound.play_effect("jump")
+	if controls.consume("jump"):
+		if rope_active:
+			release_web()
+			swing_blocked_until_release = true
+			velocity.y = maxf(velocity.y, 5.0)
+			game.sound.play_effect("jump")
+		elif is_on_floor():
+			velocity.y = 8.5
+			game.sound.play_effect("jump")
 	if controls.consume("attack") or controls.held("attack") or Input.is_key_pressed(KEY_F):
 		attack()
 	if controls.consume("talk"):
@@ -142,7 +152,9 @@ func _physics_process(delta: float) -> void:
 	if controls.consume("shot"):
 		shoot_web(forward)
 	var swinging: bool = controls.held("swing") or Input.is_key_pressed(KEY_SHIFT)
-	if swinging and not rope_active and web_retry <= 0:
+	if not swinging:
+		swing_blocked_until_release = false
+	if swinging and not rope_active and not swing_blocked_until_release and web_retry <= 0:
 		web_retry = 0.35
 		attach_web(forward)
 	elif not swinging and rope_active:
@@ -155,6 +167,10 @@ func _physics_process(delta: float) -> void:
 			if outward > 0:
 				velocity -= radial * outward
 	move_and_slide()
+	var grounded := is_on_floor()
+	if grounded and not was_grounded and velocity.y <= 0:
+		landing_timer = 0.4
+	was_grounded = grounded
 	if rope_active:
 		var offset := global_position + Vector3.UP - anchor
 		if offset.length() > rope_length:
@@ -171,7 +187,15 @@ func _physics_process(delta: float) -> void:
 func update_animation(desired: Vector3) -> void:
 	if not animator:
 		return
-	var name := "swing" if rope_active else ("run" if desired.length() > 0.1 and is_on_floor() else "idle")
+	var name := "idle"
+	if rope_active:
+		name = "swing"
+	elif not is_on_floor():
+		name = "jump" if velocity.y > 0.5 else "fall"
+	elif desired.length() > 0.1:
+		name = "run"
+	elif landing_timer > 0:
+		name = "land"
 	if animator.has_animation(name) and animator.current_animation != name:
 		animator.play(name, 0.15)
 
@@ -212,6 +236,13 @@ func attach_web(forward: Vector3) -> void:
 		anchor = selected
 		rope_length = (global_position + Vector3.UP).distance_to(anchor)
 		rope_active = true
+		# A small launch assist makes the first ground-level web usable without
+		# overriding the pendulum's momentum once the player is airborne.
+		if is_on_floor():
+			velocity.y = maxf(velocity.y, 4.5)
+			var pull := Vector3(anchor.x - global_position.x, 0, anchor.z - global_position.z).normalized()
+			velocity.x += pull.x * 1.5
+			velocity.z += pull.z * 1.5
 		if OS.is_debug_build():
 			print("Native web attached")
 		game.sound.play_effect("web")

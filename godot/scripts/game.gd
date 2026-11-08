@@ -253,6 +253,9 @@ func begin_play() -> void:
 	clear_people()
 	hero.release_web()
 	hero.web_retry = 0
+	hero.swing_blocked_until_release = false
+	hero.was_grounded = false
+	hero.landing_timer = 0
 	hero.punch_flash.visible = false
 	hero.shot_line.visible = false
 	hero.punch_timer = 0

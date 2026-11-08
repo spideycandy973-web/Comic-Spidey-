@@ -6,7 +6,7 @@ Important limitations: the city and vehicles use original procedural geometry, n
 
 ## Controls
 
-On touchscreens use the left stick, drag empty space to look, hold WEB and release to let go, HIT for melee, SHOT for web shots, JUMP and TALK. Use the pause button for resume, restarting modes, sound and mirrored touch layout. Keyboard: WASD, Space jump, Shift hold web, F attack, Q web shot, E talk, Escape pause.
+On touchscreens use the left stick, drag empty space to look, hold WEB and release to let go, or press JUMP while swinging for a boosted release; HIT for melee, SHOT for web shots, JUMP and TALK. Use the pause button for resume, restarting modes, sound and mirrored touch layout. Keyboard: WASD, Space jump, Shift hold web, F attack, Q web shot, E talk, Escape pause.
 
 Progress is autosaved locally per mode, at Story checkpoints, periodically during play, and on pause. Starting a new mode replaces that mode's save. No account or internet connection is required. This build's separate package ID means it does not import saves from the older WebView app.
 

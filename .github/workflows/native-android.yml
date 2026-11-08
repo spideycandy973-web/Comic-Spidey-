@@ -109,4 +109,4 @@ jobs:
           target: google_apis
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
-          script: bash godot/tests/android-smoke.sh /tmp/native-apk/comic-spidey-native-debug.apk
+          script: bash godot/tests/android-smoke.sh /tmp/native-apk/comic-spidey-native-debug.apk 720 1280 Story && bash godot/tests/android-smoke.sh /tmp/native-apk/comic-spidey-native-debug.apk 540 1200 "Free Roam"

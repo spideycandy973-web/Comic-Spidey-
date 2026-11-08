@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 apk="$1"
+portrait_width="${2:-720}"
+portrait_height="${3:-1280}"
+mode="${4:-Story}"
 package=com.comicspidey.nativegame
+# Godot uses a 1280x720 logical viewport stretched to the landscape display.
+tap() { adb shell input tap "$(( $1 * portrait_height / 1280 ))" "$(( $2 * portrait_width / 720 ))"; }
+swipe() { adb shell input swipe "$(( $1 * portrait_height / 1280 ))" "$(( $2 * portrait_width / 720 ))" "$(( $3 * portrait_height / 1280 ))" "$(( $4 * portrait_width / 720 ))" "$5"; }
 on_error() {
   local code=$? line=$1
   trap - ERR
@@ -15,7 +21,8 @@ on_error() {
 }
 trap 'on_error "$LINENO"' ERR
 adb install -r "$apk"
-adb shell wm size 720x1280
+adb shell pm clear "$package" >/dev/null
+adb shell wm size "${portrait_width}x${portrait_height}"
 # Avoid the OS first-use immersive-mode education dialog covering the game.
 adb shell settings put secure immersive_mode_confirmations confirmed
 adb logcat -c
@@ -23,28 +30,28 @@ adb shell monkey -p "$package" -c android.intent.category.LAUNCHER 1
 # Allow engine startup and model import to finish on software rendering.
 sleep 20
 adb shell pidof "$package" >/dev/null
-# Open credits from the actual Android menu, then return and choose Story.
+# Open credits from the actual Android menu, then return and choose the mode.
 adb exec-out screencap -p > /tmp/android-menu.png
-adb shell input tap 640 225
+tap 640 225
 sleep 3
-adb shell input tap 640 47
+tap 640 47
 sleep 3
-adb shell input tap 640 339
+if [ "$mode" = "Free Roam" ]; then tap 640 397; else tap 640 339; fi
 sleep 20
 # Exercise the touch buttons and movement joystick through Android, not injected Godot events.
-adb shell input tap 1115 635
-adb shell input swipe 100 620 100 550 1500
-adb shell input swipe 1198 530 1198 530 1800
+tap 1115 635
+swipe 100 620 100 550 1500
+swipe 1198 530 1198 530 1800
 sleep 3
 # Pause and resume through the touch UI.
-adb shell input tap 1232 50
+tap 1232 50
 sleep 2
-adb shell input tap 640 165
+tap 640 165
 sleep 5
 adb shell pidof "$package" >/dev/null
 adb shell dumpsys activity activities | grep -q "$package"
 adb logcat -d > /tmp/native-android-log.txt
-if ! grep -q 'Native mode started: Story' /tmp/native-android-log.txt; then
+if ! grep -q "Native mode started: $mode" /tmp/native-android-log.txt; then
   python3 - <<'PYSCREEN'
 from PIL import Image
 from io import BytesIO

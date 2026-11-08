@@ -346,6 +346,8 @@ func begin_play() -> void:
 		car.setup(i)
 		traffic.append(car)
 	hero.playing = true
+	if hero.animator:
+		hero.animator.speed_scale = 1.0
 	controls.active = true
 
 func spawn_local_civilian(index: int) -> void:
@@ -523,6 +525,7 @@ func _process(delta: float) -> void:
 	chunk_timer -= delta
 	if chunk_timer <= 0:
 		world.update_chunks(hero.global_position)
+		controls.district = world.district_for(Vector2i(floori(hero.position.x / world.CELL), floori(hero.position.z / world.CELL)))
 		recenter_civilians()
 		chunk_timer = 1
 	message_timer -= delta
@@ -611,11 +614,15 @@ func show_message(text: String) -> void:
 func pause_game() -> void:
 	save_game()
 	hero.playing = false
+	if hero.animator:
+		hero.animator.speed_scale = 0.0
 	controls.active = false
 	controls.reset_input()
 	for npc in people:
 		if is_instance_valid(npc):
 			npc.set_physics_process(false)
+			if npc.anim:
+				npc.anim.speed_scale = 0.0
 	for car in traffic:
 		if is_instance_valid(car):
 			car.set_physics_process(false)
@@ -633,13 +640,19 @@ func resume_game() -> void:
 		if is_instance_valid(car):
 			car.set_physics_process(true)
 	hero.playing = true
+	if hero.animator:
+		hero.animator.speed_scale = 1.0
 	controls.active = true
 
 func game_over() -> void:
+	if hero.animator:
+		hero.animator.speed_scale = 0.0
 	controls.active = false
 	for npc in people:
 		if is_instance_valid(npc):
 			npc.set_physics_process(false)
+			if npc.anim:
+				npc.anim.speed_scale = 0.0
 	for car in traffic:
 		if is_instance_valid(car):
 			car.set_physics_process(false)

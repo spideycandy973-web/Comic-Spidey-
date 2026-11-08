@@ -17,6 +17,7 @@ var map_position := Vector3.ZERO
 var map_yaw := 0.0
 var map_target := Vector3.ZERO
 var map_has_target := false
+var district := "Downtown"
 var health := 100.0
 var mirrored := false
 var movement_pointer := -1
@@ -160,6 +161,8 @@ func draw_minimap(screen_size: Vector2) -> void:
 	var small := PackedVector2Array([center + heading * 6, center - heading * 5 + sideways * 3, center - heading * 5 - sideways * 3])
 	surface.draw_colored_polygon(small, Color("36b4de"))
 	surface.draw_string(ComicFont, inner.position + Vector2(6, 17), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("171429"))
+	surface.draw_string_outline(ComicFont, Vector2(inner.position.x + 6, inner.end.y - 6), district, HORIZONTAL_ALIGNMENT_LEFT, 140, 15, 3, Color("fff3d0"))
+	surface.draw_string(ComicFont, Vector2(inner.position.x + 6, inner.end.y - 6), district, HORIZONTAL_ALIGNMENT_LEFT, 140, 15, Color("171429"))
 
 func draw_controls() -> void:
 	if not active:

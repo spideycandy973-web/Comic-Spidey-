@@ -35,12 +35,28 @@ func run_test() -> void:
 	drag.position = Vector2(140, 620)
 	scene.controls._input(drag)
 	check(scene.controls.movement.length() > 0, "joystick works while web is held")
+	var second_touch := InputEventScreenTouch.new()
+	second_touch.index = 2
+	second_touch.pressed = true
+	second_touch.position = scene.controls.button_positions()["swing"]
+	scene.controls._input(second_touch)
 	touch.pressed = false
 	scene.controls._input(touch)
-	check(not scene.controls.held("swing"), "releasing touch releases web")
+	check(scene.controls.held("swing"), "one finger releasing does not cancel another held web touch")
+	second_touch.pressed = false
+	scene.controls._input(second_touch)
+	check(not scene.controls.held("swing"), "releasing last touch releases web")
 	drag.pressed = false
 	scene.controls._input(drag)
 	check(scene.controls.movement == Vector2.ZERO, "releasing joystick stops input")
+	var default_stick: Vector2 = scene.controls.stick_center()
+	check(scene.controls.set_mirrored(true), "mirrored control setting saves")
+	check(scene.controls.stick_center().x > default_stick.x and scene.controls.button_positions()["attack"].x < default_stick.x + 200, "mirrored controls swap sides")
+	scene.sound.toggle()
+	var settings := ConfigFile.new()
+	check(settings.load("user://settings.cfg") == OK and settings.get_value("controls", "mirrored", false), "audio setting preserves control layout")
+	scene.sound.toggle()
+	scene.controls.set_mirrored(false)
 	check(scene.people.size() == 6 and scene.stage == 0, "story starts at the first objective")
 	check(scene.traffic.size() == 6, "native traffic spawns")
 	var block = scene.world.chunks[Vector2i(0, 0)]

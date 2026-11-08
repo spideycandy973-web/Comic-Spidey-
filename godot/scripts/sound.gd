@@ -74,5 +74,6 @@ func play_effect(kind: String) -> void:
 func toggle() -> void:
 	enabled = not enabled
 	var config := ConfigFile.new()
+	config.load("user://settings.cfg")
 	config.set_value("audio", "enabled", enabled)
 	config.save("user://settings.cfg")

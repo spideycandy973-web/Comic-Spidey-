@@ -17,7 +17,7 @@ adb shell input tap 640 225
 sleep 3
 adb shell input tap 640 47
 sleep 3
-adb shell input tap 640 285
+adb shell input tap 640 339
 sleep 20
 # Exercise the touch buttons and movement joystick through Android, not injected Godot events.
 adb shell input tap 1115 635

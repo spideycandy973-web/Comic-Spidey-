@@ -114,6 +114,7 @@ func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
 		add_menu_button(box, "Retry checkpoint", retry_checkpoint)
 	add_menu_button(box, "Sound: " + ("On" if sound.enabled else "Off"), toggle_sound)
 	add_menu_button(box, "Credits and licenses", show_credits)
+	add_menu_button(box, "Layout: " + ("Mirrored" if controls.mirrored else "Default"), toggle_layout)
 	for label in ["Story", "Free Roam"]:
 		if save_enabled and not Saves.read(label).is_empty():
 			add_menu_button(box, "Continue " + label, continue_mode.bind(label))
@@ -195,6 +196,11 @@ Godot Engine and its dependencies are credited and licensed below. The city geom
 func close_credits() -> void:
 	show_menu(is_instance_valid(hero) and not hero.playing and hero.health > 0 and not mode.is_empty(), is_instance_valid(hero) and hero.health <= 0)
 
+func toggle_layout() -> void:
+	if not controls.set_mirrored(not controls.mirrored):
+		push_warning("Could not save the control layout setting")
+	show_menu(is_instance_valid(hero) and not hero.playing and hero.health > 0 and not mode.is_empty(), is_instance_valid(hero) and hero.health <= 0)
+
 func toggle_sound() -> void:
 	sound.toggle()
 	show_menu(is_instance_valid(hero) and not hero.playing and hero.health > 0 and not mode.is_empty(), is_instance_valid(hero) and hero.health <= 0)
@@ -255,11 +261,7 @@ func begin_play() -> void:
 	hero.attack_cooldown = 0
 	if hero.skeleton:
 		hero.skeleton.clear_bones_global_pose_override()
-	controls.touch_points.clear()
-	controls.buttons_down.clear()
-	controls.pressed_once.clear()
-	controls.movement = Vector2.ZERO
-	controls.look_delta = Vector2.ZERO
+	controls.reset_input()
 	world.update_chunks(hero.position)
 	for i in range(6):
 		spawn_local_civilian(i)
@@ -503,10 +505,7 @@ func pause_game() -> void:
 	save_game()
 	hero.playing = false
 	controls.active = false
-	controls.touch_points.clear()
-	controls.buttons_down.clear()
-	controls.pressed_once.clear()
-	controls.movement = Vector2.ZERO
+	controls.reset_input()
 	for npc in people:
 		if is_instance_valid(npc):
 			npc.set_physics_process(false)

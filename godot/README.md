@@ -2,11 +2,11 @@
 
 This Godot 4.3 project is a native Android game, separate from the legacy WebView in `../app`. It is **not yet a finished release**. It contains a 13-objective Story sequence, repeatable Free Roam emergencies, checkpoint retry and separate local saves, touch controls, an original procedurally generated city with parks and simple road traffic, and the supplied Spider-Man and Doctor Octopus models. Citizens use two generated rigged variants. Combat has melee, web shots, enemy AI and health; swinging uses a physics rope attached to rooftops. The game works offline and uses original synthesized sound effects.
 
-Important limitations: the city and vehicles use original procedural geometry, not the detailed finished artwork requested. The Doctor Octopus model is not rigged and only lunges as a whole; Spider-Man's punch uses a procedural arm pose rather than a supplied combat animation. Pedestrian dialogue and behavior are basic, and only two citizen models are used. Swinging, combat feel, performance and screen layouts have not been validated on physical Android devices. This must not be described or distributed as the finished game.
+Important limitations: the city and vehicles use original procedural geometry, not the detailed finished artwork requested. The Doctor Octopus model is not rigged and uses procedural tentacle deformation and a body lunge rather than a skeletal rig; Spider-Man's punch uses a procedural arm pose rather than a supplied combat animation. Pedestrian dialogue and behavior are basic, and only two citizen models are used. Swinging, combat feel, performance and screen layouts have not been validated on physical Android devices. This must not be described or distributed as the finished game.
 
 ## Controls
 
-On touchscreens use the left stick, drag empty space to look, hold WEB and release to let go, HIT for melee, SHOT for web shots, JUMP and TALK. Use the pause button for resume, restarting modes and sound. Keyboard: WASD, Space jump, Shift hold web, F attack, Q web shot, E talk, Escape pause.
+On touchscreens use the left stick, drag empty space to look, hold WEB and release to let go, HIT for melee, SHOT for web shots, JUMP and TALK. Use the pause button for resume, restarting modes, sound and mirrored touch layout. Keyboard: WASD, Space jump, Shift hold web, F attack, Q web shot, E talk, Escape pause.
 
 Progress is autosaved locally per mode, at Story checkpoints, periodically during play, and on pause. Starting a new mode replaces that mode's save. No account or internet connection is required. This build's separate package ID means it does not import saves from the older WebView app.
 

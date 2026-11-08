@@ -24,7 +24,7 @@ var marker_material: StandardMaterial3D
 var tentacle_materials: Array[ShaderMaterial] = []
 var tentacle_time := 0.0
 
-func setup(model: PackedScene, enemy: bool, boss: bool = false) -> void:
+func setup(model: PackedScene, enemy: bool, boss: bool = false, variant: int = 0) -> void:
 	is_enemy = enemy
 	is_boss = boss
 	health = 200.0 if boss else 60.0
@@ -44,6 +44,8 @@ func setup(model: PackedScene, enemy: bool, boss: bool = false) -> void:
 			for mesh in visual.find_children("*", "MeshInstance3D", true, false):
 				if str(mesh.name).to_lower().begins_with("cloth"):
 					mesh.material_override = uniform
+		else:
+			set_civilian_clothes(variant)
 	ComicStyle.apply_to_character(visual)
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
@@ -109,7 +111,6 @@ func set_civilian_clothes(variant: int) -> void:
 		if str(mesh.name).to_lower().begins_with("cloth"):
 			mesh.material_override = jacket if i == 0 else trousers
 			i += 1
-	ComicStyle.apply_to_character(visual)
 
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(hero) or health <= 0:

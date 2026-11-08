@@ -59,6 +59,7 @@ func run_test() -> void:
 	scene.controls.set_mirrored(false)
 	check(scene.people.size() == 6 and scene.stage == 0, "story starts at the first objective")
 	check(scene.traffic.size() == 6, "native traffic spawns")
+	check(scene.people[2].anim != null and scene.people[2].anim.has_animation("run") and scene.people[3].anim != null and scene.people[3].anim.has_animation("run"), "additional rigged citizens have run clips")
 	var block = scene.world.chunks[Vector2i(0, 0)]
 	var facades = block.get_node_or_null("BuildingFacades")
 	check(facades != null and facades.multimesh.instance_count == 4, "city batches building visuals without removing collisions")
@@ -103,6 +104,27 @@ func run_test() -> void:
 	scene.hero.velocity = Vector3.ZERO
 	scene.interact()
 	check(scene.controls.message.begins_with("Civilian:"), "nearby civilian can be interacted with")
+	# An occluded closer enemy must not steal an attack from a visible target.
+	var hidden = scene.spawn_person(Vector3(0, 0, -1.4), true, false, 0)
+	var visible = scene.spawn_person(Vector3(2, 0, 0), true, false, 1)
+	hidden.set_physics_process(false)
+	visible.set_physics_process(false)
+	var wall := StaticBody3D.new()
+	var wall_shape := CollisionShape3D.new()
+	var wall_box := BoxShape3D.new()
+	wall_box.size = Vector3(0.6, 2, 0.2)
+	wall_shape.shape = wall_box
+	wall.add_child(wall_shape)
+	wall.position = Vector3(0, 1, -0.7)
+	scene.add_child(wall)
+	await physics_frame
+	scene.hero.attack_cooldown = 0
+	scene.hero.attack()
+	check(visible.health < 60 and hidden.health == 60, "melee selects a visible target when the closest is blocked")
+	hidden.queue_free()
+	visible.queue_free()
+	wall.queue_free()
+	await physics_frame
 
 	# Exercise the actual mission transitions, not only the definition table.
 	for expected in range(13):

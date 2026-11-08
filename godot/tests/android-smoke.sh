@@ -2,6 +2,17 @@
 set -euo pipefail
 apk="$1"
 package=com.comicspidey.nativegame
+on_error() {
+  local code=$? line=$1
+  trap - ERR
+  set +e
+  echo "::error::Android smoke command failed at line $line (exit $code)"
+  adb shell pidof "$package" | while IFS= read -r text; do echo "::notice::App PID: $text"; done
+  adb shell dumpsys activity activities | grep -iE 'mResumedActivity|topResumedActivity|comicspidey' | tail -8 | while IFS= read -r text; do echo "::notice::$text"; done
+  adb logcat -d | grep -iE 'fatal exception|androidruntime|godot|comicspidey|lowmemorykiller|lmkd' | tail -25 | while IFS= read -r text; do echo "::notice::$text"; done
+  exit "$code"
+}
+trap 'on_error "$LINENO"' ERR
 adb install -r "$apk"
 adb shell wm size 720x1280
 # Avoid the OS first-use immersive-mode education dialog covering the game.

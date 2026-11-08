@@ -101,7 +101,7 @@ func _physics_process(delta: float) -> void:
 	var pedestrians: Array = game.people.duplicate()
 	pedestrians.append(game.hero)
 	for person in pedestrians:
-		if is_instance_valid(person) and not person.is_queued_for_deletion():
+		if is_instance_valid(person) and not person.is_queued_for_deletion() and absf(person.global_position.y - global_position.y) < 2.5:
 			var diff: Vector3 = person.global_position - global_position
 			diff.y = 0
 			var ahead := diff.dot(heading)

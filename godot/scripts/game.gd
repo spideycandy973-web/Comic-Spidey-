@@ -349,6 +349,26 @@ func begin_play() -> void:
 	if hero.animator:
 		hero.animator.speed_scale = 1.0
 	controls.active = true
+	resolve_spawn_collision.call_deferred(hero)
+
+func resolve_spawn_collision(actor: CharacterBody3D) -> void:
+	# Saved coordinates can become embedded in a building after a city update.
+	# Wait for the newly streamed collision bodies to enter the physics world.
+	await get_tree().physics_frame
+	if not is_instance_valid(actor) or actor != hero or not hero.playing:
+		return
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.28
+	capsule.height = 1.4
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = Transform3D(Basis.IDENTITY, hero.global_position + Vector3.UP)
+	query.collision_mask = 1
+	query.exclude = [hero.get_rid()]
+	if not hero.get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty():
+		hero.position = Vector3(roundf(hero.position.x / WorldScript.CELL) * WorldScript.CELL, 0.2, roundf(hero.position.z / WorldScript.CELL) * WorldScript.CELL)
+		hero.velocity = Vector3.ZERO
+		show_message("Moved to a safe nearby street.")
 
 func spawn_local_civilian(index: int) -> void:
 	var x := roundf(hero.position.x / 44.0) * 44.0 + float(index % 3 - 1) * 2.2

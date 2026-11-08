@@ -3,6 +3,7 @@ extends SceneTree
 var failed := false
 const Missions = preload("res://scripts/missions.gd")
 const Saves = preload("res://scripts/saves.gd")
+const WorldScript = preload("res://scripts/world.gd")
 
 func _initialize() -> void:
 	call_deferred("run_test")
@@ -87,6 +88,9 @@ func run_test() -> void:
 	scene.hero.position = Vector3(0, 0.1, -16)
 	car._physics_process(0.5)
 	check(Vector2(car.velocity.x, car.velocity.z).length() < 0.1, "traffic stops for a person ahead")
+	scene.hero.position.y = 15
+	car._physics_process(0.5)
+	check(Vector2(car.velocity.x, car.velocity.z).length() > 0.1, "traffic does not stop for someone high overhead")
 	scene.hero.position = Vector3(0, 0.1, 0)
 	car.recenter(0)
 	check(scene.hero.animator != null and scene.hero.skeleton != null, "hero model and skeleton imported")
@@ -271,6 +275,20 @@ func run_test() -> void:
 	scene.continue_mode("Story")
 	check(scene.stage == 1 and scene.hero.health == 73 and scene.enemies_alive() == 2, "story restores combat state")
 	check(scene.mission_enemies[0].health == 35, "story restores enemy health")
+	# Simulate an older save landing inside a newly generated building.
+	var building: StaticBody3D
+	for child in scene.world.chunks[Vector2i(0, 0)].get_children():
+		if child is StaticBody3D:
+			building = child
+			break
+	check(building != null, "test block has a collidable building")
+	if building:
+		scene.hero.position = Vector3(building.position.x, 0.2, building.position.z)
+		scene.save_game()
+		scene.continue_mode("Story")
+		await physics_frame
+		await process_frame
+		check(absf(fmod(scene.hero.position.x, WorldScript.CELL)) < 0.1 and absf(fmod(scene.hero.position.z, WorldScript.CELL)) < 0.1, "embedded save is recovered to a street")
 	scene.pause_game()
 	scene.request_new_mode("Story")
 	check(scene.stage == 1 and not scene.hero.playing, "new story asks before replacing existing progress")

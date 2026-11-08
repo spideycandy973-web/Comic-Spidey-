@@ -4,6 +4,7 @@ const ComicBackdrop = preload("res://scripts/comic_backdrop.gd")
 const ComicFont = preload("res://fonts/Bangers-Regular.ttf")
 const WorldScript = preload("res://scripts/world.gd")
 const HeroScript = preload("res://scripts/hero.gd")
+const ObjectivePropScript = preload("res://scripts/objective_prop.gd")
 const VehicleScript = preload("res://scripts/vehicle.gd")
 const PersonScript = preload("res://scripts/person.gd")
 const SoundScript = preload("res://scripts/sound.gd")
@@ -37,6 +38,7 @@ var crime_timer := 12.0
 var crime_completed := 0
 var crime_failed := 0
 var crime_civilian
+var mission_prop
 
 func _ready() -> void:
 	var env := WorldEnvironment.new()
@@ -125,6 +127,48 @@ func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
 		if save_enabled and not Saves.read(label).is_empty():
 			add_menu_button(box, "Continue " + label, continue_mode.bind(label))
 		add_menu_button(box, "New " + label, request_new_mode.bind(label))
+	add_menu_button(box, "How to play", show_help)
+
+func show_help() -> void:
+	if is_instance_valid(menu):
+		menu.queue_free()
+	menu = CanvasLayer.new()
+	menu.layer = 3
+	add_child(menu)
+	var panel := Control.new()
+	panel.set_script(ComicBackdrop)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	menu.add_child(panel)
+	var box := VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.offset_left = 130
+	box.offset_right = -130
+	box.offset_top = 60
+	box.offset_bottom = -60
+	panel.add_child(box)
+	var heading := Label.new()
+	heading.text = "HOW TO PLAY"
+	heading.add_theme_font_override("font", ComicFont)
+	heading.add_theme_font_size_override("font_size", 38)
+	heading.add_theme_color_override("font_color", Color("ffe15d"))
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(heading)
+	var instructions := Label.new()
+	instructions.text = """MOVE with the left stick. Drag empty space to look around.
+
+Hold WEB to attach to a rooftop and swing; release to let go. Press JUMP while swinging for a boosted release.
+
+Use HIT up close, or SHOT to web an enemy from a distance. TAP TALK near a person or objective to interact.
+
+Follow the arrow and beacon. In Story, complete objectives and protect the city. In Free Roam, answer emergency calls.
+
+Pause to change sound or mirror the controls. Your progress saves locally."""
+	instructions.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	instructions.add_theme_font_size_override("font_size", 22)
+	instructions.add_theme_color_override("font_color", Color("fff8df"))
+	instructions.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(instructions)
+	add_menu_button(box, "Back", close_credits)
 
 func request_new_mode(selected: String) -> void:
 	if not save_enabled or Saves.read(selected).is_empty():
@@ -236,6 +280,9 @@ func add_menu_button(box: VBoxContainer, text: String, callback: Callable) -> vo
 	box.add_child(button)
 
 func clear_people() -> void:
+	if is_instance_valid(mission_prop):
+		mission_prop.queue_free()
+	mission_prop = null
 	for car in traffic:
 		if is_instance_valid(car):
 			car.queue_free()
@@ -325,6 +372,9 @@ func spawn_wave(at: Vector3, count: int, boss: bool = false) -> void:
 		mission_enemies.append(npc)
 
 func clear_mission_actors() -> void:
+	if is_instance_valid(mission_prop):
+		mission_prop.queue_free()
+	mission_prop = null
 	for enemy in mission_enemies:
 		if is_instance_valid(enemy):
 			enemy.queue_free()
@@ -336,6 +386,16 @@ func clear_mission_actors() -> void:
 		crime_civilian.queue_free()
 	crime_civilian = null
 
+func spawn_mission_prop(at: Vector3, kind: String) -> void:
+	if is_instance_valid(mission_prop):
+		mission_prop.queue_free()
+	mission_prop = Node3D.new()
+	mission_prop.set_script(ObjectivePropScript)
+	mission_prop.game = self
+	mission_prop.position = at + Vector3(0, 0, 2)
+	add_child(mission_prop)
+	mission_prop.setup(kind)
+
 func setup_story_stage() -> void:
 	clear_mission_actors()
 	var mission: Dictionary = Missions.story_stage(stage)
@@ -346,7 +406,11 @@ func setup_story_stage() -> void:
 		"escort":
 			escort = spawn_person(at, false, false, 1)
 			escort.escorting = true
-	show_message("City secured! Pause to start Free Roam." if mission.type == "complete" else mission.title)
+	if stage in [4, 5]:
+		spawn_mission_prop(at, "relay")
+	elif stage in [10, 11, 12]:
+		spawn_mission_prop(at, "generator")
+	show_message(str(mission.get("dialogue", mission.title)))
 	update_beacon()
 
 func advance_story() -> void:
@@ -379,6 +443,7 @@ func update_story() -> void:
 				advance_story()
 
 func start_crime() -> void:
+	clear_mission_actors()
 	crime_type = Missions.CRIMES[crime_sequence % Missions.CRIMES.size()]
 	crime_target = Missions.crime_location(hero.position, crime_sequence)
 	crime_sequence += 1
@@ -388,6 +453,8 @@ func start_crime() -> void:
 	if crime_type == "rescue":
 		crime_civilian = spawn_person(crime_target + Vector3(0, 0, -2), false, false, 1)
 		crime_civilian.stationary = true
+	elif crime_type == "sabotage":
+		spawn_mission_prop(crime_target, "device")
 	show_message("Emergency: " + crime_type.capitalize() + " at the beacon!")
 	update_beacon()
 
@@ -524,7 +591,7 @@ func interact() -> void:
 
 func show_message(text: String) -> void:
 	controls.message = text
-	message_timer = 4
+	message_timer = 6
 
 func pause_game() -> void:
 	save_game()
@@ -639,6 +706,8 @@ func continue_mode(selected: String) -> void:
 		if crime_type == "rescue":
 			crime_civilian = spawn_person(crime_target + Vector3(0, 0, -2), false, false, 1)
 			crime_civilian.stationary = true
+		elif crime_type == "sabotage":
+			spawn_mission_prop(crime_target, "device")
 	update_beacon()
 	show_message("Progress restored.")
 

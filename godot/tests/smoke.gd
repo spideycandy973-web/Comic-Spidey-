@@ -141,6 +141,8 @@ func run_test() -> void:
 	for expected in range(13):
 		check(scene.stage == expected, "story stage %d reached in order" % expected)
 		var mission: Dictionary = Missions.story_stage(expected)
+		if expected in [4, 5, 10, 11, 12]:
+			check(is_instance_valid(scene.mission_prop) and not scene.mission_prop.is_queued_for_deletion(), "story objective has a visible prop at stage %d" % expected)
 		match mission.type:
 			"travel":
 				scene.hero.position = mission.at + Vector3.UP * 0.1
@@ -197,6 +199,9 @@ func run_test() -> void:
 	check(scene.stage == 13, "story reaches completed state")
 	scene.pause_game()
 	check(not scene.hero.playing and not scene.controls.active, "pause stops gameplay and touch")
+	scene.show_help()
+	check(is_instance_valid(scene.menu), "controls help opens")
+	scene.close_credits()
 	scene.show_credits()
 	check(is_instance_valid(scene.menu), "credits open")
 	check(FileAccess.file_exists("res://fonts/BANGERS-OFL.txt"), "comic font license is included")
@@ -209,6 +214,8 @@ func run_test() -> void:
 	for type in Missions.CRIMES:
 		scene.start_crime()
 		check(scene.crime_type == type and scene.enemies_alive() > 0, "crime spawns " + type)
+		if type == "sabotage":
+			check(is_instance_valid(scene.mission_prop) and scene.mission_prop.kind == "device", "sabotage has a visible device")
 		for enemy in scene.mission_enemies:
 			enemy.hit(999, Vector3.FORWARD)
 		scene.update_crime(0.01)

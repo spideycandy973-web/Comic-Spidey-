@@ -172,6 +172,7 @@ func run_test() -> void:
 				var previous: float = enemy.health
 				scene.hero.attack()
 				check(enemy.health == previous - 25, "hero attack damages enemy in stage %d" % expected)
+				check(not scene.find_children("ImpactText*", "Label3D", true, false).is_empty(), "successful melee shows comic impact text")
 				if expected == 1:
 					scene.hero.shoot_web(Vector3.BACK)
 					check(enemy.health == previous - 35 and enemy.stun == 2.0, "web shot damages and stuns enemy")

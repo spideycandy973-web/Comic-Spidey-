@@ -303,6 +303,7 @@ func shoot_web(forward: Vector3) -> void:
 			shot_end = obstacle.position
 	if closest:
 		shot_end = closest.global_position + Vector3.UP
+		game.comic_popup("THWIP!", closest.global_position, Color("c8f4ff"))
 		closest.hit(10, forward)
 		closest.stun = 2.0
 		game.show_message("THWIP! Enemy webbed.")
@@ -336,6 +337,7 @@ func attack() -> void:
 		visual.rotation.y = atan2(direction.x, direction.z) + PI
 		velocity.x += direction.x * 2.0
 		velocity.z += direction.z * 2.0
+		game.comic_popup("POW!", nearest.global_position, Color("ffe15d"))
 		nearest.hit(25, direction)
 		game.show_message("POW! Enemy health: %d" % maxi(0, ceili(nearest.health)))
 		return
@@ -345,6 +347,7 @@ func take_damage(amount: float) -> void:
 	if not playing:
 		return
 	game.sound.play_effect("hurt")
+	game.comic_popup("OUCH!", global_position, Color("ff8176"))
 	health = maxf(0, health - amount)
 	game.show_message("Hit! Health: %d" % ceili(health))
 	if health <= 0:

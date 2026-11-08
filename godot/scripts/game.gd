@@ -491,7 +491,7 @@ func update_crime(delta: float) -> void:
 			finish_crime(true)
 		else:
 			crime_phase = "interact"
-			show_message("Go to the beacon and press TALK to finish.")
+			show_message("Press TALK near the civilian." if crime_type == "rescue" else "Press TALK near the device to disarm it.")
 
 func current_target() -> Variant:
 	if mode == "Story":
@@ -554,7 +554,8 @@ func _process(delta: float) -> void:
 	if mode == "Story":
 		controls.objective = Missions.story_stage(stage).title + distance
 	else:
-		controls.objective = ("Patrol the city" if crime_phase == "waiting" else "%s: %s" % [crime_type.capitalize(), "defeat attackers" if crime_phase == "fight" else "press TALK at beacon"]) + distance
+		var crime_action := "defeat attackers" if crime_phase == "fight" else ("TALK to civilian" if crime_type == "rescue" else "TALK to disarm device")
+		controls.objective = ("Patrol the city" if crime_phase == "waiting" else "%s: %s" % [crime_type.capitalize(), crime_action]) + distance
 		if crime_type == "sabotage" and crime_phase != "waiting":
 			controls.objective += "  |  %ds" % ceili(crime_timer)
 	update_beacon()
@@ -591,8 +592,10 @@ func interact() -> void:
 		if is_instance_valid(npc) and not npc.is_queued_for_deletion() and npc.health > 0:
 			var d: float = hero.global_position.distance_to(npc.global_position)
 			if d < distance:
-				distance = d
-				nearest = npc
+				var ray := PhysicsRayQueryParameters3D.create(hero.global_position + Vector3.UP, npc.global_position + Vector3.UP, 1)
+				if get_world_3d().direct_space_state.intersect_ray(ray).is_empty():
+					distance = d
+					nearest = npc
 	if nearest:
 		if nearest.is_boss:
 			show_message("Doctor Octopus: You cannot stop me!")
@@ -606,6 +609,25 @@ func interact() -> void:
 			nearest.conversations += 1
 	else:
 		show_message("Move closer to someone or an objective to use TALK.")
+
+func comic_popup(text: String, at: Vector3, color: Color) -> void:
+	var label := Label3D.new()
+	label.name = "ImpactText"
+	label.text = text
+	label.font = ComicFont
+	label.font_size = 80
+	label.pixel_size = 0.008
+	label.outline_size = 14
+	label.modulate = color
+	label.outline_modulate = Color("171429")
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.position = at + Vector3.UP * 2.2
+	add_child(label, true)
+	var tween := label.create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(label, "position:y", label.position.y + 0.8, 0.7)
+	tween.tween_property(label, "modulate:a", 0.0, 0.7).set_delay(0.25)
+	tween.chain().tween_callback(label.queue_free)
 
 func show_message(text: String) -> void:
 	controls.message = text

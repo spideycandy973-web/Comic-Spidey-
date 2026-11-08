@@ -74,5 +74,5 @@ func run_test() -> void:
 				walking = false
 		scene.controls.movement = steer(scene.hero.position, destination, mission.type in ["travel", "escort"]) if walking else Vector2.ZERO
 	print("Playthrough stopped at stage ", scene.stage, " hero ", scene.hero.position, " health ", scene.hero.health, " target ", scene.current_target(), " retries ", retries)
-	push_error("TEST FAILED: input-driven story did not reach its ending")
+	push_error("TEST FAILED: playthrough stalled at stage %d; hero %s; target %s; movement %s; velocity %s" % [scene.stage, scene.hero.position, scene.current_target(), scene.controls.movement, scene.hero.velocity])
 	quit(1)

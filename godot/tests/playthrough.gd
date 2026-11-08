@@ -20,14 +20,20 @@ func run_test() -> void:
 	await physics_frame
 	scene.save_enabled = false
 	scene.start_mode("Story")
-	Engine.time_scale = 3.0
+	Engine.time_scale = 5.0
 	var previous_stage := -1
 	var retries := 0
-	for frame in range(24000):
+	var stage_frames := 0
+	for frame in range(16000):
 		await physics_frame
 		if scene.stage != previous_stage:
 			previous_stage = scene.stage
+			stage_frames = 0
 			print("Playthrough stage ", previous_stage, " at ", scene.hero.position, " health ", scene.hero.health)
+		stage_frames += 1
+		if stage_frames == 1800:
+			print("Playthrough stalled: stage ", scene.stage, " hero ", scene.hero.position, " target ", scene.current_target(), " movement ", scene.controls.movement)
+			break
 		if scene.stage == Missions.STORY.size() - 1:
 			print("Input-driven story playthrough passed; retries: ", retries)
 			quit(0)

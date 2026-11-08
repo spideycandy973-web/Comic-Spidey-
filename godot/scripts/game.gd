@@ -101,13 +101,20 @@ func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
 	panel.set_script(ComicBackdrop)
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	menu.add_child(panel)
+	# The number of options grows when saves, resume or retry are available.
+	# Keep the list inside the screen and let touch users swipe to every option.
+	var scroll := ScrollContainer.new()
+	scroll.name = "MenuScroll"
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	scroll.offset_left = -210
+	scroll.offset_right = 210
+	scroll.offset_top = -250
+	scroll.offset_bottom = 250
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	panel.add_child(scroll)
 	var box := VBoxContainer.new()
-	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	box.offset_left = -190
-	box.offset_right = 190
-	box.offset_top = -250
-	box.offset_bottom = 250
-	panel.add_child(box)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
 	var title := Label.new()
 	title.text = "COMIC SPIDEY" + ("\nDEFEATED" if can_retry else "")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

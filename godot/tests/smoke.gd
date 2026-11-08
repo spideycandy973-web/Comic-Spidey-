@@ -324,6 +324,24 @@ func run_test() -> void:
 	check(scene.crime_type == "rescue" and scene.crime_phase == "fight", "free roam restores active rescue")
 	check(scene.mission_enemies.size() == 3 and scene.mission_enemies[0].health == 35 and scene.hero.health == 82, "free roam restores combat and player health")
 	check(is_instance_valid(scene.crime_civilian), "free roam restores rescue civilian")
+	# Both save slots plus Resume create more options than fit in the menu.
+	scene.pause_game()
+	await process_frame
+	await process_frame
+	var menu_scroll: ScrollContainer = scene.menu.get_child(0).get_node("MenuScroll")
+	check(menu_scroll.get_v_scroll_bar().max_value > menu_scroll.size.y, "full pause menu can scroll")
+	var help_button: Button
+	for button in menu_scroll.find_children("*", "Button", true, false):
+		if button.text == "How to play":
+			help_button = button
+	check(help_button != null, "full menu retains the help option")
+	if help_button:
+		menu_scroll.ensure_control_visible(help_button)
+		await process_frame
+		var help_rect := help_button.get_global_rect()
+		var scroll_rect := menu_scroll.get_global_rect()
+		check(help_rect.position.y >= scroll_rect.position.y - 1 and help_rect.end.y <= scroll_rect.end.y + 1, "last menu option can be scrolled into view")
+	scene.resume_game()
 	for target in scene.mission_enemies:
 		target.hit(999, Vector3.FORWARD)
 	scene.update_crime(0.01)

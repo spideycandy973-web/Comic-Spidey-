@@ -111,6 +111,19 @@ func run_test() -> void:
 					enemy._physics_process(0.05)
 					enemy._physics_process(0.7)
 					check(scene.hero.health == 90, "enemy attack damages hero")
+					var old_health: float = scene.hero.health
+					scene.hero.position.y += 10
+					enemy.windup = 0.1
+					enemy._physics_process(0.2)
+					check(scene.hero.health == old_health, "street enemies cannot strike a hero far above them")
+					scene.hero.position.y -= 10
+				if mission.type == "boss":
+					enemy.position = scene.hero.position + Vector3(0, 0, 4)
+					enemy.stun = 0
+					enemy.windup = 0
+					enemy.attack_cooldown = 0
+					enemy._physics_process(0.01)
+					check(enemy.windup > 0, "boss starts a longer-range tentacle attack")
 				for target in scene.mission_enemies:
 					target.hit(999, Vector3.FORWARD)
 				scene.update_story()
@@ -172,6 +185,11 @@ func run_test() -> void:
 	scene.continue_mode("Story")
 	check(scene.stage == 1 and scene.hero.health == 73 and scene.enemies_alive() == 2, "story restores combat state")
 	check(scene.mission_enemies[0].health == 35, "story restores enemy health")
+	scene.pause_game()
+	scene.request_new_mode("Story")
+	check(scene.stage == 1 and not scene.hero.playing, "new story asks before replacing existing progress")
+	scene.close_credits()
+	scene.resume_game()
 	check(not Saves.valid({"version": 1, "mode": "Story", "stage": 500, "health": 100, "position": [0,0,0]}, "Story"), "out of range stage rejected")
 	check(not Saves.valid({"version": 1, "mode": "Story", "stage": 0, "health": 100, "position": [0,0,0], "crime_sequence": []}, "Story"), "malformed optional state rejected")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(Saves.slot_path("Story")))

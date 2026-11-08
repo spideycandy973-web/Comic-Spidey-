@@ -117,7 +117,35 @@ func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
 	for label in ["Story", "Free Roam"]:
 		if save_enabled and not Saves.read(label).is_empty():
 			add_menu_button(box, "Continue " + label, continue_mode.bind(label))
-		add_menu_button(box, "New " + label, start_mode.bind(label))
+		add_menu_button(box, "New " + label, request_new_mode.bind(label))
+
+func request_new_mode(selected: String) -> void:
+	if not save_enabled or Saves.read(selected).is_empty():
+		start_mode(selected)
+		return
+	if is_instance_valid(menu):
+		menu.queue_free()
+	menu = CanvasLayer.new()
+	menu.layer = 3
+	add_child(menu)
+	var panel := ColorRect.new()
+	panel.color = Color(0.02, 0.04, 0.08, 0.96)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	menu.add_child(panel)
+	var box := VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	box.offset_left = -260
+	box.offset_right = 260
+	box.offset_top = -120
+	box.offset_bottom = 120
+	panel.add_child(box)
+	var warning := Label.new()
+	warning.text = "Starting a new %s game replaces that mode's save." % selected
+	warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(warning)
+	add_menu_button(box, "Cancel", close_credits)
+	add_menu_button(box, "Start new " + selected, start_mode.bind(selected))
 
 func show_credits() -> void:
 	if OS.is_debug_build():

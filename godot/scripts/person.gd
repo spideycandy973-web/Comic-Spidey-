@@ -69,6 +69,22 @@ func setup(model: PackedScene, enemy: bool, boss: bool = false) -> void:
 			anim.play("walk")
 	origin = position
 
+func set_civilian_clothes(variant: int) -> void:
+	if is_enemy:
+		return
+	var colors := [Color("b94d4a"), Color("547d97"), Color("7d8959"), Color("b79a65"), Color("786589"), Color("4e7771")]
+	var jacket := StandardMaterial3D.new()
+	jacket.albedo_color = colors[posmod(variant, colors.size())]
+	jacket.roughness = 0.9
+	var trousers := StandardMaterial3D.new()
+	trousers.albedo_color = Color("303d50")
+	trousers.roughness = 0.95
+	var i := 0
+	for mesh in visual.find_children("*", "MeshInstance3D", true, false):
+		if str(mesh.name).to_lower().begins_with("cloth"):
+			mesh.material_override = jacket if i == 0 else trousers
+			i += 1
+
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(hero) or health <= 0:
 		return

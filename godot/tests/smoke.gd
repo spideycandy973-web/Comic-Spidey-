@@ -43,6 +43,17 @@ func run_test() -> void:
 	check(scene.controls.movement == Vector2.ZERO, "releasing joystick stops input")
 	check(scene.people.size() == 6 and scene.stage == 0, "story starts at the first objective")
 	check(scene.traffic.size() == 6, "native traffic spawns")
+	var car = scene.traffic[0]
+	car.set_physics_process(false)
+	car.axis = 0
+	car.travel_sign = 1.0
+	car.position = Vector3(0, 0.1, -20)
+	car.velocity = Vector3(0, 0, 5)
+	scene.hero.position = Vector3(0, 0.1, -16)
+	car._physics_process(0.5)
+	check(Vector2(car.velocity.x, car.velocity.z).length() < 0.1, "traffic stops for a person ahead")
+	scene.hero.position = Vector3(0, 0.1, 0)
+	car.recenter(0)
 	check(scene.hero.animator != null and scene.hero.skeleton != null, "hero model and skeleton imported")
 	check(scene.hero.hand_bone >= 0 and scene.hero.animator.has_animation("run"), "hand and run animation imported")
 	check(scene.hero.animator.get_animation("run").loop_mode == Animation.LOOP_LINEAR, "run animation loops")
@@ -106,6 +117,9 @@ func run_test() -> void:
 	check(scene.stage == 13, "story reaches completed state")
 	scene.pause_game()
 	check(not scene.hero.playing and not scene.controls.active, "pause stops gameplay and touch")
+	scene.show_credits()
+	check(is_instance_valid(scene.menu), "credits open")
+	scene.close_credits()
 	scene.resume_game()
 	check(scene.hero.playing and scene.controls.active, "resume restarts gameplay")
 	scene.start_mode("Free Roam")

@@ -247,6 +247,7 @@ func spawn_local_civilian(index: int) -> void:
 	var x := roundf(hero.position.x / 44.0) * 44.0 + float(index % 3 - 1) * 2.2
 	var z := roundf(hero.position.z / 44.0) * 44.0 + float(index / 3 - 1) * 3.0
 	var npc = spawn_person(Vector3(x, 0.2, z), false, false, index)
+	npc.set_civilian_clothes(index)
 	npc.line = ["Thanks for watching over us.", "I saw trouble near the crossing.", "Be careful up there!", "The city is lucky to have you.", "I hope everyone gets home safely.", "Doctor Octopus is causing chaos."][index % 6]
 	npc.local_civilian = true
 

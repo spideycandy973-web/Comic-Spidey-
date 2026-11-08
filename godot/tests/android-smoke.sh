@@ -68,6 +68,19 @@ PYSCREEN
   exit 1
 fi
 if ! grep -q 'Native attack input received' /tmp/native-android-log.txt || ! grep -q 'Native movement input received' /tmp/native-android-log.txt || ! grep -q 'Native web attached' /tmp/native-android-log.txt; then
+  for marker in 'Native mode started:' 'Native attack input received' 'Native movement input received' 'Native web attached' 'Native credits opened' 'Native game resumed'; do
+    if grep -q "$marker" /tmp/native-android-log.txt; then echo "::notice::$mode ${portrait_height}x${portrait_width}: received $marker"; else echo "::error::$mode ${portrait_height}x${portrait_width}: missing $marker"; fi
+  done
+  adb exec-out screencap -p > /tmp/android-input.png
+  python3 - <<'PYSCREEN'
+from PIL import Image
+from io import BytesIO
+import base64
+im = Image.open('/tmp/android-input.png').convert('RGB'); im.thumbnail((384,216))
+b = BytesIO(); im.save(b, 'JPEG', quality=20)
+s = base64.b64encode(b.getvalue()).decode()
+for i in range(0,len(s),3500): print('::notice::ANDROID_INPUT_SCREENSHOT_%d=%s' % (i//3500,s[i:i+3500]))
+PYSCREEN
   echo '::error::Touch attack, movement or swinging input did not reach native gameplay'
   exit 1
 fi

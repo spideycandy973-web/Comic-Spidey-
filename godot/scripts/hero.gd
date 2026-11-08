@@ -148,6 +148,13 @@ func _physics_process(delta: float) -> void:
 		elif is_on_floor():
 			velocity.y = 8.5
 			game.sound.play_effect("jump")
+		elif is_on_wall():
+			var wall_normal := get_wall_normal()
+			if absf(wall_normal.y) < 0.4:
+				velocity.x = wall_normal.x * 6.0
+				velocity.z = wall_normal.z * 6.0
+				velocity.y = 8.0
+				game.sound.play_effect("jump")
 	if controls.consume("attack") or controls.held("attack") or Input.is_key_pressed(KEY_F):
 		attack()
 	if controls.consume("talk"):

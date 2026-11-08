@@ -124,6 +124,26 @@ func run_test() -> void:
 	scene.controls.buttons_down.erase("swing")
 	scene.hero._physics_process(1.0 / 60.0)
 	check(not scene.hero.swing_blocked_until_release, "web can be used again after releasing the button")
+	var jump_wall := StaticBody3D.new()
+	var jump_collision := CollisionShape3D.new()
+	var jump_box := BoxShape3D.new()
+	jump_box.size = Vector3(4, 6, 0.4)
+	jump_collision.shape = jump_box
+	jump_wall.add_child(jump_collision)
+	jump_wall.position = Vector3(0, 3, -3)
+	scene.add_child(jump_wall)
+	scene.hero.position = Vector3(0, 4, -2.3)
+	scene.hero.velocity = Vector3.ZERO
+	scene.controls.movement = Vector2(0, -1)
+	await physics_frame
+	for frame in range(20):
+		scene.hero._physics_process(1.0 / 60.0)
+	check(scene.hero.is_on_wall() and not scene.hero.is_on_floor(), "hero can reach a wall in the air")
+	scene.controls.pressed_once["jump"] = true
+	scene.hero._physics_process(1.0 / 60.0)
+	check(scene.hero.velocity.y > 5 and scene.hero.velocity.z > 0, "jumping against a wall launches up and away")
+	jump_wall.queue_free()
+	scene.controls.movement = Vector2.ZERO
 	scene.hero.position = Vector3(0, 0.1, 0)
 	scene.hero.velocity = Vector3.ZERO
 	scene.interact()

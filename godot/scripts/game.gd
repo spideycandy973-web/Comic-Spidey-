@@ -157,7 +157,7 @@ func show_help() -> void:
 	var instructions := Label.new()
 	instructions.text = """MOVE with the left stick. Drag empty space to look around.
 
-Hold WEB to attach to a rooftop and swing; release to let go. Press JUMP while swinging for a boosted release.
+Hold WEB to attach to a rooftop and swing; release to let go. Press JUMP while swinging for a boosted release, or near a wall to leap off it.
 
 Use HIT up close, or SHOT to web an enemy from a distance. TAP TALK near a person or objective to interact.
 

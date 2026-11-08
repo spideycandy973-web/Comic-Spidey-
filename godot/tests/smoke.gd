@@ -16,6 +16,12 @@ func run_test() -> void:
 	var scene = load("res://main.tscn").instantiate()
 	root.add_child(scene)
 	await physics_frame
+	var free_roam_visible := false
+	for button in scene.menu.find_children("*", "Button", true, false):
+		if button.text == "New Free Roam":
+			var rect: Rect2 = button.get_global_rect()
+			free_roam_visible = rect.position.y >= 0 and rect.end.y <= root.get_visible_rect().size.y
+	check(free_roam_visible, "free roam button fits within the menu viewport")
 	scene.save_enabled = false
 	scene.start_mode("Story")
 	scene.set_process(false)

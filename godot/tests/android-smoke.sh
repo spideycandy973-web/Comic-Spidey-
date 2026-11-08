@@ -9,6 +9,7 @@ on_error() {
   echo "::error::Android smoke command failed at line $line (exit $code)"
   adb shell pidof "$package" | while IFS= read -r text; do echo "::notice::App PID: $text"; done
   adb shell dumpsys activity activities | grep -iE 'mResumedActivity|topResumedActivity|comicspidey' | tail -8 | while IFS= read -r text; do echo "::notice::$text"; done
+  adb logcat -b crash -d | tail -40 | while IFS= read -r text; do echo "::notice::Crash: $text"; done
   adb logcat -d | grep -iE 'fatal exception|androidruntime|godot|comicspidey|lowmemorykiller|lmkd' | tail -25 | while IFS= read -r text; do echo "::notice::$text"; done
   exit "$code"
 }

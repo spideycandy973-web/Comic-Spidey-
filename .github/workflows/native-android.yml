@@ -32,6 +32,10 @@ jobs:
             result=$?
           fi
           if [ "$result" -eq 0 ]; then
+            timeout 240s xvfb-run -a /tmp/godot/Godot_v4.3-stable_linux.x86_64 --audio-driver Dummy --resolution 640x360 --path godot --script res://tests/playthrough.gd > /tmp/native-playthrough.log 2>&1
+            result=$?
+          fi
+          if [ "$result" -eq 0 ]; then
             timeout 90s xvfb-run -a /tmp/godot/Godot_v4.3-stable_linux.x86_64 --audio-driver Dummy --path godot --script res://tests/render.gd > /tmp/native-render.log 2>&1
             result=$?
           fi
@@ -39,17 +43,14 @@ jobs:
             timeout 90s xvfb-run -a /tmp/godot/Godot_v4.3-stable_linux.x86_64 --audio-driver Dummy --path godot --script res://tests/comic_render.gd > /tmp/native-comic.log 2>&1
             result=$?
           fi
-          if [ -f /tmp/comic-objective.jpg ]; then
-            python3 -c 'import base64; s=base64.b64encode(open("/tmp/comic-objective.jpg","rb").read()).decode(); [(print("::notice::OBJECTIVE_FRAME_%d=%s"%(i//3500,s[i:i+3500]))) for i in range(0,len(s),3500)]'
-          fi
-          for log in /tmp/native-import.log /tmp/native-smoke.log /tmp/native-pursuit.log /tmp/native-render.log /tmp/native-comic.log; do
+          for log in /tmp/native-import.log /tmp/native-smoke.log /tmp/native-pursuit.log /tmp/native-playthrough.log /tmp/native-render.log /tmp/native-comic.log; do
             if [ -f "$log" ]; then
               echo "::notice::$log error count: $(grep -cE 'SCRIPT ERROR|ERROR:' "$log" || true)"
               cat "$log"
             fi
           done
-          cat /tmp/native-smoke.log /tmp/native-pursuit.log /tmp/native-render.log /tmp/native-comic.log >> /tmp/native-import.log 2>/dev/null || true
-          grep -E "Native scene smoke checks passed|Native boss rendering check passed|Boss rendered pixel changes|Objective rendered pixel changes|TEST FAILED" /tmp/native-import.log | while IFS= read -r line; do echo "::notice::$line"; done
+          cat /tmp/native-smoke.log /tmp/native-pursuit.log /tmp/native-playthrough.log /tmp/native-render.log /tmp/native-comic.log >> /tmp/native-import.log 2>/dev/null || true
+          grep -E "Native scene smoke checks passed|Native boss rendering check passed|Boss rendered pixel changes|Objective rendered pixel changes|Playthrough stage|Playthrough stopped|Input-driven story playthrough passed|TEST FAILED" /tmp/native-import.log | while IFS= read -r line; do echo "::notice::$line"; done
           if [ "$result" -ne 0 ] || grep -qE 'SCRIPT ERROR|ERROR:' /tmp/native-import.log; then
             grep -E -A1 'SCRIPT ERROR|ERROR:' /tmp/native-import.log | head -60 | while IFS= read -r line; do echo "::error::$line"; done
             exit 1

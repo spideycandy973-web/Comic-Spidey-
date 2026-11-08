@@ -17,9 +17,10 @@ func setup(prop_kind: String) -> void:
 	var accent := material(Color("ffe56b") if kind != "device" else Color("ff716a"))
 	make_box(Vector3(2.2, 0.3, 1.6), Vector3(0, 0.15, 0), dark)
 	make_box(Vector3(1.7, 1.8, 1.2), Vector3(0, 1.2, 0), body)
-	make_box(Vector3(1.35, 0.8, 0.09), Vector3(0, 1.35, -0.65), dark)
-	for i in range(3):
-		make_box(Vector3(0.22, 0.12, 0.12), Vector3(-0.38 + i * 0.38, 1.35, -0.72), accent)
+	for face in [-1, 1]:
+		make_box(Vector3(1.35, 0.8, 0.09), Vector3(0, 1.35, face * 0.65), dark)
+		for i in range(3):
+			make_box(Vector3(0.22, 0.12, 0.12), Vector3(-0.38 + i * 0.38, 1.35, face * 0.72), accent)
 	make_box(Vector3(1.0, 0.18, 0.9), Vector3(0, 2.18, 0), dark)
 	marker = Node3D.new()
 	marker.position = Vector3(0, 2.65, 0)

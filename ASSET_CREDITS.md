@@ -12,3 +12,5 @@ If any supplied asset permission or attribution is incorrect, remove/replace it 
 ## Native Godot development project
 
 `godot/assets/hero.glb` is a conversion of the supplied skinned Spider-Man FBX and six supplied Mixamo clips to glTF; the hero texture comes from the same user-supplied archive. `godot/assets/doctor_octopus.glb` is the supplied static Doctor Octopus model, and `godot/assets/citizen*.glb` include the two generated and optimized Citizen Maker characters described above plus two additional generated, rigged variants with walk and run clips. The additional variants were also simplified with glTF Transform and meshoptimizer. Godot Engine is distributed separately under the MIT license: https://godotengine.org/license/. The city currently uses original procedural geometry, not the supplied neighborhood model.
+
+- **Bangers display font:** The Bangers Project Authors, SIL Open Font License 1.1. Source: https://github.com/google/fonts/tree/main/ofl/bangers. The license is included at `godot/fonts/BANGERS-OFL.txt` and in the native in-game credits.

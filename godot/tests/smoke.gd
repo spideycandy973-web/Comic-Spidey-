@@ -75,6 +75,11 @@ func run_test() -> void:
 	scene.hero.position = Vector3(0, 0.1, 0)
 	car.recenter(0)
 	check(scene.hero.animator != null and scene.hero.skeleton != null, "hero model and skeleton imported")
+	var hero_meshes := scene.hero.visual.find_children("*", "MeshInstance3D", true, false)
+	check(not hero_meshes.is_empty(), "hero model has visible mesh")
+	if not hero_meshes.is_empty():
+		var hero_material = hero_meshes[0].get_active_material(0)
+		check(hero_material is BaseMaterial3D and hero_material.next_pass is ShaderMaterial and hero_material.diffuse_mode == BaseMaterial3D.DIFFUSE_TOON, "hero has toon lighting and an ink outline")
 	check(scene.hero.hand_bone >= 0 and scene.hero.animator.has_animation("run"), "hand and run animation imported")
 	check(scene.hero.animator.get_animation("run").loop_mode == Animation.LOOP_LINEAR, "run animation loops")
 	check(scene.sound.samples.size() == 5, "offline sound cues were generated")

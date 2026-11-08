@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+const ComicStyle = preload("res://scripts/comic_style.gd")
+
 var world
 var game
 var controls
@@ -42,6 +44,7 @@ func setup() -> void:
 	collision_mask = 1
 	visual = preload("res://assets/hero.glb").instantiate()
 	add_child(visual)
+	ComicStyle.apply_to_character(visual)
 	var animators := visual.find_children("*", "AnimationPlayer", true, false)
 	if not animators.is_empty():
 		animator = animators[0]

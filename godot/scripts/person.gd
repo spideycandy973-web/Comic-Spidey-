@@ -1,5 +1,6 @@
 extends CharacterBody3D
 
+const ComicStyle = preload("res://scripts/comic_style.gd")
 const TENTACLE_SHADER = preload("res://scripts/tentacles.gdshader")
 
 var is_enemy := false
@@ -43,6 +44,7 @@ func setup(model: PackedScene, enemy: bool, boss: bool = false) -> void:
 			for mesh in visual.find_children("*", "MeshInstance3D", true, false):
 				if str(mesh.name).to_lower().begins_with("cloth"):
 					mesh.material_override = uniform
+	ComicStyle.apply_to_character(visual)
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.38
@@ -107,6 +109,7 @@ func set_civilian_clothes(variant: int) -> void:
 		if str(mesh.name).to_lower().begins_with("cloth"):
 			mesh.material_override = jacket if i == 0 else trousers
 			i += 1
+	ComicStyle.apply_to_character(visual)
 
 func _physics_process(delta: float) -> void:
 	if not is_instance_valid(hero) or health <= 0:

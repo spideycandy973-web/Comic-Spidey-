@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+const ComicFont = preload("res://fonts/Bangers-Regular.ttf")
+
 var movement := Vector2.ZERO
 var look_delta := Vector2.ZERO
 var active := false
@@ -122,14 +124,17 @@ func draw_controls() -> void:
 		return
 	var s := get_viewport().get_visible_rect().size
 	var center := stick_center()
-	surface.draw_circle(center, 70, Color(0.03, 0.08, 0.12, 0.55))
-	surface.draw_circle(center + movement * 48, 27, Color(0.75, 0.85, 0.9, 0.8))
+	surface.draw_circle(center, 72, Color(0.06, 0.05, 0.10, 0.8))
+	surface.draw_circle(center, 67, Color(0.12, 0.34, 0.48, 0.8))
+	surface.draw_circle(center + movement * 48, 29, Color("171429"))
+	surface.draw_circle(center + movement * 48, 24, Color("ffe15d"))
 	var labels := {"menu": "II", "swing": "WEB", "shot": "SHOT", "attack": "HIT", "jump": "JUMP", "talk": "TALK"}
 	for name in button_positions():
 		var p: Vector2 = button_positions()[name]
-		var color := Color(0.60, 0.12, 0.16, 0.85) if name == "attack" else Color(0.09, 0.19, 0.27, 0.85)
-		surface.draw_circle(p, 38, color)
-		surface.draw_string(ThemeDB.fallback_font, p + Vector2(-25, 6), labels[name], HORIZONTAL_ALIGNMENT_CENTER, 50, 15, Color.WHITE)
+		var color := Color("e14c49") if name == "attack" else Color("266d89")
+		surface.draw_circle(p, 40, Color("171429"))
+		surface.draw_circle(p, 35, color)
+		surface.draw_string(ComicFont, p + Vector2(-30, 7), labels[name], HORIZONTAL_ALIGNMENT_CENTER, 60, 22, Color("fff8e8"))
 	if target_direction.length_squared() > 0.01:
 		var compass_center := Vector2(s.x * 0.5, 55)
 		var direction := target_direction.normalized()
@@ -137,9 +142,15 @@ func draw_controls() -> void:
 		surface.draw_circle(compass_center, 25, Color(0.03, 0.08, 0.12, 0.65))
 		var triangle := PackedVector2Array([compass_center + direction * 18, compass_center - direction * 11 + side * 9, compass_center - direction * 11 - side * 9])
 		surface.draw_colored_polygon(triangle, Color(0.45, 0.9, 1.0))
-	surface.draw_string(ThemeDB.fallback_font, Vector2(20, 32), status, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color.WHITE)
-	surface.draw_rect(Rect2(20, 39, 180, 8), Color(0.1, 0.1, 0.12, 0.8))
+	surface.draw_rect(Rect2(12, 8, 370, 65), Color("171429"))
+	surface.draw_rect(Rect2(16, 12, 362, 57), Color("fff3cc"))
+	surface.draw_string(ComicFont, Vector2(25, 37), status, HORIZONTAL_ALIGNMENT_LEFT, 345, 22, Color("171429"))
+	surface.draw_rect(Rect2(25, 44, 180, 12), Color("171429"))
 	var health_color := Color(0.22, 0.85, 0.40) if health > 35 else Color(0.95, 0.24, 0.16)
-	surface.draw_rect(Rect2(20, 39, 180 * clampf(health / 100.0, 0.0, 1.0), 8), health_color)
-	surface.draw_string(ThemeDB.fallback_font, Vector2(20, 62), objective, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, 18, Color(0.75, 0.95, 1))
-	surface.draw_string(ThemeDB.fallback_font, Vector2(20, 90), message, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, 18, Color.WHITE)
+	surface.draw_rect(Rect2(27, 46, 176 * clampf(health / 100.0, 0.0, 1.0), 8), health_color)
+	surface.draw_rect(Rect2(12, 78, 470, 34), Color("171429"))
+	surface.draw_rect(Rect2(16, 82, 462, 26), Color("ffe15d"))
+	surface.draw_string(ComicFont, Vector2(25, 102), objective, HORIZONTAL_ALIGNMENT_LEFT, 446, 21, Color("171429"))
+	if not message.is_empty():
+		surface.draw_string_outline(ComicFont, Vector2(20, 143), message, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, 21, 4, Color("171429"))
+		surface.draw_string(ComicFont, Vector2(20, 143), message, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, 21, Color.WHITE)

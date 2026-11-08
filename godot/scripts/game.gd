@@ -1,5 +1,7 @@
 extends Node3D
 
+const ComicBackdrop = preload("res://scripts/comic_backdrop.gd")
+const ComicFont = preload("res://fonts/Bangers-Regular.ttf")
 const WorldScript = preload("res://scripts/world.gd")
 const HeroScript = preload("res://scripts/hero.gd")
 const VehicleScript = preload("res://scripts/vehicle.gd")
@@ -40,10 +42,10 @@ func _ready() -> void:
 	var env := WorldEnvironment.new()
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color("89b3d0")
+	environment.background_color = Color("7ac7df")
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color(0.75, 0.8, 0.9)
-	environment.ambient_light_energy = 0.8
+	environment.ambient_light_energy = 0.55
 	env.environment = environment
 	add_child(env)
 	var sun := DirectionalLight3D.new()
@@ -92,8 +94,8 @@ func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
 	menu = CanvasLayer.new()
 	menu.layer = 3
 	add_child(menu)
-	var panel := ColorRect.new()
-	panel.color = Color(0.02, 0.04, 0.08, 0.92)
+	var panel := Control.new()
+	panel.set_script(ComicBackdrop)
 	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	menu.add_child(panel)
 	var box := VBoxContainer.new()
@@ -106,7 +108,11 @@ func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
 	var title := Label.new()
 	title.text = "COMIC SPIDEY" + ("\nDEFEATED" if can_retry else "")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_font_override("font", ComicFont)
+	title.add_theme_font_size_override("font_size", 38)
+	title.add_theme_color_override("font_color", Color("ffe15d"))
+	title.add_theme_color_override("font_outline_color", Color("171429"))
+	title.add_theme_constant_override("outline_size", 5)
 	box.add_child(title)
 	if can_resume:
 		add_menu_button(box, "Resume", resume_game)
@@ -184,10 +190,13 @@ License: https://creativecommons.org/licenses/by/4.0/
 
 Citizens: generated using Citizen Maker by Janelle Ghanem, MIT license, and MakeHuman CC0 base geometry. The Citizen Maker license is reproduced below.
 
+Bangers font: Copyright 2010 The Bangers Project Authors; SIL Open Font License 1.1, reproduced below.
+
 Godot Engine and its dependencies are credited and licensed below. The city geometry and synthesized audio are original to this project.
 
 """
 	text.text += FileAccess.get_file_as_string("res://credits/CITIZEN-MAKER-LICENSE.txt")
+	text.text += "\n\nBANGERS FONT LICENSE\n" + FileAccess.get_file_as_string("res://fonts/BANGERS-OFL.txt")
 	text.text += "\n\nGODOT ENGINE LICENSE\n" + Engine.get_license_text()
 	for license_name in Engine.get_license_info():
 		text.text += "\n\n" + str(license_name) + "\n" + str(Engine.get_license_info()[license_name])
@@ -209,6 +218,20 @@ func add_menu_button(box: VBoxContainer, text: String, callback: Callable) -> vo
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = Vector2(380, 54)
+	button.add_theme_font_override("font", ComicFont)
+	button.add_theme_font_size_override("font_size", 24)
+	button.add_theme_color_override("font_color", Color("fff6db"))
+	button.add_theme_color_override("font_hover_color", Color("171429"))
+	button.add_theme_color_override("font_pressed_color", Color("171429"))
+	for state in ["normal", "hover", "pressed", "focus"]:
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color("d64a49") if state == "normal" else Color("ffe15d")
+		style.border_color = Color("171429")
+		style.set_border_width_all(3)
+		style.set_corner_radius_all(3)
+		style.content_margin_left = 12
+		style.content_margin_right = 12
+		button.add_theme_stylebox_override(state, style)
 	button.pressed.connect(callback)
 	box.add_child(button)
 

@@ -20,13 +20,13 @@ var facade_material: ShaderMaterial
 func _ready() -> void:
 	facade_material = ShaderMaterial.new()
 	facade_material.shader = FACADE
-	paint_material = material(Color("ded9bb"))
-	roof_material = material(Color("585f62"))
-	grass_material = material(Color("54794a"))
-	leaf_material = material(Color("386839"))
-	trunk_material = material(Color("6b5035"))
-	glass_material = material(Color("223b4b"))
-	awning_material = material(Color("a84b40"))
+	paint_material = material(Color("f9eab8"))
+	roof_material = material(Color("28354b"))
+	grass_material = material(Color("68a968"))
+	leaf_material = material(Color("3b905d"))
+	trunk_material = material(Color("76533f"))
+	glass_material = material(Color("246078"))
+	awning_material = material(Color("e04a50"))
 	metal_material = material(Color("38474c"))
 	var ground := StaticBody3D.new()
 	var ground_shape := CollisionShape3D.new()
@@ -41,7 +41,7 @@ func _ready() -> void:
 	mesh.size = Vector3(2000, 0.2, 2000)
 	ground_mesh.mesh = mesh
 	ground_mesh.position.y = -0.11
-	ground_mesh.material_override = material(Color("424b54"))
+	ground_mesh.material_override = material(Color("40536b"))
 	add_child(ground_mesh)
 	# The floor is finite; invisible boundaries prevent falling beyond it.
 	for side in [-1, 1]:
@@ -59,6 +59,8 @@ func material(color: Color) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
 	mat.roughness = 0.9
+	mat.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
 	return mat
 
 func update_chunks(at: Vector3) -> void:
@@ -101,7 +103,7 @@ func make_chunk(key: Vector2i) -> void:
 	sidewalk.mesh = slab
 	sidewalk.position = Vector3((key.x + 0.5) * CELL, 0.01, (key.y + 0.5) * CELL)
 	var is_park := absi(key.x * 7 + key.y * 11) % 17 == 5
-	sidewalk.material_override = grass_material if is_park else material(Color("777d7e"))
+	sidewalk.material_override = grass_material if is_park else material(Color("b8b7a9"))
 	chunk.add_child(sidewalk)
 	# Dashed lane markings and pedestrian crossings, batched per city block.
 	var ox := key.x * CELL
@@ -132,7 +134,8 @@ func make_chunk(key: Vector2i) -> void:
 			var shape := BoxShape3D.new()
 			shape.size = size
 			building_transforms.append(Transform3D(Basis.from_scale(size), building.position))
-			building_colors.append(Color.from_hsv(rng.randf_range(0.04, 0.14), 0.13, rng.randf_range(0.42, 0.67)))
+			var palette := [Color("df886d"), Color("e8ba77"), Color("6d9da8"), Color("b694b3"), Color("d9a69b"), Color("9fb2a3")]
+			building_colors.append(palette[rng.randi_range(0, palette.size() - 1)])
 			var collision := CollisionShape3D.new()
 			collision.shape = shape
 			building.add_child(collision)

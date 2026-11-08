@@ -17,3 +17,5 @@ Open `project.godot` in Godot 4.3 and run `main.tscn`. The native workflow impor
 ## Additional citizen generation
 
 The two additional citizens were generated from Citizen Maker using `tools/make-extra-citizens.mjs`, then simplified with glTF Transform 4.2.1 (`simplify --ratio 0.5 --error 0.001`). To regenerate them, copy the script into a Citizen Maker checkout with its models, install Three.js 0.160.1 in that checkout or a parent directory, and run `OUTPUT_DIR=/path/to/output node make-extra-citizens.mjs`. Simplify the two resulting GLBs before placing them in `assets/`. Citizen Maker and MakeHuman attribution is in `../ASSET_CREDITS.md`.
+
+The native game's current comic-art pass uses cel lighting and ink outlines on characters, graphic window framing and a saturated palette for the procedural city, and comic-inspired interface panels using the OFL-licensed Bangers font. This is an ongoing visual treatment, not a claim of finished comic artwork or device-validated performance.

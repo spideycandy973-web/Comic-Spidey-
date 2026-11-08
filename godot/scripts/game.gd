@@ -217,8 +217,8 @@ func begin_play() -> void:
 	if is_instance_valid(menu):
 		menu.queue_free()
 	clear_people()
-	hero.rope_active = false
-	hero.web.visible = false
+	hero.release_web()
+	hero.web_retry = 0
 	hero.punch_flash.visible = false
 	hero.shot_line.visible = false
 	hero.punch_timer = 0

@@ -43,6 +43,9 @@ func run_test() -> void:
 	check(scene.controls.movement == Vector2.ZERO, "releasing joystick stops input")
 	check(scene.people.size() == 6 and scene.stage == 0, "story starts at the first objective")
 	check(scene.traffic.size() == 6, "native traffic spawns")
+	var block = scene.world.chunks[Vector2i(0, 0)]
+	var facades = block.get_node_or_null("BuildingFacades")
+	check(facades != null and facades.multimesh.instance_count == 4, "city batches building visuals without removing collisions")
 	var car = scene.traffic[0]
 	car.set_physics_process(false)
 	car.axis = 0
@@ -86,6 +89,11 @@ func run_test() -> void:
 			"fight", "boss":
 				check(scene.enemies_alive() > 0, "enemies spawned for stage %d" % expected)
 				var enemy = scene.mission_enemies[0]
+				if mission.type == "boss":
+					check(enemy.tentacle_materials.size() == 2, "boss tentacle meshes have animation shaders")
+					var before: float = enemy.tentacle_time
+					enemy._physics_process(0.1)
+					check(enemy.tentacle_time > before, "boss tentacle animation advances")
 				scene.world.update_chunks(mission.at)
 				await physics_frame
 				scene.hero.position = mission.at + Vector3(0, 0.1, -1)

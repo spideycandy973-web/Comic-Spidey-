@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+const TENTACLE_SHADER = preload("res://scripts/tentacles.gdshader")
+
 var is_enemy := false
 var is_boss := false
 var health := 60.0
@@ -18,6 +20,8 @@ var line := "Stay safe out there, Spider-Man."
 var conversations := 0
 var marker: MeshInstance3D
 var marker_material: StandardMaterial3D
+var tentacle_materials: Array[ShaderMaterial] = []
+var tentacle_time := 0.0
 
 func setup(model: PackedScene, enemy: bool, boss: bool = false) -> void:
 	is_enemy = enemy
@@ -28,6 +32,7 @@ func setup(model: PackedScene, enemy: bool, boss: bool = false) -> void:
 	# Supplied models have different units.
 	if boss:
 		visual.scale = Vector3.ONE * 1.15
+		setup_tentacles()
 	else:
 		visual.scale = Vector3.ONE
 		if enemy:
@@ -68,6 +73,22 @@ func setup(model: PackedScene, enemy: bool, boss: bool = false) -> void:
 			anim.get_animation("walk").loop_mode = Animation.LOOP_LINEAR
 			anim.play("walk")
 	origin = position
+
+func setup_tentacles() -> void:
+	for part in visual.find_children("*", "MeshInstance3D", true, false):
+		if str(part.name) not in ["Object_3", "Object_4"]:
+			continue
+		var original = part.get_active_material(0)
+		if not original is BaseMaterial3D or not original.albedo_texture:
+			continue
+		var animated := ShaderMaterial.new()
+		animated.shader = TENTACLE_SHADER
+		animated.set_shader_parameter("albedo_texture", original.albedo_texture)
+		animated.set_shader_parameter("albedo_tint", original.albedo_color)
+		part.material_override = animated
+		# Allow for the deformation moving slightly beyond the imported bounds.
+		part.extra_cull_margin = 0.4
+		tentacle_materials.append(animated)
 
 func set_civilian_clothes(variant: int) -> void:
 	if is_enemy:
@@ -141,6 +162,11 @@ func _physics_process(delta: float) -> void:
 		velocity.x = direction.x * speed
 		velocity.z = direction.z * speed
 		visual.rotation.y = atan2(direction.x, direction.z) + PI
+	if is_boss:
+		tentacle_time += delta
+		for material in tentacle_materials:
+			material.set_shader_parameter("motion_time", tentacle_time)
+			material.set_shader_parameter("attack_intensity", 1.7 if windup > 0 else 1.0)
 	if is_enemy:
 		# Telegraph the attack with a visible lunge. The supplied Doc Ock mesh is not rigged.
 		var lunge := sin((0.65 - maxf(windup, 0.0)) / 0.65 * PI) * 0.45 if windup > 0 else 0.0

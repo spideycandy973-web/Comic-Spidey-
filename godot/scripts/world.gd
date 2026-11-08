@@ -15,8 +15,11 @@ var trunk_material: StandardMaterial3D
 var glass_material: StandardMaterial3D
 var awning_material: StandardMaterial3D
 var metal_material: StandardMaterial3D
+var facade_material: ShaderMaterial
 
 func _ready() -> void:
+	facade_material = ShaderMaterial.new()
+	facade_material.shader = FACADE
 	paint_material = material(Color("ded9bb"))
 	roof_material = material(Color("585f62"))
 	grass_material = material(Color("54794a"))
@@ -83,6 +86,8 @@ func make_chunk(key: Vector2i) -> void:
 	add_child(chunk)
 	chunks[key] = chunk
 	var roofs: Array[Vector3] = []
+	var building_transforms: Array[Transform3D] = []
+	var building_colors: Array[Color] = []
 	var rooftop_details: Array[Transform3D] = []
 	var doors: Array[Transform3D] = []
 	var awnings: Array[Transform3D] = []
@@ -124,17 +129,10 @@ func make_chunk(key: Vector2i) -> void:
 			var size := Vector3(rng.randf_range(12, 15), height, rng.randf_range(12, 15))
 			var building := StaticBody3D.new()
 			building.position = center + Vector3.UP * height * 0.5
-			var visual := MeshInstance3D.new()
 			var shape := BoxShape3D.new()
-			var cube := BoxMesh.new()
-			cube.size = size
 			shape.size = size
-			visual.mesh = cube
-			var facade := ShaderMaterial.new()
-			facade.shader = FACADE
-			facade.set_shader_parameter("building_color", Color.from_hsv(rng.randf_range(0.04, 0.14), 0.13, rng.randf_range(0.42, 0.67)))
-			visual.material_override = facade
-			building.add_child(visual)
+			building_transforms.append(Transform3D(Basis.from_scale(size), building.position))
+			building_colors.append(Color.from_hsv(rng.randf_range(0.04, 0.14), 0.13, rng.randf_range(0.42, 0.67)))
 			var collision := CollisionShape3D.new()
 			collision.shape = shape
 			building.add_child(collision)
@@ -146,6 +144,7 @@ func make_chunk(key: Vector2i) -> void:
 			for side_x in [-1, 1]:
 				for side_z in [-1, 1]:
 					roofs.append(center + Vector3(side_x * (size.x * 0.5 + 0.3), height + 0.25, side_z * (size.z * 0.5 + 0.3)))
+	add_buildings(chunk, building_transforms, building_colors)
 	add_instances(chunk, rooftop_details, roof_material)
 	add_instances(chunk, doors, glass_material)
 	add_instances(chunk, awnings, awning_material)
@@ -174,5 +173,23 @@ func add_instances(parent: Node3D, transforms: Array[Transform3D], mat: Material
 	for i in range(transforms.size()):
 		multi.set_instance_transform(i, transforms[i])
 	var instance := MultiMeshInstance3D.new()
+	instance.multimesh = multi
+	parent.add_child(instance)
+
+# Draw the four building facades in each block as a single instanced mesh,
+# while retaining independent physics bodies and roof anchors.
+func add_buildings(parent: Node3D, transforms: Array[Transform3D], colors: Array[Color]) -> void:
+	var cube := BoxMesh.new()
+	cube.material = facade_material
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.use_colors = true
+	multi.mesh = cube
+	multi.instance_count = transforms.size()
+	for i in range(transforms.size()):
+		multi.set_instance_transform(i, transforms[i])
+		multi.set_instance_color(i, colors[i])
+	var instance := MultiMeshInstance3D.new()
+	instance.name = "BuildingFacades"
 	instance.multimesh = multi
 	parent.add_child(instance)

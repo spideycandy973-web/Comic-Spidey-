@@ -15,6 +15,7 @@ var pitch := 0.25
 var rope_active := false
 var anchor := Vector3.ZERO
 var rope_length := 0.0
+var web_retry := 0.0
 var attack_cooldown := 0.0
 var shot_cooldown := 0.0
 var shot_timer := 0.0
@@ -85,6 +86,7 @@ func _physics_process(delta: float) -> void:
 	if controls.consume("menu"):
 		game.pause_game()
 		return
+	web_retry = maxf(0, web_retry - delta)
 	attack_cooldown = maxf(0, attack_cooldown - delta)
 	shot_cooldown = maxf(0, shot_cooldown - delta)
 	shot_timer = maxf(0, shot_timer - delta)
@@ -140,11 +142,11 @@ func _physics_process(delta: float) -> void:
 	if controls.consume("shot"):
 		shoot_web(forward)
 	var swinging: bool = controls.held("swing") or Input.is_key_pressed(KEY_SHIFT)
-	if swinging and not rope_active:
+	if swinging and not rope_active and web_retry <= 0:
+		web_retry = 0.35
 		attach_web(forward)
 	elif not swinging and rope_active:
-		rope_active = false
-		web.visible = false
+		release_web()
 	if rope_active:
 		var offset := global_position + Vector3.UP - anchor
 		if offset.length() >= rope_length - 0.15:
@@ -156,8 +158,13 @@ func _physics_process(delta: float) -> void:
 	if rope_active:
 		var offset := global_position + Vector3.UP - anchor
 		if offset.length() > rope_length:
-			move_and_collide(-offset.normalized() * (offset.length() - rope_length))
-		update_web()
+			var collision := move_and_collide(-offset.normalized() * (offset.length() - rope_length))
+			if collision and (global_position + Vector3.UP).distance_to(anchor) > rope_length + 0.5:
+				release_web()
+		if rope_active and not web_has_clear_path():
+			release_web()
+		if rope_active:
+			update_web()
 	update_animation(desired)
 	update_camera(delta)
 
@@ -211,6 +218,15 @@ func attach_web(forward: Vector3) -> void:
 		web.visible = true
 	else:
 		game.show_message("No reachable rooftop ahead")
+
+func release_web() -> void:
+	rope_active = false
+	web.visible = false
+
+func web_has_clear_path() -> bool:
+	var query := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * 1.4, anchor, 1)
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	return hit.is_empty() or hit.position.distance_to(anchor) <= 1.0
 
 func hand_position() -> Vector3:
 	if skeleton and hand_bone >= 0:

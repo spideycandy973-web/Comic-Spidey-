@@ -39,6 +39,7 @@ var crime_completed := 0
 var crime_failed := 0
 var crime_civilian
 var mission_prop
+var pending_spawn_check := false
 
 func _ready() -> void:
 	var env := WorldEnvironment.new()
@@ -349,13 +350,15 @@ func begin_play() -> void:
 	if hero.animator:
 		hero.animator.speed_scale = 1.0
 	controls.active = true
-	resolve_spawn_collision.call_deferred(hero)
+	pending_spawn_check = true
 
-func resolve_spawn_collision(actor: CharacterBody3D) -> void:
-	# Saved coordinates can become embedded in a building after a city update.
-	# Wait for the newly streamed collision bodies to enter the physics world.
-	await get_tree().physics_frame
-	if not is_instance_valid(actor) or actor != hero or not hero.playing:
+func _physics_process(_delta: float) -> void:
+	# Saved coordinates can become embedded after a city update. Check on the
+	# next physics tick, once streamed collision bodies are registered.
+	if not pending_spawn_check:
+		return
+	pending_spawn_check = false
+	if not is_instance_valid(hero) or not hero.playing:
 		return
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.28

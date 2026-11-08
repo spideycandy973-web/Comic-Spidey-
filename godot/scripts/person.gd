@@ -12,6 +12,9 @@ var stun := 0.0
 var hero
 var visual: Node3D
 var anim: AnimationPlayer
+var skeleton: Skeleton3D
+var strike_arm := -1
+var strike_pose := 0.0
 var origin: Vector3
 var walk_time := 0.0
 var local_civilian := false
@@ -71,6 +74,11 @@ func setup(model: PackedScene, enemy: bool, boss: bool = false, variant: int = 0
 		add_child(marker)
 	collision_layer = 2
 	collision_mask = 1
+	if is_enemy and not is_boss:
+		var skeletons := visual.find_children("*", "Skeleton3D", true, false)
+		if not skeletons.is_empty():
+			skeleton = skeletons[0]
+			strike_arm = skeleton.find_bone("upperarm01_DOT_R")
 	var players := visual.find_children("*", "AnimationPlayer", true, false)
 	if not players.is_empty():
 		anim = players[0]
@@ -171,6 +179,13 @@ func _physics_process(delta: float) -> void:
 		velocity.x = direction.x * speed
 		velocity.z = direction.z * speed
 		visual.rotation.y = atan2(direction.x, direction.z) + PI
+	if skeleton and strike_arm >= 0:
+		skeleton.clear_bones_global_pose_override()
+		strike_pose = sin(clampf(1.0 - windup / 0.65, 0.0, 1.0) * PI) if windup > 0 else 0.0
+		if strike_pose > 0:
+			var pose := skeleton.get_bone_global_pose(strike_arm)
+			pose.basis = pose.basis * Basis(Vector3.RIGHT, strike_pose * 1.2)
+			skeleton.set_bone_global_pose_override(strike_arm, pose, 1.0, true)
 	if is_boss:
 		tentacle_time += delta
 		for material in tentacle_materials:

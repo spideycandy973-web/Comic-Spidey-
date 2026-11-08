@@ -175,10 +175,13 @@ func run_test() -> void:
 					scene.hero.shoot_web(Vector3.BACK)
 					check(enemy.health == previous - 35 and enemy.stun == 2.0, "web shot damages and stuns enemy")
 				if expected == 1:
+					check(enemy.skeleton != null and enemy.strike_arm >= 0, "street enemy has a rigged striking arm")
 					enemy.stun = 0
 					enemy.attack_cooldown = 0
 					enemy._physics_process(0.05)
-					enemy._physics_process(0.7)
+					enemy._physics_process(0.25)
+					check(enemy.strike_pose > 0, "street enemy animates a strike during its windup")
+					enemy._physics_process(0.5)
 					check(scene.hero.health == 90, "enemy attack damages hero")
 					var old_health: float = scene.hero.health
 					scene.hero.position.y += 10

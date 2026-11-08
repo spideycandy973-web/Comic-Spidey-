@@ -26,7 +26,7 @@ func setup(index: int) -> void:
 		visual.rotation.y = 0 if travel_sign < 0 else PI
 	else:
 		visual.rotation.y = PI * 0.5 if travel_sign < 0 else -PI * 0.5
-	var body_color := [Color("b85440"), Color("52718a"), Color("d3b36c"), Color("63796a")][index % 4]
+	var body_color: Color = [Color("b85440"), Color("52718a"), Color("d3b36c"), Color("63796a")][index % 4]
 	make_box(Vector3(1.7, 0.65, 3.7), Vector3(0, 0.7, 0), body_color)
 	make_box(Vector3(1.45, 0.65, 1.8), Vector3(0, 1.3, 0.1), Color("354b55"))
 	make_box(Vector3(1.5, 0.15, 1.9), Vector3(0, 1.65, 0.1), body_color)

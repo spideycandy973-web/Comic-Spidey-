@@ -533,6 +533,11 @@ func _process(delta: float) -> void:
 	else:
 		update_crime(delta)
 	var target = current_target()
+	controls.map_position = hero.global_position
+	controls.map_yaw = hero.yaw
+	controls.map_has_target = target != null
+	if target != null:
+		controls.map_target = target
 	var distance := ""
 	controls.target_direction = Vector2.ZERO
 	if target != null:

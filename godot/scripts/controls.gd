@@ -13,6 +13,10 @@ var status := ""
 var message := ""
 var objective := ""
 var target_direction := Vector2.ZERO
+var map_position := Vector3.ZERO
+var map_yaw := 0.0
+var map_target := Vector3.ZERO
+var map_has_target := false
 var health := 100.0
 var mirrored := false
 var movement_pointer := -1
@@ -119,11 +123,50 @@ func _process(_delta: float) -> void:
 	if surface:
 		surface.queue_redraw()
 
+func map_offset(from: Vector3, to: Vector3) -> Vector2:
+	return (Vector2(to.x - from.x, to.z - from.z) * 0.9).limit_length(72.0)
+
+func draw_minimap(screen_size: Vector2) -> void:
+	var center := Vector2(screen_size.x - 115, 170)
+	var inner := Rect2(center - Vector2(76, 76), Vector2(152, 152))
+	surface.draw_rect(inner.grow(5), Color("171429"))
+	surface.draw_rect(inner, Color("e6d8ad"))
+	# World-aligned roads and parks; north is always at the top.
+	var cell := 44.0
+	var base_x := floori(map_position.x / cell)
+	var base_z := floori(map_position.z / cell)
+	for x in range(base_x - 3, base_x + 4):
+		for z in range(base_z - 3, base_z + 4):
+			if absi(x * 7 + z * 11) % 17 == 5:
+				var p := center + Vector2((x * cell + 5.5 - map_position.x) * 0.9, (z * cell + 5.5 - map_position.z) * 0.9)
+				var park := Rect2(p, Vector2(29.7, 29.7)).intersection(inner)
+				if park.has_area():
+					surface.draw_rect(park, Color("75a86b"))
+	for i in range(-3, 4):
+		var x := center.x + ((base_x + i) * cell - map_position.x) * 0.9
+		var z := center.y + ((base_z + i) * cell - map_position.z) * 0.9
+		if x >= inner.position.x and x <= inner.end.x:
+			surface.draw_line(Vector2(x, inner.position.y), Vector2(x, inner.end.y), Color("70808b"), 8)
+		if z >= inner.position.y and z <= inner.end.y:
+			surface.draw_line(Vector2(inner.position.x, z), Vector2(inner.end.x, z), Color("70808b"), 8)
+	if map_has_target:
+		var objective_point := center + map_offset(map_position, map_target)
+		surface.draw_circle(objective_point, 7, Color("171429"))
+		surface.draw_circle(objective_point, 4, Color("ed524d"))
+	var heading := Vector2(-sin(map_yaw), -cos(map_yaw))
+	var sideways := Vector2(-heading.y, heading.x)
+	var triangle := PackedVector2Array([center + heading * 10, center - heading * 7 + sideways * 6, center - heading * 7 - sideways * 6])
+	surface.draw_colored_polygon(triangle, Color("171429"))
+	var small := PackedVector2Array([center + heading * 6, center - heading * 5 + sideways * 3, center - heading * 5 - sideways * 3])
+	surface.draw_colored_polygon(small, Color("36b4de"))
+	surface.draw_string(ComicFont, inner.position + Vector2(6, 17), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color("171429"))
+
 func draw_controls() -> void:
 	if not active:
 		return
 	var s := get_viewport().get_visible_rect().size
 	var center := stick_center()
+	draw_minimap(s)
 	surface.draw_circle(center, 72, Color(0.06, 0.05, 0.10, 0.8))
 	surface.draw_circle(center, 67, Color(0.12, 0.34, 0.48, 0.8))
 	surface.draw_circle(center + movement * 48, 29, Color("171429"))

@@ -53,7 +53,7 @@ func setup(index: int) -> void:
 	for side in [-1, 1]:
 		for z in [-1.15, 1.15]:
 			var wheel := MeshInstance3D.new()
-			wheel.name = "Wheel"
+			wheel.name = "Wheel_%s_%s" % ["L" if side < 0 else "R", "Front" if z < 0 else "Rear"]
 			wheel.mesh = tire
 			wheel.rotation.z = PI * 0.5
 			wheel.position = Vector3(side * 0.9, 0.38, z)

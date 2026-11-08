@@ -392,7 +392,7 @@ func spawn_mission_prop(at: Vector3, kind: String) -> void:
 	mission_prop = Node3D.new()
 	mission_prop.set_script(ObjectivePropScript)
 	mission_prop.game = self
-	mission_prop.position = at + Vector3(0, 0, 2)
+	mission_prop.position = at + Vector3(2, 0, -2)
 	add_child(mission_prop)
 	mission_prop.setup(kind)
 
@@ -496,8 +496,16 @@ func current_target() -> Variant:
 		var mission: Dictionary = Missions.story_stage(stage)
 		if mission.type == "complete":
 			return null
-		return mission.destination if mission.type == "escort" else mission.at
+		if mission.type == "escort":
+			return mission.destination
+		if mission.type == "interact" and is_instance_valid(mission_prop):
+			return mission_prop.position
+		return mission.at
 	if crime_phase != "waiting":
+		if crime_phase == "interact" and crime_type == "sabotage" and is_instance_valid(mission_prop):
+			return mission_prop.position
+		if crime_phase == "interact" and crime_type == "rescue" and is_instance_valid(crime_civilian):
+			return crime_civilian.position
 		return crime_target
 	return null
 
@@ -561,12 +569,14 @@ func recenter_civilians() -> void:
 func interact() -> void:
 	if mode == "Story":
 		var mission: Dictionary = Missions.story_stage(stage)
-		if mission.type == "interact" and Missions.near(hero.position, mission.at, 5.0):
+		if mission.type == "interact" and is_instance_valid(mission_prop) and Missions.near(hero.position, mission_prop.position, 3.5):
 			advance_story()
 			return
-	elif crime_phase == "interact" and Missions.near(hero.position, crime_target, 5.0):
-		finish_crime(true)
-		return
+	elif crime_phase == "interact":
+		var subject = mission_prop if crime_type == "sabotage" else crime_civilian
+		if is_instance_valid(subject) and Missions.near(hero.position, subject.position, 3.5):
+			finish_crime(true)
+			return
 	var nearest
 	var distance := 3.5
 	for npc in people:

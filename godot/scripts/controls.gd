@@ -18,6 +18,9 @@ var map_yaw := 0.0
 var map_target := Vector3.ZERO
 var map_has_target := false
 var district := "Downtown"
+var enemy_name := ""
+var enemy_health := 0.0
+var enemy_max_health := 1.0
 var health := 100.0
 var mirrored := false
 var movement_pointer := -1
@@ -197,6 +200,12 @@ func draw_controls() -> void:
 	surface.draw_rect(Rect2(12, 78, 470, 34), Color("171429"))
 	surface.draw_rect(Rect2(16, 82, 462, 26), Color("ffe15d"))
 	surface.draw_string(ComicFont, Vector2(25, 102), objective, HORIZONTAL_ALIGNMENT_LEFT, 446, 21, Color("171429"))
+	if not enemy_name.is_empty():
+		surface.draw_rect(Rect2(12, 154, 250, 43), Color("171429"))
+		surface.draw_rect(Rect2(16, 158, 242, 35), Color("fff3cc"))
+		surface.draw_string(ComicFont, Vector2(23, 176), enemy_name, HORIZONTAL_ALIGNMENT_LEFT, 225, 18, Color("171429"))
+		surface.draw_rect(Rect2(23, 180, 225, 8), Color("171429"))
+		surface.draw_rect(Rect2(25, 182, 221 * clampf(enemy_health / maxf(enemy_max_health, 1.0), 0.0, 1.0), 4), Color("e65049"))
 	if not message.is_empty():
 		surface.draw_string_outline(ComicFont, Vector2(20, 143), message, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, 21, 4, Color("171429"))
 		surface.draw_string(ComicFont, Vector2(20, 143), message, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, 21, Color.WHITE)

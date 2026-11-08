@@ -133,6 +133,8 @@ func _physics_process(delta: float) -> void:
 	var attack_range := 4.5 if is_boss else 1.9
 	velocity.y -= 18 * delta
 	if is_enemy:
+		if distance > 0.1:
+			visual.rotation.y = lerp_angle(visual.rotation.y, atan2(flat.x, flat.z) + PI, minf(1.0, delta * 8.0))
 		if windup > 0:
 			windup -= delta
 			velocity.x = move_toward(velocity.x, 0, delta * 15)

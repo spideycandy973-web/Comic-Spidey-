@@ -550,6 +550,16 @@ func _process(delta: float) -> void:
 		controls.target_direction = Vector2(direction.dot(right), -direction.dot(forward))
 		distance = "  |  %dm" % roundi(Vector2(hero.position.x - target.x, hero.position.z - target.z).length())
 	controls.health = hero.health
+	controls.enemy_name = ""
+	var nearest_enemy_distance := 12.0
+	for enemy in mission_enemies:
+		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion() and enemy.health > 0:
+			var enemy_distance: float = hero.global_position.distance_to(enemy.global_position)
+			if enemy_distance < nearest_enemy_distance:
+				nearest_enemy_distance = enemy_distance
+				controls.enemy_name = "DOCTOR OCTOPUS" if enemy.is_boss else "ATTACKER"
+				controls.enemy_health = enemy.health
+				controls.enemy_max_health = 200.0 if enemy.is_boss else 60.0
 	controls.status = "%s  |  HEALTH %d  |  %s" % [mode.to_upper(), ceili(hero.health), "WEB ATTACHED" if hero.rope_active else "WEB READY"]
 	if mode == "Story":
 		controls.objective = Missions.story_stage(stage).title + distance

@@ -170,6 +170,8 @@ func run_test() -> void:
 				enemy.position = mission.at + Vector3(0, 0.1, 0)
 				scene.hero.attack_cooldown = 0
 				var previous: float = enemy.health
+				scene._process(0.01)
+				check(not scene.controls.enemy_name.is_empty() and scene.controls.enemy_health == previous, "nearby enemy health is displayed")
 				scene.hero.attack()
 				check(enemy.health == previous - 25, "hero attack damages enemy in stage %d" % expected)
 				check(not scene.find_children("ImpactText*", "Label3D", true, false).is_empty(), "successful melee shows comic impact text")

@@ -408,6 +408,7 @@ func _process(delta: float) -> void:
 		var right := Vector3(cos(hero.yaw), 0, -sin(hero.yaw))
 		controls.target_direction = Vector2(direction.dot(right), -direction.dot(forward))
 		distance = "  |  %dm" % roundi(Vector2(hero.position.x - target.x, hero.position.z - target.z).length())
+	controls.health = hero.health
 	controls.status = "%s  |  HEALTH %d  |  %s" % [mode.to_upper(), ceili(hero.health), "WEB ATTACHED" if hero.rope_active else "WEB READY"]
 	if mode == "Story":
 		controls.objective = Missions.story_stage(stage).title + distance

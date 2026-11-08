@@ -11,6 +11,7 @@ var status := ""
 var message := ""
 var objective := ""
 var target_direction := Vector2.ZERO
+var health := 100.0
 var joystick := Vector2.ZERO
 
 func _ready() -> void:
@@ -104,5 +105,8 @@ func draw_controls() -> void:
 		var triangle := PackedVector2Array([compass_center + direction * 18, compass_center - direction * 11 + side * 9, compass_center - direction * 11 - side * 9])
 		surface.draw_colored_polygon(triangle, Color(0.45, 0.9, 1.0))
 	surface.draw_string(ThemeDB.fallback_font, Vector2(20, 32), status, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color.WHITE)
+	surface.draw_rect(Rect2(20, 39, 180, 8), Color(0.1, 0.1, 0.12, 0.8))
+	var health_color := Color(0.22, 0.85, 0.40) if health > 35 else Color(0.95, 0.24, 0.16)
+	surface.draw_rect(Rect2(20, 39, 180 * clampf(health / 100.0, 0.0, 1.0), 8), health_color)
 	surface.draw_string(ThemeDB.fallback_font, Vector2(20, 62), objective, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, 18, Color(0.75, 0.95, 1))
 	surface.draw_string(ThemeDB.fallback_font, Vector2(20, 90), message, HORIZONTAL_ALIGNMENT_LEFT, s.x - 40, 18, Color.WHITE)

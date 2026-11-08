@@ -30,6 +30,14 @@ func setup(model: PackedScene, enemy: bool, boss: bool = false) -> void:
 		visual.scale = Vector3.ONE * 1.15
 	else:
 		visual.scale = Vector3.ONE
+		if enemy:
+			# Distinguish the attackers' clothing from civilian clothing.
+			var uniform := StandardMaterial3D.new()
+			uniform.albedo_color = Color("343648")
+			uniform.roughness = 0.9
+			for mesh in visual.find_children("*", "MeshInstance3D", true, false):
+				if str(mesh.name).to_lower().begins_with("cloth"):
+					mesh.material_override = uniform
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.38
@@ -76,15 +84,15 @@ func _physics_process(delta: float) -> void:
 			velocity.x = move_toward(velocity.x, 0, delta * 15)
 			velocity.z = move_toward(velocity.z, 0, delta * 15)
 			if windup <= 0 and distance < (3.0 if is_boss else 2.0) and has_line_of_sight():
-				hero.take_damage(18.0 if is_boss else 10.0)
+				hero.take_damage((24.0 if health <= 100 else 18.0) if is_boss else 10.0)
 		elif stun <= 0 and distance < 24 and distance > (2.2 if is_boss else 1.5):
 			var direction: Vector3 = flat.normalized()
 			velocity.x = direction.x * 3.0
 			velocity.z = direction.z * 3.0
 			visual.rotation.y = atan2(direction.x, direction.z) + PI
 		elif stun <= 0 and distance <= (2.5 if is_boss else 2.0) and attack_cooldown <= 0 and has_line_of_sight():
-			windup = 0.65
-			attack_cooldown = 2.0
+			windup = 0.48 if is_boss and health <= 100 else 0.65
+			attack_cooldown = 1.4 if is_boss and health <= 100 else 2.0
 		else:
 			velocity.x = move_toward(velocity.x, 0, delta * 12)
 			velocity.z = move_toward(velocity.z, 0, delta * 12)
@@ -136,7 +144,7 @@ func hit(damage: float, direction: Vector3) -> void:
 		return
 	health -= damage
 	windup = 0
-	stun = 0.45
+	stun = 0.28
 	velocity.x = direction.x * 4
 	velocity.z = direction.z * 4
 	if health <= 0:

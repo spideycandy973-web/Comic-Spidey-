@@ -18,6 +18,6 @@ func _draw() -> void:
 		draw_colored_polygon(points, Color(0.12, 0.32, 0.43, 0.65))
 	for x in range(18, int(s.x), 34):
 		for y in range(18, int(s.y), 34):
-			draw_circle(Vector2(x, y), 2.3, Color(0.01, 0.05, 0.09, 0.5))
+			draw_rect(Rect2(x - 2, y - 2, 4, 4), Color(0.01, 0.05, 0.09, 0.5))
 	draw_rect(Rect2(0, 0, s.x, 9), Color("171429"))
 	draw_rect(Rect2(0, s.y - 9, s.x, 9), Color("171429"))

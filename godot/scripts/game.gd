@@ -120,6 +120,8 @@ func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
 		add_menu_button(box, "New " + label, start_mode.bind(label))
 
 func show_credits() -> void:
+	if OS.is_debug_build():
+		print("Native credits opened")
 	if is_instance_valid(menu):
 		menu.queue_free()
 	menu = CanvasLayer.new()
@@ -486,6 +488,8 @@ func pause_game() -> void:
 	show_menu(true)
 
 func resume_game() -> void:
+	if OS.is_debug_build():
+		print("Native game resumed")
 	if is_instance_valid(menu):
 		menu.queue_free()
 	for npc in people:

@@ -205,6 +205,8 @@ func attach_web(forward: Vector3) -> void:
 		anchor = selected
 		rope_length = (global_position + Vector3.UP).distance_to(anchor)
 		rope_active = true
+		if OS.is_debug_build():
+			print("Native web attached")
 		game.sound.play_effect("web")
 		web.visible = true
 	else:

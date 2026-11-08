@@ -11,13 +11,23 @@ adb shell monkey -p "$package" -c android.intent.category.LAUNCHER 1
 # Allow engine startup and model import to finish on software rendering.
 sleep 20
 adb shell pidof "$package" >/dev/null
-# Record the actual menu before selecting New Story on the landscape screen.
+# Open credits from the actual Android menu, then return and choose Story.
 adb exec-out screencap -p > /tmp/android-menu.png
+adb shell input tap 640 225
+sleep 3
+adb shell input tap 640 47
+sleep 3
 adb shell input tap 640 285
 sleep 20
 # Exercise the touch buttons and movement joystick through Android, not injected Godot events.
 adb shell input tap 1115 635
 adb shell input swipe 100 620 100 550 1500
+adb shell input swipe 1198 530 1198 530 1800
+sleep 3
+# Pause and resume through the touch UI.
+adb shell input tap 1232 50
+sleep 2
+adb shell input tap 640 165
 sleep 5
 adb shell pidof "$package" >/dev/null
 adb shell dumpsys activity activities | grep -q "$package"
@@ -38,8 +48,12 @@ PYSCREEN
   echo '::error::Story mode did not start after the emulator touch'
   exit 1
 fi
-if ! grep -q 'Native attack input received' /tmp/native-android-log.txt || ! grep -q 'Native movement input received' /tmp/native-android-log.txt; then
-  echo '::error::Touch attack or movement input did not reach native gameplay'
+if ! grep -q 'Native attack input received' /tmp/native-android-log.txt || ! grep -q 'Native movement input received' /tmp/native-android-log.txt || ! grep -q 'Native web attached' /tmp/native-android-log.txt; then
+  echo '::error::Touch attack, movement or swinging input did not reach native gameplay'
+  exit 1
+fi
+if ! grep -q 'Native credits opened' /tmp/native-android-log.txt || ! grep -q 'Native game resumed' /tmp/native-android-log.txt; then
+  echo '::error::Credits or pause/resume did not respond to Android touch'
   exit 1
 fi
 if grep -E 'FATAL EXCEPTION|SCRIPT ERROR|AndroidRuntime.*FATAL' /tmp/native-android-log.txt; then

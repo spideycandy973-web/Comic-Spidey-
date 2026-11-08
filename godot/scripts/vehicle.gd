@@ -28,12 +28,44 @@ func setup(index: int) -> void:
 		visual.rotation.y = PI * 0.5 if travel_sign < 0 else -PI * 0.5
 	var body_color: Color = [Color("b85440"), Color("52718a"), Color("d3b36c"), Color("63796a")][index % 4]
 	make_box(Vector3(1.7, 0.65, 3.7), Vector3(0, 0.7, 0), body_color)
-	make_box(Vector3(1.45, 0.65, 1.8), Vector3(0, 1.3, 0.1), Color("354b55"))
+	make_box(Vector3(1.45, 0.65, 1.8), Vector3(0, 1.3, 0.1), Color("385f75"))
 	make_box(Vector3(1.5, 0.15, 1.9), Vector3(0, 1.65, 0.1), body_color)
+	make_box(Vector3(1.65, 0.17, 0.15), Vector3(0, 0.45, -1.9), Color("253246"))
+	make_box(Vector3(1.65, 0.17, 0.15), Vector3(0, 0.45, 1.9), Color("253246"))
+	var tire := CylinderMesh.new()
+	tire.top_radius = 0.37
+	tire.bottom_radius = 0.37
+	tire.height = 0.26
+	tire.radial_segments = 12
+	var tire_mat := StandardMaterial3D.new()
+	tire_mat.albedo_color = Color("1d2733")
+	tire_mat.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+	tire.material = tire_mat
+	var hub := CylinderMesh.new()
+	hub.top_radius = 0.16
+	hub.bottom_radius = 0.16
+	hub.height = 0.28
+	hub.radial_segments = 12
+	var hub_mat := StandardMaterial3D.new()
+	hub_mat.albedo_color = Color("c9d7d6")
+	hub_mat.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+	hub.material = hub_mat
 	for side in [-1, 1]:
 		for z in [-1.15, 1.15]:
-			make_box(Vector3(0.3, 0.48, 0.7), Vector3(side * 0.88, 0.34, z), Color("22262b"))
-		make_box(Vector3(0.3, 0.2, 0.08), Vector3(side * 0.55, 0.75, -1.88), Color("f4e6ad"))
+			var wheel := MeshInstance3D.new()
+			wheel.name = "Wheel"
+			wheel.mesh = tire
+			wheel.rotation.z = PI * 0.5
+			wheel.position = Vector3(side * 0.9, 0.38, z)
+			visual.add_child(wheel)
+			var cap := MeshInstance3D.new()
+			cap.mesh = hub
+			cap.rotation.z = PI * 0.5
+			cap.position = Vector3(side * 0.91, 0.38, z)
+			visual.add_child(cap)
+		make_box(Vector3(0.3, 0.2, 0.08), Vector3(side * 0.55, 0.75, -1.88), Color("fff0a2"))
+		make_box(Vector3(0.3, 0.16, 0.08), Vector3(side * 0.55, 0.75, 1.88), Color("e75550"))
+		make_box(Vector3(0.04, 0.05, 0.3), Vector3(side * 0.86, 0.95, 0.55), Color("e3e1cf"))
 	recenter(index)
 
 func make_box(size: Vector3, at: Vector3, color: Color) -> void:
@@ -42,6 +74,8 @@ func make_box(size: Vector3, at: Vector3, color: Color) -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
 	mat.roughness = 0.75
+	mat.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
+	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
 	mesh.material = mat
 	var instance := MeshInstance3D.new()
 	instance.mesh = mesh

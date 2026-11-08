@@ -78,6 +78,7 @@ func run_test() -> void:
 	var facades = block.get_node_or_null("BuildingFacades")
 	check(facades != null and facades.multimesh.instance_count == 4, "city batches building visuals without removing collisions")
 	var car = scene.traffic[0]
+	check(car.visual.find_children("Wheel*", "MeshInstance3D", true, false).size() == 4, "traffic cars have four round wheels")
 	car.set_physics_process(false)
 	car.axis = 0
 	car.travel_sign = 1.0

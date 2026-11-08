@@ -23,6 +23,7 @@ var marker: MeshInstance3D
 var marker_material: StandardMaterial3D
 var tentacle_materials: Array[ShaderMaterial] = []
 var tentacle_time := 0.0
+var detour_sign := 0.0
 
 func setup(model: PackedScene, enemy: bool, boss: bool = false, variant: int = 0) -> void:
 	is_enemy = enemy
@@ -131,7 +132,7 @@ func _physics_process(delta: float) -> void:
 			if windup <= 0 and distance < attack_range + 0.3 and height_difference < 2.5 and has_line_of_sight():
 				hero.take_damage((24.0 if health <= 100 else 18.0) if is_boss else 10.0)
 		elif stun <= 0 and distance < 24 and distance > attack_range - 0.4:
-			var direction: Vector3 = flat.normalized()
+			var direction: Vector3 = pursuit_direction(flat)
 			velocity.x = direction.x * 3.0
 			velocity.z = direction.z * 3.0
 			visual.rotation.y = atan2(direction.x, direction.z) + PI
@@ -142,7 +143,7 @@ func _physics_process(delta: float) -> void:
 			velocity.x = move_toward(velocity.x, 0, delta * 12)
 			velocity.z = move_toward(velocity.z, 0, delta * 12)
 	elif escorting:
-		var direction: Vector3 = flat.normalized()
+		var direction: Vector3 = pursuit_direction(flat)
 		if distance > 2.8 and distance < 30 and absf(hero.global_position.y - global_position.y) < 3:
 			velocity.x = direction.x * 4.5
 			velocity.z = direction.z * 4.5
@@ -188,6 +189,30 @@ func _physics_process(delta: float) -> void:
 	if marker_material:
 		marker_material.albedo_color = Color(1.0, 0.08, 0.04, 0.9) if windup > 0 else Color(1.0, 0.55, 0.06, 0.8)
 	move_and_slide()
+
+func pursuit_direction(flat: Vector3) -> Vector3:
+	if flat.length_squared() < 0.01:
+		return Vector3.ZERO
+	var direct := flat.normalized()
+	var from := global_position + Vector3.UP
+	var to := Vector3(hero.global_position.x, from.y, hero.global_position.z)
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1)
+	var obstacle := get_world_3d().direct_space_state.intersect_ray(query)
+	if obstacle.is_empty():
+		detour_sign = 0.0
+		return direct
+	var normal: Vector3 = obstacle.normal
+	normal.y = 0
+	if normal.length_squared() < 0.01:
+		return direct
+	normal = normal.normalized()
+	var tangent := Vector3(-normal.z, 0, normal.x)
+	if detour_sign == 0.0:
+		var alignment := tangent.dot(direct)
+		detour_sign = (1.0 if get_instance_id() % 2 == 0 else -1.0) if absf(alignment) < 0.05 else signf(alignment)
+	# Stay on the same side while sight is blocked, avoiding frame-to-frame
+	# oscillation at walls. A slight outward component leaves room for a capsule.
+	return (tangent * detour_sign + normal * 0.2).normalized()
 
 func has_line_of_sight() -> bool:
 	var query := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP, hero.global_position + Vector3.UP, 1)

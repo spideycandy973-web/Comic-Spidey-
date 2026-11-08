@@ -66,6 +66,11 @@ func run_test() -> void:
 	check(scene.people.size() == 6 and scene.stage == 0, "story starts at the first objective")
 	check(scene.traffic.size() == 6, "native traffic spawns")
 	check(scene.people[2].anim != null and scene.people[2].anim.has_animation("run") and scene.people[3].anim != null and scene.people[3].anim.has_animation("run"), "additional rigged citizens have run clips")
+	check(scene.world.district_for(Vector2i(0, 0)) == "Downtown" and scene.world.district_for(Vector2i(5, 0)) == "Industrial" and scene.world.district_for(Vector2i(-5, 0)) == "Residential", "city districts have distinct profiles")
+	var tank_count := 0
+	for chunk in scene.world.chunks.values():
+		tank_count += int(chunk.get_meta("water_tanks", 0))
+	check(tank_count > 0, "city blocks include rooftop water tanks")
 	var block = scene.world.chunks[Vector2i(0, 0)]
 	var facades = block.get_node_or_null("BuildingFacades")
 	check(facades != null and facades.multimesh.instance_count == 4, "city batches building visuals without removing collisions")

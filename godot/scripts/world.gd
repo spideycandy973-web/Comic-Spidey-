@@ -18,6 +18,9 @@ var glass_material: StandardMaterial3D
 var awning_material: StandardMaterial3D
 var metal_material: StandardMaterial3D
 var facade_material: ShaderMaterial
+var sidewalk_material: StandardMaterial3D
+var tank_material: StandardMaterial3D
+var path_material: StandardMaterial3D
 
 func _ready() -> void:
 	facade_material = ShaderMaterial.new()
@@ -35,6 +38,9 @@ func _ready() -> void:
 	glass_material = material(Color("246078"))
 	awning_material = material(Color("e04a50"))
 	metal_material = material(Color("38474c"))
+	sidewalk_material = material(Color("b8b7a9"))
+	tank_material = material(Color("b2764f"))
+	path_material = material(Color("ddcda1"))
 	var ground := StaticBody3D.new()
 	var ground_shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
@@ -89,15 +95,29 @@ func update_chunks(at: Vector3) -> void:
 		for p in chunk.get_meta("anchors"):
 			anchors.append(p)
 
+func district_for(key: Vector2i) -> String:
+	if key.x >= 4:
+		return "Industrial"
+	if key.x <= -4:
+		return "Residential"
+	if absi(key.x) <= 2 and absi(key.y) <= 2:
+		return "Downtown"
+	return "Midtown"
+
 func make_chunk(key: Vector2i) -> void:
 	var chunk := Node3D.new()
 	chunk.name = "Block_%d_%d" % [key.x, key.y]
 	add_child(chunk)
 	chunks[key] = chunk
+	var district := district_for(key)
+	chunk.set_meta("district", district)
 	var roofs: Array[Vector3] = []
 	var building_transforms: Array[Transform3D] = []
 	var building_colors: Array[Color] = []
 	var rooftop_details: Array[Transform3D] = []
+	var tanks: Array[Transform3D] = []
+	var tank_roofs: Array[Transform3D] = []
+	var tank_legs: Array[Transform3D] = []
 	var doors: Array[Transform3D] = []
 	var awnings: Array[Transform3D] = []
 	var street_furniture: Array[Transform3D] = []
@@ -114,7 +134,7 @@ func make_chunk(key: Vector2i) -> void:
 	sidewalk.mesh = slab
 	sidewalk.position = Vector3((key.x + 0.5) * CELL, 0.01, (key.y + 0.5) * CELL)
 	var is_park := absi(key.x * 7 + key.y * 11) % 17 == 5
-	sidewalk.material_override = grass_material if is_park else material(Color("b8b7a9"))
+	sidewalk.material_override = grass_material if is_park else sidewalk_material
 	chunk.add_child(sidewalk)
 	# Dashed lane markings and pedestrian crossings, batched per city block.
 	var ox := key.x * CELL
@@ -138,7 +158,7 @@ func make_chunk(key: Vector2i) -> void:
 	for dx in [-1, 1]:
 		for dz in [-1, 1]:
 			var center := Vector3((key.x + 0.5) * CELL + dx * 8.2, 0, (key.y + 0.5) * CELL + dz * 8.2)
-			var height := rng.randf_range(12, 34)
+			var height := rng.randf_range(18, 38) if district == "Downtown" else (rng.randf_range(9, 20) if district == "Residential" else (rng.randf_range(10, 24) if district == "Industrial" else rng.randf_range(13, 30)))
 			var size := Vector3(rng.randf_range(12, 15), height, rng.randf_range(12, 15))
 			var building := StaticBody3D.new()
 			building.position = center + Vector3.UP * height * 0.5
@@ -146,6 +166,10 @@ func make_chunk(key: Vector2i) -> void:
 			shape.size = size
 			building_transforms.append(Transform3D(Basis.from_scale(size), building.position))
 			var palette := [Color("df886d"), Color("e8ba77"), Color("6d9da8"), Color("b694b3"), Color("d9a69b"), Color("9fb2a3")]
+			if district == "Residential":
+				palette = [Color("e5ae88"), Color("c98985"), Color("e7c78a"), Color("91b3a2")]
+			elif district == "Industrial":
+				palette = [Color("b97b65"), Color("c08d66"), Color("9a9c91"), Color("a78978")]
 			building_colors.append(palette[rng.randi_range(0, palette.size() - 1)])
 			var collision := CollisionShape3D.new()
 			collision.shape = shape
@@ -153,6 +177,14 @@ func make_chunk(key: Vector2i) -> void:
 			chunk.add_child(building)
 			rooftop_details.append(Transform3D(Basis.from_scale(Vector3(2.8, 1.3, 2.3)), center + Vector3(0, height + 0.65, 0)))
 			rooftop_details.append(Transform3D(Basis.from_scale(Vector3(size.x + 0.3, 0.35, size.z + 0.3)), center + Vector3.UP * height))
+			# Familiar rooftop water tanks add silhouette variety without extra collision.
+			if rng.randi_range(0, 2) == 0:
+				var tank_pos := center + Vector3(3.2 * dx, height, 0)
+				tanks.append(Transform3D(Basis.from_scale(Vector3(2.2, 1.15, 2.2)), tank_pos + Vector3.UP * 3.0))
+				tank_roofs.append(Transform3D(Basis.from_scale(Vector3(2.5, 0.9, 2.5)), tank_pos + Vector3.UP * 4.6))
+				for tx in [-0.75, 0.75]:
+					for tz in [-0.75, 0.75]:
+						tank_legs.append(Transform3D(Basis.from_scale(Vector3(0.14, 1.8, 0.14)), tank_pos + Vector3(tx, 0.9, tz)))
 			doors.append(Transform3D(Basis.from_scale(Vector3(0.1, 3.0, 2.3)), center + Vector3(dx * (size.x * 0.5 + 0.06), 1.5, 0)))
 			awnings.append(Transform3D(Basis.from_scale(Vector3(1.1, 0.25, 3.2)), center + Vector3(dx * (size.x * 0.5 + 0.5), 3.2, 0)))
 			var sign_basis := Basis(Vector3.UP, dx * PI * 0.5) * Basis.from_scale(Vector3(3.5, 1.3, 1))
@@ -167,6 +199,16 @@ func make_chunk(key: Vector2i) -> void:
 					roofs.append(center + Vector3(side_x * (size.x * 0.5 + 0.3), height + 0.25, side_z * (size.z * 0.5 + 0.3)))
 	add_buildings(chunk, building_transforms, building_colors)
 	add_instances(chunk, rooftop_details, roof_material)
+	if not tanks.is_empty():
+		var tank_mesh := CylinderMesh.new()
+		var tank_roof := CylinderMesh.new()
+		tank_roof.top_radius = 0
+		tank_roof.bottom_radius = 0.5
+		tank_roof.height = 1
+		add_instances(chunk, tanks, tank_material, tank_mesh)
+		add_instances(chunk, tank_roofs, roof_material, tank_roof)
+		add_instances(chunk, tank_legs, metal_material)
+	chunk.set_meta("water_tanks", tanks.size())
 	add_instances(chunk, doors, glass_material)
 	add_instances(chunk, awnings, awning_material)
 	add_signs(chunk, sign_comics, sign_materials[0])
@@ -184,6 +226,19 @@ func add_signs(parent: Node3D, transforms: Array[Transform3D], mat: Material) ->
 func add_park(parent: Node3D, key: Vector2i, rng: RandomNumberGenerator) -> void:
 	var trunks: Array[Transform3D] = []
 	var canopies: Array[Transform3D] = []
+	var paths: Array[Transform3D] = []
+	var benches: Array[Transform3D] = []
+	var middle := Vector3((key.x + 0.5) * CELL, 0, (key.y + 0.5) * CELL)
+	paths.append(Transform3D(Basis.from_scale(Vector3(3, 0.04, 31)), middle + Vector3.UP * 0.15))
+	paths.append(Transform3D(Basis.from_scale(Vector3(31, 0.04, 3)), middle + Vector3.UP * 0.15))
+	for side in [-1, 1]:
+		var b := middle + Vector3(side * 4.3, 0, 4.2)
+		benches.append(Transform3D(Basis.from_scale(Vector3(2.5, 0.18, 0.65)), b + Vector3.UP * 0.65))
+		benches.append(Transform3D(Basis.from_scale(Vector3(2.5, 0.7, 0.14)), b + Vector3(0, 1.05, 0.3)))
+		for leg in [-0.85, 0.85]:
+			benches.append(Transform3D(Basis.from_scale(Vector3(0.15, 0.5, 0.15)), b + Vector3(leg, 0.37, 0)))
+	add_instances(parent, paths, path_material)
+	add_instances(parent, benches, tank_material)
 	for x in [-1, 0, 1]:
 		for z in [-1, 1]:
 			var p := Vector3((key.x + 0.5) * CELL + x * 10.0, 0, (key.y + 0.5) * CELL + z * 8.0)

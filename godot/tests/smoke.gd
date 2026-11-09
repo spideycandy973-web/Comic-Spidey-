@@ -152,6 +152,7 @@ func run_test() -> void:
 	var before_collision: float = scene.hero.health
 	await physics_frame
 	for frame in range(90):
+		await physics_frame
 		scene.hero._physics_process(1.0 / 60.0)
 		if scene.hero.health < before_collision:
 			break

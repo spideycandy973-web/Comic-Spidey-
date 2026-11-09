@@ -12,8 +12,8 @@ if ! adb shell pidof org.example.enginecheck || ! grep -q 'jMonkeyEngine 3D init
   python3 - <<'PYLOG'
 from pathlib import Path
 lines=Path('/tmp/engine-check.log').read_text(errors='replace').splitlines()
-selected=[x for x in lines if any(s in x.lower() for s in ['enginecheck', 'androidharness', 'com.jme3', 'fatal exception'])]
-text='\n'.join(selected[-40:])+'\nCrash buffer:\n'+Path('/tmp/engine-crash.log').read_text(errors='replace')[-5000:]
+selected=[x for x in lines if any(s in x.lower() for s in ['androidharness', 'com.jme3', 'fatal exception', 'caused by:'])]
+text='\n'.join(selected[:35])+'\nCrash buffer:\n'+Path('/tmp/engine-crash.log').read_text(errors='replace')[-3000:]
 print('::notice::'+text.replace('%','%25').replace('\r','%0D').replace('\n','%0A'))
 PYLOG
   echo '::error::Engine did not initialize on emulator'

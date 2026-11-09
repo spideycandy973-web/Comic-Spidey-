@@ -134,7 +134,7 @@ func run_test() -> void:
 	check(scene.hero.hand_bone >= 0 and scene.hero.animator.has_animation("run"), "hand and run animation imported")
 	check(scene.hero.animator.get_animation("run").loop_mode == Animation.LOOP_LINEAR, "run animation loops")
 	check(scene.sound.samples.size() == 5, "offline sound cues were generated")
-	var environments := scene.find_children("*", "WorldEnvironment", true, false)
+	var environments: Array = scene.find_children("*", "WorldEnvironment", true, false)
 	check(not environments.is_empty() and environments[0].environment.background_mode == Environment.BG_SKY, "city uses the procedural sky")
 	scene.hero.attach_web(Vector3(0, 0, -1))
 	check(scene.hero.rope_active and scene.hero.rope_length > 0, "web finds an unobstructed roof")

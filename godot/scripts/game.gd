@@ -47,8 +47,17 @@ var pending_spawn_check := false
 func _ready() -> void:
 	var env := WorldEnvironment.new()
 	var environment := Environment.new()
-	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color("7ac7df")
+	# A lightweight procedural horizon gives the city depth without large
+	# sky textures or a network-dependent environment map.
+	environment.background_mode = Environment.BG_SKY
+	var sky_material := ProceduralSkyMaterial.new()
+	sky_material.sky_top_color = Color("397caa")
+	sky_material.sky_horizon_color = Color("c5e4e5")
+	sky_material.ground_bottom_color = Color("495a70")
+	sky_material.ground_horizon_color = Color("b8d1d3")
+	var sky := Sky.new()
+	sky.sky_material = sky_material
+	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color(0.75, 0.8, 0.9)
 	environment.ambient_light_energy = 0.55

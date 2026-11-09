@@ -65,6 +65,9 @@ func run_test() -> void:
 	scene.sound.toggle()
 	# Graphics are persisted alongside, not instead of, audio and touch settings.
 	scene.show_graphics()
+	await process_frame
+	for button in scene.menu.find_children("*", "Button", true, false):
+		print("Graphics layout: ", button.text, " ", button.get_global_rect())
 	scene.change_graphics("scale")
 	check(is_equal_approx(root.scaling_3d_scale, 0.7), "3D resolution setting changes the viewport")
 	scene.change_graphics("fxaa")

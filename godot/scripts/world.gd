@@ -5,8 +5,11 @@ const CELL := 44.0
 const RADIUS := 2
 var chunks: Dictionary = {}
 var anchors: Array[Vector3] = []
+var last_chunk_center := Vector2i(2147483647, 2147483647)
+var stream_revision := 0
 var player: CharacterBody3D
 const FACADE = preload("res://scripts/facade.gdshader")
+const STREET_SURFACE = preload("res://scripts/street_surface.gdshader")
 const SIGN_TEXTURES = [preload("res://assets/signs/comics.png"), preload("res://assets/signs/pizza.png"), preload("res://assets/signs/bugle.png"), preload("res://assets/signs/cafe.png")]
 var sign_materials: Array[StandardMaterial3D] = []
 var paint_material: StandardMaterial3D
@@ -18,7 +21,7 @@ var glass_material: StandardMaterial3D
 var awning_material: StandardMaterial3D
 var metal_material: StandardMaterial3D
 var facade_material: ShaderMaterial
-var sidewalk_material: StandardMaterial3D
+var sidewalk_material: ShaderMaterial
 var tank_material: StandardMaterial3D
 var path_material: StandardMaterial3D
 
@@ -38,7 +41,7 @@ func _ready() -> void:
 	glass_material = material(Color("246078"))
 	awning_material = material(Color("e04a50"))
 	metal_material = material(Color("38474c"))
-	sidewalk_material = material(Color("b8b7a9"))
+	sidewalk_material = surface_material(Color("b8b7a9"), 0.06)
 	tank_material = material(Color("b2764f"))
 	path_material = material(Color("ddcda1"))
 	var ground := StaticBody3D.new()
@@ -54,7 +57,7 @@ func _ready() -> void:
 	mesh.size = Vector3(2000, 0.2, 2000)
 	ground_mesh.mesh = mesh
 	ground_mesh.position.y = -0.11
-	ground_mesh.material_override = material(Color("40536b"))
+	ground_mesh.material_override = surface_material(Color("40536b"), 0.08)
 	add_child(ground_mesh)
 	# The floor is finite; invisible boundaries prevent falling beyond it.
 	for side in [-1, 1]:
@@ -68,6 +71,13 @@ func _ready() -> void:
 			wall.add_child(wall_shape)
 			add_child(wall)
 
+func surface_material(color: Color, detail: float) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = STREET_SURFACE
+	mat.set_shader_parameter("base_color", color)
+	mat.set_shader_parameter("detail_strength", detail)
+	return mat
+
 func material(color: Color) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
@@ -79,6 +89,11 @@ func material(color: Color) -> StandardMaterial3D:
 func update_chunks(at: Vector3) -> void:
 	var cx := floori(at.x / CELL)
 	var cz := floori(at.z / CELL)
+	var center := Vector2i(cx, cz)
+	if center == last_chunk_center:
+		return
+	last_chunk_center = center
+	stream_revision += 1
 	for x in range(cx - RADIUS, cx + RADIUS + 1):
 		for z in range(cz - RADIUS, cz + RADIUS + 1):
 			var key := Vector2i(x, z)

@@ -21,6 +21,8 @@ var web_retry := 0.0
 var swing_blocked_until_release := false
 var was_grounded := false
 var landing_timer := 0.0
+var coyote_timer := 0.0
+var jump_buffer := 0.0
 var attack_cooldown := 0.0
 var shot_cooldown := 0.0
 var shot_timer := 0.0
@@ -94,6 +96,10 @@ func _physics_process(delta: float) -> void:
 		return
 	web_retry = maxf(0, web_retry - delta)
 	landing_timer = maxf(0, landing_timer - delta)
+	coyote_timer = 0.12 if is_on_floor() else maxf(0.0, coyote_timer - delta)
+	jump_buffer = maxf(0.0, jump_buffer - delta)
+	if controls.consume("jump"):
+		jump_buffer = 0.14
 	attack_cooldown = maxf(0, attack_cooldown - delta)
 	shot_cooldown = maxf(0, shot_cooldown - delta)
 	shot_timer = maxf(0, shot_timer - delta)
@@ -135,26 +141,43 @@ func _physics_process(delta: float) -> void:
 		var horizontal_speed := Vector2(velocity.x, velocity.z).limit_length(25.0)
 		velocity.x = horizontal_speed.x
 		velocity.z = horizontal_speed.y
-	else:
+	elif is_on_floor():
 		velocity.x = move_toward(velocity.x, desired.x * top_speed, accel * delta)
 		velocity.z = move_toward(velocity.z, desired.z * top_speed, accel * delta)
+	else:
+		# Air steering adds acceleration rather than instantly braking a fast
+		# swing release back to walking speed. Gentle drag prevents endless drift.
+		var horizontal := Vector2(velocity.x, velocity.z)
+		var speed_before := horizontal.length()
+		horizontal += Vector2(desired.x, desired.z) * accel * delta
+		horizontal = horizontal.limit_length(maxf(top_speed, speed_before))
+		horizontal = horizontal.move_toward(Vector2.ZERO, 0.25 * delta)
+		velocity.x = horizontal.x
+		velocity.z = horizontal.y
 	velocity.y -= 18 * delta
-	if controls.consume("jump"):
+	if jump_buffer > 0:
+		var jumped := false
 		if rope_active:
 			release_web()
 			swing_blocked_until_release = true
 			velocity.y = maxf(velocity.y, 5.0)
-			game.sound.play_effect("jump")
+			jumped = true
 		elif is_on_floor():
 			velocity.y = 8.5
-			game.sound.play_effect("jump")
-		elif is_on_wall():
+			jumped = true
+		elif is_on_wall() and absf(get_wall_normal().y) < 0.4:
 			var wall_normal := get_wall_normal()
-			if absf(wall_normal.y) < 0.4:
-				velocity.x = wall_normal.x * 6.0
-				velocity.z = wall_normal.z * 6.0
-				velocity.y = 8.0
-				game.sound.play_effect("jump")
+			velocity.x = wall_normal.x * 6.0
+			velocity.z = wall_normal.z * 6.0
+			velocity.y = 8.0
+			jumped = true
+		elif coyote_timer > 0:
+			velocity.y = 8.5
+			jumped = true
+		if jumped:
+			jump_buffer = 0.0
+			coyote_timer = 0.0
+			game.sound.play_effect("jump")
 	if controls.consume("attack") or controls.held("attack") or Input.is_key_pressed(KEY_F):
 		attack()
 	if controls.consume("talk"):
@@ -194,7 +217,7 @@ func _physics_process(delta: float) -> void:
 	update_animation(desired)
 	update_camera(delta)
 
-func update_animation(desired: Vector3) -> void:
+func update_animation(_desired: Vector3) -> void:
 	if not animator:
 		return
 	var name := "idle"
@@ -202,12 +225,15 @@ func update_animation(desired: Vector3) -> void:
 		name = "swing"
 	elif not is_on_floor():
 		name = "jump" if velocity.y > 0.5 else "fall"
-	elif desired.length() > 0.1:
+	elif Vector2(velocity.x, velocity.z).length() > 0.5:
 		name = "run"
 	elif landing_timer > 0:
 		name = "land"
 	if animator.has_animation(name) and animator.current_animation != name:
 		animator.play(name, 0.15)
+	# Match the running clip to actual speed so small joystick inputs do not
+	# look like a full sprint, while preserving airborne clip timing.
+	animator.speed_scale = clampf(Vector2(velocity.x, velocity.z).length() / 7.5, 0.45, 1.2) if name == "run" else 1.0
 
 func update_camera(delta: float) -> void:
 	var target := global_position + Vector3.UP * 1.5

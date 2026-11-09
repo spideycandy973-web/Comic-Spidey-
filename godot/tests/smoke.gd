@@ -103,6 +103,10 @@ func run_test() -> void:
 	for chunk in scene.world.chunks.values():
 		tank_count += int(chunk.get_meta("water_tanks", 0))
 	check(tank_count > 0, "city blocks include rooftop water tanks")
+	var revision: int = scene.world.stream_revision
+	scene.world.update_chunks(Vector3(1, 0, 1))
+	check(scene.world.stream_revision == revision, "stationary city streaming avoids rebuilding anchors and blocks")
+	check(scene.world.sidewalk_material is ShaderMaterial, "street surfaces use the shared detail material")
 	var block = scene.world.chunks[Vector2i(0, 0)]
 	var facades = block.get_node_or_null("BuildingFacades")
 	check(facades != null and facades.multimesh.instance_count == 4, "city batches building visuals without removing collisions")
@@ -172,6 +176,28 @@ func run_test() -> void:
 	check(scene.hero.velocity.y > 5 and scene.hero.velocity.z > 0, "jumping against a wall launches up and away")
 	jump_wall.queue_free()
 	scene.controls.movement = Vector2.ZERO
+	scene.hero.position = Vector3(0, 5, 0)
+	scene.hero.velocity = Vector3.ZERO
+	await physics_frame
+	scene.hero._physics_process(1.0 / 60.0)
+	scene.hero.velocity = Vector3(20, 0, 0)
+	scene.hero._physics_process(1.0 / 60.0)
+	check(scene.hero.velocity.x > 19.8, "airborne swing-release momentum is preserved")
+	scene.hero.coyote_timer = 0.1
+	scene.controls.pressed_once["jump"] = true
+	scene.hero._physics_process(1.0 / 60.0)
+	check(scene.hero.velocity.y > 7, "a late jump works briefly after leaving a ledge")
+	scene.hero.position = Vector3(0, 0.16, 0)
+	scene.hero.velocity = Vector3(0, -3, 0)
+	scene.hero.coyote_timer = 0
+	scene.controls.pressed_once["jump"] = true
+	var buffered_jumped := false
+	for frame in range(8):
+		scene.hero._physics_process(1.0 / 60.0)
+		if scene.hero.velocity.y > 1:
+			buffered_jumped = true
+			break
+	check(buffered_jumped, "jump pressed just before landing is buffered")
 	scene.hero.position = Vector3(0, 0.1, 0)
 	scene.hero.velocity = Vector3.ZERO
 	scene.interact()

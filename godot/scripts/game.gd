@@ -390,6 +390,8 @@ func begin_play() -> void:
 	hero.swing_blocked_until_release = false
 	hero.was_grounded = false
 	hero.landing_timer = 0
+	hero.coyote_timer = 0
+	hero.jump_buffer = 0
 	hero.punch_flash.visible = false
 	hero.shot_line.visible = false
 	hero.punch_timer = 0

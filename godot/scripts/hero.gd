@@ -213,6 +213,15 @@ func _physics_process(delta: float) -> void:
 			var outward := velocity.dot(radial)
 			if outward > 0:
 				velocity -= radial * outward
+	# Predict contact at the capsule's front before sliding. Godot can resolve
+	# a kinematic body as an overlap recovery without returning a slide hit.
+	var horizontal_motion := Vector3(velocity.x, 0, velocity.z)
+	if horizontal_motion.length() >= 3.0 and vehicle_impact_cooldown <= 0.0:
+		var origin := global_position + Vector3.UP * 0.9
+		var reach := horizontal_motion.normalized() * (0.43 + horizontal_motion.length() * delta)
+		var vehicle_hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(origin, origin + reach, 4))
+		if not vehicle_hit.is_empty() and vehicle_hit.collider in game.traffic:
+			vehicle_impact(vehicle_hit.collider.velocity - velocity, -vehicle_hit.normal)
 	var impact_velocity := velocity
 	move_and_slide()
 	for i in range(get_slide_collision_count()):

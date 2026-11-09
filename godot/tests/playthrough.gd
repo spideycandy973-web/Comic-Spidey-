@@ -68,7 +68,7 @@ func run_test() -> void:
 		elif mission.type == "interact":
 			if is_instance_valid(scene.mission_prop):
 				destination = scene.mission_prop.position
-			if Missions.near(scene.hero.position, destination, 3):
+			if Missions.near(scene.hero.position, destination, 3.4):
 				scene.controls.pressed_once["talk"] = true
 				walking = false
 		elif mission.type == "escort":

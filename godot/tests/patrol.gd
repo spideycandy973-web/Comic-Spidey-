@@ -81,7 +81,7 @@ func run_test() -> void:
 				scene.controls.buttons_down["attack"] = true
 				if distance < 2.1:
 					continue
-		elif scene.crime_phase == "interact" and Missions.near(scene.hero.position, destination, 3.0):
+		elif scene.crime_phase == "interact" and Missions.near(scene.hero.position, destination, 3.4):
 			scene.controls.pressed_once["talk"] = true
 			continue
 		scene.controls.movement = steer(scene, destination)

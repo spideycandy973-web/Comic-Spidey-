@@ -1,0 +1,11 @@
+.gradle/
+**/build/
+local.properties
+*.apk
+*.aab
+node_modules/
+
+# Godot import cache and native exports
+/godot/.godot/
+/godot/*.apk
+/godot/*.aab

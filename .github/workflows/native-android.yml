@@ -1,0 +1,145 @@
+name: Native Godot Android development build
+on:
+  push:
+    branches: ['arena/a6af770e-comic-spidey']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Download Godot 4.3
+        run: |
+          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip -O /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          chmod +x /tmp/godot/Godot_v4.3-stable_linux.x86_64
+      - name: Import and test the native scene
+        run: |
+          set +e
+          xvfb-run -a /tmp/godot/Godot_v4.3-stable_linux.x86_64 --audio-driver Dummy --path godot --editor --import --quit > /tmp/native-import.log 2>&1
+          timeout 90s xvfb-run -a /tmp/godot/Godot_v4.3-stable_linux.x86_64 --audio-driver Dummy --path godot --script res://tests/smoke.gd > /tmp/native-smoke.log 2>&1
+          result=$?
+          if [ "$result" -eq 0 ]; then
+            timeout 90s xvfb-run -a /tmp/godot/Godot_v4.3-stable_linux.x86_64 --audio-driver Dummy --path godot --script res://tests/pursuit.gd > /tmp/native-pursuit.log 2>&1
+            result=$?
+          fi
+          if [ "$result" -eq 0 ]; then
+            timeout 180s /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path godot --script res://tests/playthrough.gd > /tmp/native-playthrough.log 2>&1
+            result=$?
+          fi
+          if [ "$result" -eq 0 ]; then
+            timeout 180s /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --audio-driver Dummy --path godot --script res://tests/patrol.gd > /tmp/native-patrol.log 2>&1
+            result=$?
+          fi
+          if [ "$result" -eq 0 ]; then
+            timeout 90s xvfb-run -a /tmp/godot/Godot_v4.3-stable_linux.x86_64 --audio-driver Dummy --path godot --script res://tests/render.gd > /tmp/native-render.log 2>&1
+            result=$?
+          fi
+          if [ "$result" -eq 0 ]; then
+            timeout 90s xvfb-run -a /tmp/godot/Godot_v4.3-stable_linux.x86_64 --audio-driver Dummy --path godot --script res://tests/comic_render.gd > /tmp/native-comic.log 2>&1
+            result=$?
+          fi
+          # Godot's headless dummy renderer can complain about null mesh RIDs;
+          # keep every other script/engine error fatal for the playthrough.
+          if [ -f /tmp/native-playthrough.log ]; then
+            sed -i '/ERROR: Parameter "m" is null\./d' /tmp/native-playthrough.log
+          fi
+          if [ -f /tmp/native-patrol.log ]; then
+            sed -i '/ERROR: Parameter "m" is null\./d' /tmp/native-patrol.log
+          fi
+          for log in /tmp/native-import.log /tmp/native-smoke.log /tmp/native-pursuit.log /tmp/native-playthrough.log /tmp/native-patrol.log /tmp/native-render.log /tmp/native-comic.log; do
+            if [ -f "$log" ]; then
+              echo "::notice::$log error count: $(grep -cE 'SCRIPT ERROR|ERROR:' "$log" || true)"
+              cat "$log"
+            fi
+          done
+          cat /tmp/native-smoke.log /tmp/native-pursuit.log /tmp/native-playthrough.log /tmp/native-patrol.log /tmp/native-render.log /tmp/native-comic.log >> /tmp/native-import.log 2>/dev/null || true
+          grep -E "Graphics layout:|Native scene smoke checks passed|Native boss rendering check passed|Boss rendered pixel changes|Objective rendered pixel changes|Playthrough stage|Playthrough stalled|Playthrough stopped|Input-driven story playthrough passed|Input-driven Free Roam emergencies passed|TEST FAILED" /tmp/native-import.log | while IFS= read -r line; do echo "::notice::$line"; done
+          if [ "$result" -ne 0 ] || grep -qE 'SCRIPT ERROR|ERROR:' /tmp/native-import.log; then
+            grep -E -A1 'SCRIPT ERROR|ERROR:' /tmp/native-import.log | head -60 | while IFS= read -r line; do echo "::error::$line"; done
+            exit 1
+          fi
+      - name: Install Android export templates
+        run: |
+          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz -O /tmp/templates.zip
+          mkdir -p ~/.local/share/godot/export_templates/4.3.stable
+          unzip -q /tmp/templates.zip -d /tmp/godot-templates
+          mv /tmp/godot-templates/templates/* ~/.local/share/godot/export_templates/4.3.stable/
+          keytool -genkeypair -keystore /tmp/debug.keystore -storepass android -alias androiddebugkey -keypass android -dname 'CN=Android Debug,O=Android,C=US' -keyalg RSA -validity 9999
+          mkdir -p ~/.config/godot
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\nexport/android/debug_keystore = "/tmp/debug.keystore"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\n' "$ANDROID_HOME" "$JAVA_HOME" > ~/.config/godot/editor_settings-4.tres
+      - name: Export Android debug APK
+        run: |
+          set +e
+          /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --verbose --path godot --export-debug Android /tmp/comic-spidey-native-debug.apk > /tmp/native-export.log 2>&1
+          result=$?
+          cat /tmp/native-export.log
+          if [ "$result" -ne 0 ]; then
+            python3 -c 'from pathlib import Path; s=Path("/tmp/native-export.log").read_text(errors="replace")[-12000:]; print("::error::"+s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))' 
+            exit "$result"
+          fi
+      # This checks the release export template with a throwaway CI key.
+      # It is NOT the persistent signing key and must never be distributed as a release.
+      - name: Build and verify release-template APK with temporary test key
+        run: |
+          set -euo pipefail
+          password=$(openssl rand -hex 16)
+          keytool -genkeypair -keystore /tmp/ci-release-test.keystore -storepass "$password" -alias citest -keypass "$password" -dname 'CN=CI Test Only,O=Comic Spidey,C=US' -keyalg RSA -validity 30 >/dev/null 2>&1
+          export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=/tmp/ci-release-test.keystore
+          export GODOT_ANDROID_KEYSTORE_RELEASE_USER=citest
+          export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$password"
+          /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --path godot --export-release Android /tmp/comic-spidey-release-ci-only.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose /tmp/comic-spidey-release-ci-only.apk
+          if "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/comic-spidey-release-ci-only.apk | grep -q '^application-debuggable'; then
+            echo '::error::Release-template APK is marked debuggable'
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-template-ci-only-do-not-distribute
+          path: /tmp/comic-spidey-release-ci-only.apk
+          retention-days: 1
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: comic-spidey-native-debug
+          path: /tmp/comic-spidey-native-debug.apk
+          if-no-files-found: error
+  android-emulator:
+    needs: native
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: comic-spidey-native-debug
+          path: /tmp/native-apk
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-template-ci-only-do-not-distribute
+          path: /tmp/release-apk
+      - name: Install screenshot diagnostics
+        run: python3 -m pip install --user --break-system-packages Pillow
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install and launch on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash godot/tests/android-smoke.sh /tmp/native-apk/comic-spidey-native-debug.apk 720 1280 Story && bash godot/tests/android-smoke.sh /tmp/native-apk/comic-spidey-native-debug.apk 540 1200 "Free Roam" && bash godot/tests/android-release-smoke.sh /tmp/release-apk/comic-spidey-release-ci-only.apk

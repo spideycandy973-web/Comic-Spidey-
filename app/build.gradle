@@ -1,0 +1,14 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.comicspidey'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.comicspidey'
+        minSdk 23
+        targetSdk 35
+        versionCode 12
+        versionName '0.12.0-dev'
+    }
+    buildTypes { release { minifyEnabled false } }
+}

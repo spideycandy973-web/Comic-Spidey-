@@ -1,0 +1,116 @@
+/* Testable 3D movement and encounter rules. Coordinates: Y up, player position at feet. */
+(function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory();else root.ComicPhysics=factory();})(typeof globalThis!=='undefined'?globalThis:this,function(){
+  'use strict';
+  const villains = [
+    {id:'volt',name:'VOLT',subtitle:'THE LIVE WIRE',health:100,speed:3.8,range:2.4,damage:12,windup:.65,cooldown:1.2},
+    {id:'docock',name:'DOCTOR OCTOPUS',subtitle:'THE MASTER PLANNER',health:160,speed:2.5,range:2.9,damage:22,windup:1.05,cooldown:1.65}
+  ];
+  const CHUNK_SIZE=80, WORLD_BOUND=810;
+  // Roads follow an 80m grid. Park lots occupy whole blocks, clear of roads and buildings.
+  const parks=[{x:120,z:-120,name:'North Garden'},{x:-200,z:200,name:'West Green'},{x:440,z:360,name:'East Commons'},{x:-440,z:-360,name:'Riverside Garden'}];
+  function inPark(x,z){return parks.some(p=>Math.abs(x-p.x)<31&&Math.abs(z-p.z)<31);}
+  function districtAt(x,z){
+    if(inPark(x,z))return 'CITY PARK';
+    if(Math.abs(x)<220&&Math.abs(z)<220)return 'DOWNTOWN';
+    if(x>280&&z>180)return 'INDUSTRIAL QUARTER';
+    if(x < -280 || z>300)return 'RESIDENTIAL DISTRICT';
+    return 'MIDTOWN';
+  }
+  function chunkCoord(v){return Math.floor((v+CHUNK_SIZE/2)/CHUNK_SIZE);}
+  function chunkKey(x,z){return chunkCoord(x)+','+chunkCoord(z);}
+  function random(gx,gz){let n=Math.imul(gx,374761393)+Math.imul(gz,668265263);n=Math.imul(n^(n>>>13),1274126177);return (n^(n>>>16))>>>0;}
+  function createWorld(){
+    const buildings=[],chunks=new Map();
+    for(let gx=-40;gx<=40;gx++)for(let gz=-40;gz<=40;gz++){
+      if(gx%4===0||gz%4===0||(Math.abs(gx)<2&&Math.abs(gz)<2))continue;
+      const x=gx*20,z=gz*20;if(inPark(x,z))continue;
+      const n=random(gx,gz),district=districtAt(x,z),nearStart=Math.abs(x)<80&&Math.abs(z)<80;
+      let h=nearStart?10+n%15:district==='DOWNTOWN'?32+n%43:district==='MIDTOWN'?18+n%31:district==='INDUSTRIAL QUARTER'?11+n%14:9+n%17;
+      const b={x,z,w:12+(n%3),d:12+((n>>>4)%3),h,district,variant:(n>>>8)%4};
+      buildings.push(b);const key=chunkKey(x,z);if(!chunks.has(key))chunks.set(key,[]);chunks.get(key).push(b);
+    }
+    return {buildings,chunks,parks,bound:WORLD_BOUND};
+  }
+  function nearbyBuildings(world,x,z,radius){
+    const out=[],minX=chunkCoord(x-radius),maxX=chunkCoord(x+radius),minZ=chunkCoord(z-radius),maxZ=chunkCoord(z+radius);
+    for(let cx=minX;cx<=maxX;cx++)for(let cz=minZ;cz<=maxZ;cz++){const list=world.chunks.get(cx+','+cz);if(list)out.push(...list);}
+    return out;
+  }
+  // Segment vs. building AABB, including roofs. Used by attacks to prevent hits through walls.
+  function lineClear(world,a,b){
+    const dx=b.x-a.x,dy=b.y-a.y,dz=b.z-a.z,r=Math.max(Math.abs(dx),Math.abs(dz))+16;
+    for(const o of nearbyBuildings(world,a.x,a.z,r)){
+      let enter=0,exit=1;
+      for(const [origin,delta,min,max] of [[a.x,dx,o.x-o.w/2,o.x+o.w/2],[a.y,dy,0,o.h],[a.z,dz,o.z-o.d/2,o.z+o.d/2]]){
+        if(Math.abs(delta)<1e-9){if(origin<min||origin>max){enter=2;break;}}
+        else{let t0=(min-origin)/delta,t1=(max-origin)/delta;if(t0>t1)[t0,t1]=[t1,t0];enter=Math.max(enter,t0);exit=Math.min(exit,t1);if(enter>exit)break;}
+      }
+      if(enter<=exit&&enter<=1&&exit>=0)return false;
+    }
+    return true;
+  }
+  function createPlayer(){return {x:0,y:0,z:9,vx:0,vy:0,vz:0,grounded:true,health:100,rope:null,wallTime:0,wallRunning:false};}
+  function createBoss(index){const def=villains[index];return def?{...def,x:index===0?0:3,z:index===0?-8:-12,hp:def.health,state:'chase',timer:0,hitFlash:0}:null;}
+  // Prefer a real rooftop in front of the camera; no invisible air anchors.
+  // Assist adds an explicit take-off impulse and winches the rope in slowly.
+  function attach(p,world,assist,heading={x:0,z:-1}){
+    let best=null,bestScore=Infinity;const range=assist?95:75;
+    const hlen=Math.hypot(heading.x,heading.z)||1, hx=heading.x/hlen,hz=heading.z/hlen;
+    for(const b of nearbyBuildings(world,p.x,p.z,range+10)){
+      // Nearest point just inside the roof edge, rather than the faraway centre.
+      const ax=Math.max(b.x-b.w/2+.6,Math.min(b.x+b.w/2-.6,p.x));
+      const az=Math.max(b.z-b.d/2+.6,Math.min(b.z+b.d/2-.6,p.z));
+      const y=b.h+.4,dx=ax-p.x,dy=y-(p.y+1.4),dz=az-p.z,dist=Math.hypot(dx,dy,dz);
+      const horizontal=Math.hypot(dx,dz)||1,forward=(dx*hx+dz*hz)/horizontal;
+      if(dy>1&&dist<range&&forward>-.15){
+        const score=dist-forward*12;
+        if(score<bestScore){best={x:ax,y,z:az,length:Math.max(3,dist),assist};bestScore=score;}
+      }
+    }
+    p.rope=best;
+    if(best&&assist&&p.grounded){p.vy=Math.max(p.vy,10);p.vx+=hx*5;p.vz+=hz*5;p.grounded=false;}
+    return !!best;
+  }
+  function stepPlayer(p,world,move,dt){
+    dt=Math.max(0,Math.min(1/30,dt));
+    const mx=move.x||0,mz=move.z||0,mag=Math.hypot(mx,mz)||1;
+    const accel=p.grounded?30:11; p.vx+=(mx/Math.max(1,mag)*accel)*dt; p.vz+=(mz/Math.max(1,mag)*accel)*dt;
+    const damping=Math.pow(p.grounded?.0003:.7,dt);p.vx*=damping;p.vz*=damping;
+    const speed=Math.hypot(p.vx,p.vz), cap=p.rope?18:8;if(speed>cap){p.vx*=cap/speed;p.vz*=cap/speed;}
+    if(move.jump&&p.grounded){p.vy=10;p.grounded=false;}
+    p.vy-=22*dt;
+    const ox=p.x,oy=p.y,oz=p.z;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;
+    if(p.rope){if(p.rope.assist)p.rope.length=Math.max(5,p.rope.length-3*dt);const dx=p.x-p.rope.x,dy=p.y+1.4-p.rope.y,dz=p.z-p.rope.z,d=Math.hypot(dx,dy,dz)||1;
+      if(d>p.rope.length){const nx=dx/d,ny=dy/d,nz=dz/d;p.x=p.rope.x+nx*p.rope.length;p.y=p.rope.y+ny*p.rope.length-1.4;p.z=p.rope.z+nz*p.rope.length;const radial=p.vx*nx+p.vy*ny+p.vz*nz;if(radial>0){p.vx-=radial*nx;p.vy-=radial*ny;p.vz-=radial*nz;}}
+    }
+    p.grounded=false;p.wallRunning=false;let floor=0,wallContact=false;
+    for(const b of nearbyBuildings(world,p.x,p.z,24)){
+      const inside=Math.abs(p.x-b.x)<b.w/2+.45&&Math.abs(p.z-b.z)<b.d/2+.45;
+      if(!inside)continue;
+      if(oy>=b.h-.05&&p.y<=b.h&&p.vy<=0){floor=Math.max(floor,b.h);}
+      else if(p.y<b.h-.05 && p.y+1.7>0){ // Solid walls: reject the entering horizontal component.
+        wallContact=true;const wasX=Math.abs(ox-b.x)<b.w/2+.45,wasZ=Math.abs(oz-b.z)<b.d/2+.45;
+        if(!wasX){p.x=ox;p.vx=0;} else if(!wasZ){p.z=oz;p.vz=0;} else {p.x=ox;p.z=oz;p.vx=p.vz=0;}
+      }
+    }
+    if(wallContact&&move.climb&&!p.rope&&p.y>0&&Math.hypot(mx,mz)>.1&&(p.wallTime||0)<2){p.vy=5;p.wallTime=(p.wallTime||0)+dt;p.wallRunning=true;}
+    if(p.y<=floor && p.vy<=0){p.y=floor;p.vy=0;p.grounded=true;p.wallTime=0;p.wallRunning=false;}
+    p.x=Math.max(-world.bound,Math.min(world.bound,p.x));p.z=Math.max(-world.bound,Math.min(world.bound,p.z));
+  }
+  function attack(p,b){if(!b||b.hp<=0)return false;const distance=Math.hypot(p.x-b.x,p.z-b.z);if(distance>3.2||p.y>2.7)return false;b.hp=Math.max(0,b.hp-20);b.hitFlash=.18;return true;}
+  function stepBoss(b,p,dt,world){
+    if(!b||b.hp<=0||p.health<=0)return;
+    b.hitFlash=Math.max(0,b.hitFlash-dt);if(b.stun>0){b.stun=Math.max(0,b.stun-dt);return;}const dx=p.x-b.x,dz=p.z-b.z,dist=Math.hypot(dx,dz)||1;
+    const phase=b.hp<=b.health/2?1.3:1;
+    if(b.state==='chase'){
+      if(dist<b.range && p.y<2.5){b.state='windup';b.timer=b.windup/phase;}
+      else if(dist<38){const step=Math.min(dist,b.speed*phase*dt),nx=b.x+dx/dist*step,nz=b.z+dz/dist*step;
+        const blocked=(x,z)=>world&&nearbyBuildings(world,x,z,15).some(o=>Math.abs(x-o.x)<o.w/2+.5&&Math.abs(z-o.z)<o.d/2+.5);
+        if(!blocked(nx,b.z))b.x=nx;if(!blocked(b.x,nz))b.z=nz;
+      }
+    }else if(b.state==='windup'){
+      b.timer-=dt;if(b.timer<=0){if(dist<b.range+0.6&&p.y<2.5&&!(p.invulnerable>0))p.health=Math.max(0,p.health-b.damage);b.state='cooldown';b.timer=b.cooldown;}
+    }else {b.timer-=dt;if(b.timer<=0)b.state='chase';}
+  }
+  return {villains,createWorld,createPlayer,createBoss,attach,stepPlayer,stepBoss,attack,lineClear,nearbyBuildings,districtAt,chunkCoord,chunkKey,CHUNK_SIZE};
+});

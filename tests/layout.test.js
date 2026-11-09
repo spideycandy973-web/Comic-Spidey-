@@ -1,0 +1,3 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),L=require('../app/src/main/assets/layout');
+test('touch positions are normalized and clamped within viewport',()=>{assert.deepEqual(L.point(-30,900,1000,500,50,25),{x:.05,y:.95});assert.deepEqual(L.point(500,250,1000,500,50,25),{x:.5,y:.5});const p=L.point(0,0,0,0,10,10);assert.deepEqual(p,{x:.5,y:.5});});
+test('corrupt and partial layouts fall back safely',()=>{const p=Object.fromEntries(L.keys.map(k=>[k,{x:.5,y:.5}]));assert.equal(L.valid(p),true);delete p.jump;assert.equal(L.valid(p),false);p.jump={x:2,y:0};assert.equal(L.valid(p),false);assert.equal(L.valid(null),false);});

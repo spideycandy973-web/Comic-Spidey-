@@ -1,0 +1,2 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');const W=require('../app/src/main/assets/weather');
+test('weather modes change and deterministic cycle repeats',()=>{const w=W.create('clear');assert.equal(W.step(w,200),false);W.setMode(w,'rain');assert.equal(W.step(w,1),true);W.setMode(w,'cycle');assert.equal(W.step(w,74),false);assert.equal(W.step(w,1),true);assert.equal(W.step(w,45),false);W.setMode(w,'unknown');assert.equal(W.step(w,1),false);});

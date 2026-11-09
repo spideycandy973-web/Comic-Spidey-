@@ -1,0 +1,12 @@
+plugins { id 'com.android.application' version '8.7.3' }
+android {
+    namespace 'org.example.enginecheck'
+    compileSdk 35
+    defaultConfig { applicationId 'org.example.enginecheck'; minSdk 24; targetSdk 35; versionCode 1; versionName '1.0' }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+dependencies {
+    implementation 'org.jmonkeyengine:jme3-core:3.9.0-stable'
+    implementation 'org.jmonkeyengine:jme3-android:3.9.0-stable'
+    runtimeOnly 'org.jmonkeyengine:jme3-android-native:3.9.0-stable'
+}

@@ -151,25 +151,12 @@ func run_test() -> void:
 	scene.controls.movement = Vector2(0, -1)
 	var before_collision: float = scene.hero.health
 	await physics_frame
-	var contact_debug := "none"
-	var contact_names := ""
 	for frame in range(90):
 		await physics_frame
-		var prior_velocity: Vector3 = scene.hero.velocity
 		scene.hero._physics_process(1.0 / 60.0)
-		for i in range(scene.hero.get_slide_collision_count()):
-			var hit = scene.hero.get_slide_collision(i)
-			var description := "%s normal=%s" % [hit.get_collider().name, hit.get_normal()]
-			if not contact_names.contains(description):
-				contact_names += description + "; "
-			if hit.get_collider() == car and contact_debug == "none":
-				contact_debug = "v=%s normal=%s in_traffic=%s cooldown=%s" % [prior_velocity, hit.get_normal(), car in scene.traffic, scene.hero.vehicle_impact_cooldown]
 		if scene.hero.health < before_collision:
 			break
-	print("Collision diagnostic hero=", scene.hero.position, " velocity=", scene.hero.velocity, " car=", car.position, " mask=", scene.hero.collision_mask, " count=", scene.hero.get_slide_collision_count(), " hp=", scene.hero.health)
-	check(scene.hero.health < before_collision, "walking into a car causes a real physics impact; hero=%s velocity=%s car=%s mask=%s contacts=%s" % [scene.hero.position, scene.hero.velocity, car.position, scene.hero.collision_mask, scene.hero.get_slide_collision_count()])
-	check(scene.hero.health < before_collision, "contacts: " + contact_names + " input=%s playing=%s hp=%s" % [scene.controls.movement, scene.hero.playing, scene.hero.health])
-	check(contact_debug == "none" or scene.hero.health < before_collision, "car contact: " + contact_debug)
+	check(scene.hero.health < before_collision, "walking into a car causes a real physics impact")
 	scene.hero.health = before_collision
 	scene.hero.vehicle_impact_cooldown = 0
 	scene.controls.movement = Vector2.ZERO
@@ -326,6 +313,7 @@ func run_test() -> void:
 					check(enemy.health == previous - 35 and enemy.stun == 2.0, "web shot damages and stuns enemy")
 				if expected == 1:
 					check(enemy.skeleton != null and enemy.strike_arm >= 0, "street enemy has a rigged striking arm")
+					scene.hero.health = 100
 					enemy.stun = 0
 					enemy.attack_cooldown = 0
 					enemy._physics_process(0.05)

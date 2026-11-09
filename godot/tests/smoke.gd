@@ -142,6 +142,26 @@ func run_test() -> void:
 	check(Vector2(car.velocity.x, car.velocity.z).length() > 0.1, "traffic does not stop for someone high overhead")
 	scene.hero.position = Vector3(0, 0.1, 0)
 	car.recenter(0)
+	car.position = Vector3(0, 0.1, -5)
+	car.velocity = Vector3.ZERO
+	scene.hero.position = Vector3(0, 0.1, 0)
+	scene.hero.velocity = Vector3.ZERO
+	scene.hero.vehicle_impact_cooldown = 0
+	scene.hero.yaw = 0
+	scene.controls.movement = Vector2(0, -1)
+	var before_collision: float = scene.hero.health
+	await physics_frame
+	for frame in range(90):
+		scene.hero._physics_process(1.0 / 60.0)
+		if scene.hero.health < before_collision:
+			break
+	check(scene.hero.health < before_collision, "walking into a car causes a real physics impact")
+	scene.hero.health = before_collision
+	scene.hero.vehicle_impact_cooldown = 0
+	scene.controls.movement = Vector2.ZERO
+	scene.hero.position = Vector3(0, 0.1, 0)
+	scene.hero.velocity = Vector3.ZERO
+	car.recenter(0)
 	check(scene.hero.animator != null and scene.hero.skeleton != null, "hero model and skeleton imported")
 	var hero_meshes: Array = scene.hero.visual.find_children("*", "MeshInstance3D", true, false)
 	check(not hero_meshes.is_empty(), "hero model has visible mesh")
@@ -175,6 +195,20 @@ func run_test() -> void:
 	scene.controls.buttons_down.erase("swing")
 	scene.hero._physics_process(1.0 / 60.0)
 	check(not scene.hero.swing_blocked_until_release, "web can be used again after releasing the button")
+	# Two unobstructed synthetic rooftops verify transfer independently of
+	# the particular streamed city layout.
+	var saved_anchors: Array[Vector3] = scene.world.anchors.duplicate()
+	scene.hero.position = Vector3(0, 100, 0)
+	scene.hero.velocity = Vector3.ZERO
+	scene.world.anchors.clear()
+	scene.world.anchors.append(Vector3(0, 120, -20))
+	scene.world.anchors.append(Vector3(0, 120, -40))
+	scene.hero.attach_web(Vector3.FORWARD)
+	var first_anchor: Vector3 = scene.hero.anchor
+	scene.hero.attach_web(Vector3.FORWARD, true)
+	check(scene.hero.rope_active and scene.hero.anchor != first_anchor, "web transfer selects a different reachable anchor")
+	scene.hero.release_web()
+	scene.world.anchors = saved_anchors
 	var jump_wall := StaticBody3D.new()
 	var jump_collision := CollisionShape3D.new()
 	var jump_box := BoxShape3D.new()
@@ -190,6 +224,7 @@ func run_test() -> void:
 	for frame in range(20):
 		scene.hero._physics_process(1.0 / 60.0)
 	check(scene.hero.is_on_wall() and not scene.hero.is_on_floor(), "hero can reach a wall in the air")
+	check(scene.hero.climbing and scene.hero.velocity.y > 0, "holding toward a wall climbs upward")
 	scene.controls.pressed_once["jump"] = true
 	scene.hero._physics_process(1.0 / 60.0)
 	check(scene.hero.velocity.y > 5 and scene.hero.velocity.z > 0, "jumping against a wall launches up and away")

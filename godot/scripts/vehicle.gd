@@ -87,10 +87,22 @@ func make_box(size: Vector3, at: Vector3, color: Color) -> void:
 func recenter(index: int = 0) -> void:
 	var player: Vector3 = game.hero.global_position
 	var offset := (55.0 + (index % 3) * 15.0) * -travel_sign
-	if axis == 0:
-		global_position = Vector3(roundf(player.x / 44.0) * 44.0 + lane, 0.05, clampf(player.z + offset, -900, 900))
-	else:
-		global_position = Vector3(clampf(player.x + offset, -900, 900), 0.05, roundf(player.z / 44.0) * 44.0 + lane)
+	var candidate := Vector3.ZERO
+	# At city limits clamping the preferred side could place traffic on the
+	# player. Try the other side and avoid teleporting onto pedestrians/cars.
+	for side in [1.0, -1.0]:
+		if axis == 0:
+			candidate = Vector3(roundf(player.x / 44.0) * 44.0 + lane, 0.05, clampf(player.z + offset * side, -900, 900))
+		else:
+			candidate = Vector3(clampf(player.x + offset * side, -900, 900), 0.05, roundf(player.z / 44.0) * 44.0 + lane)
+		var clear := candidate.distance_to(player) > 10.0
+		for actor in game.people + game.traffic:
+			if is_instance_valid(actor) and actor != self and not actor.is_queued_for_deletion() and actor.global_position.distance_to(candidate) < 6.0:
+				clear = false
+				break
+		if clear:
+			global_position = candidate
+			break
 	velocity = Vector3.ZERO
 
 func _physics_process(delta: float) -> void:

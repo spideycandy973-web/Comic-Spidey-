@@ -437,9 +437,9 @@ func _physics_process(_delta: float) -> void:
 	# next physics tick, once streamed collision bodies are registered.
 	if not pending_spawn_check:
 		return
-	pending_spawn_check = false
 	if not is_instance_valid(hero) or not hero.playing:
 		return
+	pending_spawn_check = false
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.28
 	capsule.height = 1.4
@@ -572,9 +572,9 @@ func start_story_cutscene() -> void:
 func update_story_cutscene(delta: float) -> void:
 	cinematic_time = maxf(0.0, cinematic_time - delta)
 	var target: Vector3 = hero.global_position + Vector3.UP * 1.2
-	var angle := hero.yaw + (4.5 - cinematic_time) * 0.15
+	var angle: float = hero.yaw + (4.5 - cinematic_time) * 0.15
 	var wanted := target + Vector3(sin(angle) * 5.5, 2.3, cos(angle) * 5.5)
-	var hit := hero.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(target, wanted, 1))
+	var hit: Dictionary = hero.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(target, wanted, 1))
 	if not hit.is_empty():
 		wanted = hit.position + hit.normal * 0.3
 	hero.camera.global_position = wanted

@@ -12,13 +12,15 @@ func setup(index: int) -> void:
 	travel_sign = -1.0 if (index / 2) % 2 == 0 else 1.0
 	lane = 2.5 * travel_sign
 	speed = 7.0 + (index % 3)
-	collision_layer = 1
-	collision_mask = 1
+	collision_layer = 4
+	collision_mask = 3
 	var collision := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	box.size = Vector3(1.7, 1.1, 3.7)
 	collision.shape = box
 	collision.position.y = 0.8
+	if axis == 1:
+		collision.rotation.y = PI * 0.5
 	add_child(collision)
 	visual = Node3D.new()
 	add_child(visual)
@@ -115,4 +117,9 @@ func _physics_process(delta: float) -> void:
 	velocity.x = heading.x * next
 	velocity.z = heading.z * next
 	velocity.y -= 18.0 * delta
+	var impact_velocity := velocity
 	move_and_slide()
+	for i in range(get_slide_collision_count()):
+		var hit := get_slide_collision(i)
+		if hit.get_collider() == game.hero:
+			game.hero.vehicle_impact(impact_velocity, hit.get_normal())

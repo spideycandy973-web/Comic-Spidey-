@@ -43,6 +43,9 @@ var crime_failed := 0
 var crime_civilian
 var mission_prop
 var pending_spawn_check := false
+var cutscenes_enabled := true
+var cinematic_time := 0.0
+var cinematic_ui: CanvasLayer
 
 func _ready() -> void:
 	var env := WorldEnvironment.new()
@@ -121,8 +124,8 @@ func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
 	var scroll := ScrollContainer.new()
 	scroll.name = "MenuScroll"
 	scroll.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	scroll.offset_left = -210
-	scroll.offset_right = 210
+	scroll.offset_left = -260
+	scroll.offset_right = 260
 	scroll.offset_top = -250
 	scroll.offset_bottom = 250
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -230,7 +233,7 @@ func show_help() -> void:
 	var instructions := Label.new()
 	instructions.text = """MOVE with the left stick. Drag empty space to look around.
 
-Hold WEB to attach to a rooftop and swing; release to let go. Press JUMP while swinging for a boosted release, or near a wall to leap off it.
+Hold WEB to swing and transfer to a new rooftop; release to let go. Move toward a wall while airborne to climb. Press JUMP near a wall to leap off it, or while swinging to release.
 
 Use HIT up close, or SHOT to web an enemy from a distance. TAP TALK near a person or objective to interact.
 
@@ -335,9 +338,9 @@ func toggle_sound() -> void:
 func add_menu_button(box: VBoxContainer, text: String, callback: Callable) -> void:
 	var button := Button.new()
 	button.text = text
-	button.custom_minimum_size = Vector2(380, 54)
+	button.custom_minimum_size = Vector2(450, 54)
 	button.add_theme_font_override("font", ComicFont)
-	button.add_theme_font_size_override("font_size", 24)
+	button.add_theme_font_size_override("font_size", 29)
 	button.add_theme_color_override("font_color", Color("fff6db"))
 	button.add_theme_color_override("font_hover_color", Color("171429"))
 	button.add_theme_color_override("font_pressed_color", Color("171429"))
@@ -390,6 +393,8 @@ func start_mode(selected: String) -> void:
 	else:
 		show_message("Explore the city. Watch for emergency calls.")
 	save_game()
+	if mode == "Story":
+		start_story_cutscene()
 
 func begin_play() -> void:
 	if is_instance_valid(menu):
@@ -521,6 +526,76 @@ func advance_story() -> void:
 	checkpoint = hero.position
 	setup_story_stage()
 	save_game()
+	if stage in [3, 11, 13]:
+		start_story_cutscene()
+
+# A brief in-engine camera shot, not a pre-rendered video. Stage state is saved
+# before the shot, so skipping or suspending it cannot lose mission progress.
+func start_story_cutscene() -> void:
+	if not cutscenes_enabled or cinematic_time > 0.0:
+		return
+	controls.reset_input()
+	controls.active = false
+	hero.playing = false
+	if hero.animator:
+		hero.animator.speed_scale = 0.0
+	for npc in people:
+		if is_instance_valid(npc) and npc.anim:
+			npc.anim.speed_scale = 0.0
+	cinematic_time = 4.5
+	var mission: Dictionary = Missions.story_stage(stage)
+	cinematic_ui = CanvasLayer.new()
+	cinematic_ui.layer = 4
+	add_child(cinematic_ui)
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	panel.offset_left = 20
+	panel.offset_right = -20
+	panel.offset_top = -135
+	panel.offset_bottom = -15
+	cinematic_ui.add_child(panel)
+	var row := HBoxContainer.new()
+	panel.add_child(row)
+	var dialogue := Label.new()
+	dialogue.text = str(mission.get("dialogue", mission.title))
+	dialogue.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dialogue.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dialogue.add_theme_font_size_override("font_size", 26)
+	row.add_child(dialogue)
+	var skip := Button.new()
+	skip.text = "SKIP"
+	skip.custom_minimum_size = Vector2(120, 70)
+	skip.add_theme_font_size_override("font_size", 26)
+	skip.pressed.connect(finish_story_cutscene)
+	row.add_child(skip)
+
+func update_story_cutscene(delta: float) -> void:
+	cinematic_time = maxf(0.0, cinematic_time - delta)
+	var target: Vector3 = hero.global_position + Vector3.UP * 1.2
+	var angle := hero.yaw + (4.5 - cinematic_time) * 0.15
+	var wanted := target + Vector3(sin(angle) * 5.5, 2.3, cos(angle) * 5.5)
+	var hit := hero.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(target, wanted, 1))
+	if not hit.is_empty():
+		wanted = hit.position + hit.normal * 0.3
+	hero.camera.global_position = wanted
+	hero.camera.look_at(target, Vector3.UP)
+	if cinematic_time <= 0.0:
+		finish_story_cutscene()
+
+func finish_story_cutscene() -> void:
+	if not is_instance_valid(cinematic_ui):
+		return
+	cinematic_time = 0.0
+	cinematic_ui.queue_free()
+	cinematic_ui = null
+	hero.playing = true
+	if hero.animator:
+		hero.animator.speed_scale = 1.0
+	for npc in people:
+		if is_instance_valid(npc) and npc.anim:
+			npc.anim.speed_scale = 1.0
+	controls.reset_input()
+	controls.active = true
 
 func enemies_alive() -> int:
 	var count := 0
@@ -618,6 +693,9 @@ func update_beacon() -> void:
 		beacon.position = target + Vector3.UP * 4.5
 
 func _process(delta: float) -> void:
+	if cinematic_time > 0.0:
+		update_story_cutscene(delta)
+		return
 	if not hero or not hero.playing:
 		return
 	chunk_timer -= delta
@@ -802,8 +880,11 @@ func retry_checkpoint() -> void:
 	save_game()
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_PAUSED and is_instance_valid(hero) and hero.playing:
-		pause_game()
+	if what == NOTIFICATION_APPLICATION_PAUSED and is_instance_valid(hero):
+		if cinematic_time > 0.0:
+			finish_story_cutscene()
+		if hero.playing:
+			pause_game()
 
 func vector_data(v: Vector3) -> Array:
 	return [v.x, v.y, v.z]

@@ -24,6 +24,7 @@ func run_test() -> void:
 			free_roam_visible = rect.position.y >= 0 and rect.end.y <= root.get_visible_rect().size.y
 	check(free_roam_visible, "free roam button fits within the menu viewport")
 	scene.save_enabled = false
+	scene.cutscenes_enabled = false
 	scene.start_mode("Story")
 	scene.set_process(false)
 	scene.hero.set_physics_process(false)
@@ -97,6 +98,22 @@ func run_test() -> void:
 	check(scene.controls.map_has_target and scene.controls.map_target == Missions.STORY[0].at, "minimap tracks the story objective")
 	check(scene.controls.map_offset(Vector3.ZERO, Vector3(1000, 0, 0)).length() <= 72.01, "distant map objectives stay inside the minimap")
 	check(scene.traffic.size() == 6, "native traffic spawns")
+	check(scene.hero.collision_mask & 4 != 0 and scene.traffic[0].collision_layer == 4, "hero collides with vehicles on their own layer")
+	check(is_equal_approx(absf(scene.traffic[1].get_child(0).rotation.y), PI * 0.5), "east-west traffic collision shape rotates")
+	var hp_before: float = scene.hero.health
+	scene.hero.vehicle_impact(Vector3(0, 0, 8), Vector3(0, 0, -1))
+	check(scene.hero.health < hp_before and scene.hero.velocity.y > 0, "vehicle collision applies damage and knockback")
+	var hp_after: float = scene.hero.health
+	scene.hero.vehicle_impact(Vector3(0, 0, 8), Vector3(0, 0, -1))
+	check(scene.hero.health == hp_after, "vehicle impact cooldown prevents repeated damage")
+	scene.hero.health = hp_before
+	scene.hero.velocity = Vector3.ZERO
+	scene.cutscenes_enabled = true
+	scene.start_story_cutscene()
+	check(scene.cinematic_time > 0.0 and not scene.hero.playing and not scene.controls.active, "story cutscene suspends gameplay")
+	scene.finish_story_cutscene()
+	check(scene.hero.playing and scene.controls.active and scene.cinematic_time == 0.0, "skipping cutscene resumes gameplay")
+	scene.cutscenes_enabled = false
 	check(scene.people[2].anim != null and scene.people[2].anim.has_animation("run") and scene.people[3].anim != null and scene.people[3].anim.has_animation("run"), "additional rigged citizens have run clips")
 	check(scene.world.district_for(Vector2i(0, 0)) == "Downtown" and scene.world.district_for(Vector2i(5, 0)) == "Industrial" and scene.world.district_for(Vector2i(-5, 0)) == "Residential", "city districts have distinct profiles")
 	var tank_count := 0
@@ -340,6 +357,7 @@ func run_test() -> void:
 
 	# Use a real user:// slot to test round-trip and malformed saves.
 	scene.save_enabled = true
+	scene.cutscenes_enabled = false
 	scene.start_mode("Story")
 	scene.hero.position = Vector3(0, 0.1, -44)
 	scene.update_story()

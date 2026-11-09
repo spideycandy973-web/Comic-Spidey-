@@ -1,7 +1,7 @@
 name: Native Godot Android development build
 on:
   push:
-    branches: ['arena/a6af770e-comic-spidey']
+    branches: ['arena/0caf332d-comic-spidey']
   pull_request:
   workflow_dispatch:
 permissions:

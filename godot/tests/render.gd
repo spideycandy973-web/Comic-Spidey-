@@ -8,6 +8,7 @@ func run_test() -> void:
 	root.add_child(scene)
 	await physics_frame
 	scene.save_enabled = false
+	scene.cutscenes_enabled = false
 	scene.start_mode("Story")
 	scene.set_process(false)
 	scene.hero.set_physics_process(false)

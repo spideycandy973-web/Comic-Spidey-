@@ -80,9 +80,9 @@ sleep 3
 if [ "$mode" = "Free Roam" ]; then tap_center 397; else tap_center 339; fi
 sleep 20
 # Exercise the touch buttons and movement joystick through Android, not injected Godot events.
-tap_right 165 635
+tap_right 177 645
 swipe_left 100 620 100 550 1500
-swipe_right 82 530 82 530 1800
+swipe_right 68 515 68 515 1800
 sleep 3
 # Pause and resume through the touch UI.
 tap_right 48 50

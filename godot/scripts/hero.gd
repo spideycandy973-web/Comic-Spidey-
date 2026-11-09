@@ -33,6 +33,9 @@ var punch_flash: MeshInstance3D
 var punch_timer := 0.0
 var playing := false
 var debug_movement_reported := false
+var vehicle_impact_cooldown := 0.0
+var climbing := false
+var transfer_timer := 0.0
 
 func setup() -> void:
 	var shape := CollisionShape3D.new()
@@ -43,7 +46,7 @@ func setup() -> void:
 	shape.position.y = 0.9
 	add_child(shape)
 	collision_layer = 2
-	collision_mask = 1
+	collision_mask = 5
 	visual = preload("res://assets/hero.glb").instantiate()
 	add_child(visual)
 	ComicStyle.apply_to_character(visual)
@@ -94,6 +97,8 @@ func _physics_process(delta: float) -> void:
 	if controls.consume("menu"):
 		game.pause_game()
 		return
+	vehicle_impact_cooldown = maxf(0.0, vehicle_impact_cooldown - delta)
+	transfer_timer = maxf(0.0, transfer_timer - delta)
 	web_retry = maxf(0, web_retry - delta)
 	landing_timer = maxf(0, landing_timer - delta)
 	coyote_timer = 0.12 if is_on_floor() else maxf(0.0, coyote_timer - delta)
@@ -155,6 +160,9 @@ func _physics_process(delta: float) -> void:
 		velocity.x = horizontal.x
 		velocity.z = horizontal.y
 	velocity.y -= 18 * delta
+	climbing = not rope_active and not is_on_floor() and is_on_wall() and absf(get_wall_normal().y) < 0.4 and desired.dot(-get_wall_normal()) > 0.3
+	if climbing:
+		velocity.y = 4.0
 	if jump_buffer > 0:
 		var jumped := false
 		if rope_active:
@@ -192,6 +200,12 @@ func _physics_process(delta: float) -> void:
 		attach_web(forward)
 	elif not swinging and rope_active:
 		release_web()
+	if rope_active and transfer_timer <= 0.0:
+		var travel := Vector3(velocity.x, 0, velocity.z)
+		var to_anchor := Vector3(anchor.x - global_position.x, 0, anchor.z - global_position.z)
+		if travel.length() > 4.0 and to_anchor.dot(travel) < 0.0:
+			transfer_timer = 1.5
+			attach_web(travel.normalized(), true)
 	if rope_active:
 		var offset := global_position + Vector3.UP - anchor
 		if offset.length() >= rope_length - 0.15:
@@ -199,7 +213,13 @@ func _physics_process(delta: float) -> void:
 			var outward := velocity.dot(radial)
 			if outward > 0:
 				velocity -= radial * outward
+	var impact_velocity := velocity
 	move_and_slide()
+	for i in range(get_slide_collision_count()):
+		var hit := get_slide_collision(i)
+		var collider := hit.get_collider()
+		if collider in game.traffic:
+			vehicle_impact(collider.velocity - impact_velocity, -hit.get_normal())
 	var grounded := is_on_floor()
 	if grounded and not was_grounded and velocity.y <= 0:
 		landing_timer = 0.4
@@ -223,6 +243,8 @@ func update_animation(_desired: Vector3) -> void:
 	var name := "idle"
 	if rope_active:
 		name = "swing"
+	elif climbing:
+		name = "run"
 	elif not is_on_floor():
 		name = "jump" if velocity.y > 0.5 else "fall"
 	elif Vector2(velocity.x, velocity.z).length() > 0.5:
@@ -246,11 +268,13 @@ func update_camera(delta: float) -> void:
 	camera.global_position = camera.global_position.lerp(wanted, minf(1, delta * 10))
 	camera.look_at(target, Vector3.UP)
 
-func attach_web(forward: Vector3) -> void:
+func attach_web(forward: Vector3, transfer: bool = false) -> void:
 	var start := global_position + Vector3.UP * 1.4
 	var best := INF
 	var selected := Vector3.ZERO
 	for candidate in world.anchors:
+		if transfer and candidate.distance_to(anchor) < 1.0:
+			continue
 		var offset: Vector3 = candidate - start
 		var distance := offset.length()
 		if distance < 8 or distance > 65 or offset.y < 3:
@@ -283,7 +307,7 @@ func attach_web(forward: Vector3) -> void:
 			print("Native web attached")
 		game.sound.play_effect("web")
 		web.visible = true
-	else:
+	elif not transfer:
 		game.show_message("No reachable rooftop ahead")
 
 func release_web() -> void:
@@ -386,3 +410,21 @@ func take_damage(amount: float) -> void:
 	if health <= 0:
 		playing = false
 		game.game_over()
+
+# Both moving bodies can detect the collision first; the cooldown makes the
+# response independent of physics tick order and prevents repeated damage.
+func vehicle_impact(relative_velocity: Vector3, collision_normal: Vector3) -> void:
+	if vehicle_impact_cooldown > 0.0 or not playing:
+		return
+	var normal := collision_normal.normalized()
+	var impact_speed := absf(relative_velocity.dot(normal))
+	if impact_speed < 3.0:
+		return
+	vehicle_impact_cooldown = 1.2
+	var push := -normal
+	push.y = 0.0
+	if push.length_squared() < 0.01:
+		push = Vector3(relative_velocity.x, 0, relative_velocity.z).normalized()
+	velocity += push.normalized() * minf(impact_speed * 0.8, 9.0)
+	velocity.y = maxf(velocity.y, 3.0)
+	take_damage(clampf(impact_speed * 1.5, 5.0, 20.0))

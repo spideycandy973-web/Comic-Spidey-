@@ -39,11 +39,11 @@ func _ready() -> void:
 
 func stick_center() -> Vector2:
 	var s := get_viewport().get_visible_rect().size
-	return Vector2(s.x - 100 if mirrored else 100, s.y - 100)
+	return Vector2(s.x - 110 if mirrored else 110, s.y - 110)
 
 func button_positions() -> Dictionary:
 	var s := get_viewport().get_visible_rect().size
-	var positions := {"menu": Vector2(s.x - 48, 50), "swing": Vector2(s.x - 82, s.y - 190), "shot": Vector2(s.x - 255, s.y - 85), "attack": Vector2(s.x - 165, s.y - 85), "jump": Vector2(s.x - 72, s.y - 85), "talk": Vector2(s.x - 165, s.y - 190)}
+	var positions := {"menu": Vector2(s.x - 48, 50), "swing": Vector2(s.x - 68, s.y - 205), "shot": Vector2(s.x - 285, s.y - 75), "attack": Vector2(s.x - 177, s.y - 75), "jump": Vector2(s.x - 68, s.y - 75), "talk": Vector2(s.x - 177, s.y - 205)}
 	if mirrored:
 		for name in positions:
 			var pos: Vector2 = positions[name]
@@ -83,7 +83,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			var kind := "look"
-			if event.position.distance_to(stick_center()) < 100:
+			if event.position.distance_to(stick_center()) < 110:
 				kind = "ignored"
 				if movement_pointer == -1:
 					movement_pointer = event.index
@@ -91,7 +91,7 @@ func _input(event: InputEvent) -> void:
 					set_movement(event.position)
 			else:
 				for name in button_positions():
-					if event.position.distance_to(button_positions()[name]) < 42:
+					if event.position.distance_to(button_positions()[name]) < (46 if name == "menu" else 52):
 						kind = name
 						buttons_down[name] = true
 						pressed_once[name] = true
@@ -173,17 +173,17 @@ func draw_controls() -> void:
 	var s := get_viewport().get_visible_rect().size
 	var center := stick_center()
 	draw_minimap(s)
-	surface.draw_circle(center, 72, Color(0.06, 0.05, 0.10, 0.8))
-	surface.draw_circle(center, 67, Color(0.12, 0.34, 0.48, 0.8))
-	surface.draw_circle(center + movement * 48, 29, Color("171429"))
-	surface.draw_circle(center + movement * 48, 24, Color("ffe15d"))
+	surface.draw_circle(center, 85, Color(0.06, 0.05, 0.10, 0.8))
+	surface.draw_circle(center, 80, Color(0.12, 0.34, 0.48, 0.8))
+	surface.draw_circle(center + movement * 52, 33, Color("171429"))
+	surface.draw_circle(center + movement * 52, 28, Color("ffe15d"))
 	var labels := {"menu": "II", "swing": "WEB", "shot": "SHOT", "attack": "HIT", "jump": "JUMP", "talk": "TALK"}
 	for name in button_positions():
 		var p: Vector2 = button_positions()[name]
 		var color := Color("e14c49") if name == "attack" else Color("266d89")
-		surface.draw_circle(p, 40, Color("171429"))
-		surface.draw_circle(p, 35, color)
-		surface.draw_string(ComicFont, p + Vector2(-30, 7), labels[name], HORIZONTAL_ALIGNMENT_CENTER, 60, 22, Color("fff8e8"))
+		surface.draw_circle(p, 51 if name != "menu" else 44, Color("171429"))
+		surface.draw_circle(p, 46 if name != "menu" else 39, color)
+		surface.draw_string(ComicFont, p + Vector2(-45, 9), labels[name], HORIZONTAL_ALIGNMENT_CENTER, 90, 27, Color("fff8e8"))
 	if target_direction.length_squared() > 0.01:
 		var compass_center := Vector2(s.x * 0.5, 55)
 		var direction := target_direction.normalized()

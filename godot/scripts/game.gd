@@ -8,6 +8,7 @@ const ObjectivePropScript = preload("res://scripts/objective_prop.gd")
 const VehicleScript = preload("res://scripts/vehicle.gd")
 const PersonScript = preload("res://scripts/person.gd")
 const SoundScript = preload("res://scripts/sound.gd")
+const GraphicsScript = preload("res://scripts/graphics.gd")
 const ControlsScript = preload("res://scripts/controls.gd")
 const Missions = preload("res://scripts/missions.gd")
 const Saves = preload("res://scripts/saves.gd")
@@ -17,6 +18,8 @@ var world
 var hero
 var controls
 var sound
+var sun: DirectionalLight3D
+var graphics = GraphicsScript.new()
 var people: Array = []
 var traffic: Array = []
 var mission_enemies: Array = []
@@ -51,10 +54,12 @@ func _ready() -> void:
 	environment.ambient_light_energy = 0.55
 	env.environment = environment
 	add_child(env)
-	var sun := DirectionalLight3D.new()
+	sun = DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-55, 35, 0)
 	sun.light_energy = 1.3
 	add_child(sun)
+	graphics.load_settings()
+	graphics.apply(get_viewport(), sun)
 	world = Node3D.new()
 	world.set_script(WorldScript)
 	add_child(world)
@@ -136,6 +141,55 @@ func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
 			add_menu_button(box, "Continue " + label, continue_mode.bind(label))
 		add_menu_button(box, "New " + label, request_new_mode.bind(label))
 	add_menu_button(box, "How to play", show_help)
+	add_menu_button(box, "Graphics settings", show_graphics)
+
+func show_graphics() -> void:
+	if is_instance_valid(menu):
+		menu.queue_free()
+	menu = CanvasLayer.new()
+	menu.layer = 3
+	add_child(menu)
+	var panel := Control.new()
+	panel.set_script(ComicBackdrop)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	menu.add_child(panel)
+	var box := VBoxContainer.new()
+	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	box.offset_left = -220
+	box.offset_right = 220
+	box.offset_top = -225
+	box.offset_bottom = 225
+	panel.add_child(box)
+	var title := Label.new()
+	title.text = "GRAPHICS SETTINGS"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_override("font", ComicFont)
+	title.add_theme_font_size_override("font_size", 36)
+	title.add_theme_color_override("font_color", Color("ffe15d"))
+	box.add_child(title)
+	add_menu_button(box, "3D resolution: %d%%" % roundi(graphics.SCALES[graphics.scale_index] * 100), change_graphics.bind("scale"))
+	add_menu_button(box, "Anti-aliasing: " + ("FXAA" if graphics.fxaa else "Off"), change_graphics.bind("fxaa"))
+	add_menu_button(box, "Sun shadows: " + ("On" if graphics.shadows else "Off"), change_graphics.bind("shadows"))
+	add_menu_button(box, "Frame limit: %d FPS" % graphics.fps_limit, change_graphics.bind("fps"))
+	add_menu_button(box, "Back", close_credits)
+	var note := Label.new()
+	note.text = "Lower resolution or turn shadows off for better performance."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.add_theme_font_size_override("font_size", 17)
+	box.add_child(note)
+
+func change_graphics(option: String) -> void:
+	match option:
+		"scale": graphics.scale_index = (graphics.scale_index + 1) % graphics.SCALES.size()
+		"fxaa": graphics.fxaa = not graphics.fxaa
+		"shadows": graphics.shadows = not graphics.shadows
+		"fps": graphics.fps_limit = 30 if graphics.fps_limit == 60 else 60
+		_: return
+	graphics.apply(get_viewport(), sun)
+	if not graphics.save_settings():
+		push_warning("Could not save graphics settings")
+	show_graphics()
 
 func show_help() -> void:
 	if is_instance_valid(menu):

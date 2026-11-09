@@ -63,6 +63,31 @@ func run_test() -> void:
 	var settings := ConfigFile.new()
 	check(settings.load("user://settings.cfg") == OK and settings.get_value("controls", "mirrored", false), "audio setting preserves control layout")
 	scene.sound.toggle()
+	# Graphics are persisted alongside, not instead of, audio and touch settings.
+	scene.show_graphics()
+	scene.change_graphics("scale")
+	check(is_equal_approx(root.scaling_3d_scale, 0.7), "3D resolution setting changes the viewport")
+	scene.change_graphics("fxaa")
+	check(root.screen_space_aa == Viewport.SCREEN_SPACE_AA_FXAA, "FXAA setting applies")
+	scene.change_graphics("shadows")
+	check(scene.sun.shadow_enabled, "shadow setting applies")
+	scene.change_graphics("fps")
+	check(Engine.max_fps == 30, "frame limit setting applies")
+	var graphics_copy = load("res://scripts/graphics.gd").new()
+	graphics_copy.load_settings()
+	check(graphics_copy.scale_index == 0 and graphics_copy.fxaa and graphics_copy.shadows and graphics_copy.fps_limit == 30, "graphics settings persist")
+	settings.load("user://settings.cfg")
+	check(settings.get_value("controls", "mirrored", false), "graphics settings preserve touch layout")
+	# Restore defaults for the remaining gameplay and rendering tests.
+	scene.graphics.scale_index = 2
+	scene.graphics.fxaa = false
+	scene.graphics.shadows = false
+	scene.graphics.fps_limit = 60
+	scene.graphics.apply(root, scene.sun)
+	scene.graphics.save_settings()
+	scene.close_credits()
+	if is_instance_valid(scene.menu):
+		scene.menu.queue_free()
 	scene.controls.set_mirrored(false)
 	check(scene.people.size() == 6 and scene.stage == 0, "story starts at the first objective")
 	scene._process(0.01)
@@ -330,15 +355,15 @@ func run_test() -> void:
 	await process_frame
 	var menu_scroll: ScrollContainer = scene.menu.get_child(0).get_node("MenuScroll")
 	check(menu_scroll.get_v_scroll_bar().max_value > menu_scroll.size.y, "full pause menu can scroll")
-	var help_button: Button
+	var graphics_button: Button
 	for button in menu_scroll.find_children("*", "Button", true, false):
-		if button.text == "How to play":
-			help_button = button
-	check(help_button != null, "full menu retains the help option")
-	if help_button:
-		menu_scroll.ensure_control_visible(help_button)
+		if button.text == "Graphics settings":
+			graphics_button = button
+	check(graphics_button != null, "full menu retains graphics settings")
+	if graphics_button:
+		menu_scroll.ensure_control_visible(graphics_button)
 		await process_frame
-		var help_rect := help_button.get_global_rect()
+		var help_rect := graphics_button.get_global_rect()
 		var scroll_rect := menu_scroll.get_global_rect()
 		check(help_rect.position.y >= scroll_rect.position.y - 1 and help_rect.end.y <= scroll_rect.end.y + 1, "last menu option can be scrolled into view")
 	scene.resume_game()

@@ -22,9 +22,12 @@ adb logcat -c
 adb shell monkey -p "$package" -c android.intent.category.LAUNCHER 1
 ready=false
 for _ in $(seq 1 45); do
-  if adb shell pidof "$package" >/dev/null && adb logcat -d | grep -q 'Native menu ready'; then
-    ready=true
-    break
+  if adb shell pidof "$package" >/dev/null; then
+    adb logcat -d > /tmp/native-startup.log
+    if grep -q 'Native menu ready' /tmp/native-startup.log; then
+      ready=true
+      break
+    fi
   fi
   sleep 2
 done

@@ -89,6 +89,7 @@ func _ready() -> void:
 	hero.setup()
 	make_beacon()
 	show_menu()
+	print("Native menu ready")
 
 func make_beacon() -> void:
 	beacon = MeshInstance3D.new()

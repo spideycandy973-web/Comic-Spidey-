@@ -30,9 +30,21 @@ adb shell wm size "${portrait_width}x${portrait_height}"
 adb shell settings put secure immersive_mode_confirmations confirmed
 adb logcat -c
 adb shell monkey -p "$package" -c android.intent.category.LAUNCHER 1
-# Allow engine startup and model import to finish on software rendering.
-sleep 20
-adb shell pidof "$package" >/dev/null
+# Slow software emulators sometimes need more than a fixed startup delay.
+# Wait for the game to finish initialization, with a bounded timeout.
+ready=false
+for _ in $(seq 1 45); do
+  if adb shell pidof "$package" >/dev/null && adb logcat -d | grep -q 'Native menu ready'; then
+    ready=true
+    break
+  fi
+  sleep 2
+done
+if [ "$ready" != true ]; then
+  echo '::error::Native menu did not become ready within 90 seconds'
+  false
+fi
+sleep 2
 # Open credits from the actual Android menu, then return and choose the mode.
 adb exec-out screencap -p > /tmp/android-menu.png
 # Check the actual graphics menu on Android; restore defaults after exercising it.

@@ -20,8 +20,19 @@ adb shell wm size 720x1280
 adb shell settings put secure immersive_mode_confirmations confirmed
 adb logcat -c
 adb shell monkey -p "$package" -c android.intent.category.LAUNCHER 1
-sleep 20
-adb shell pidof "$package" >/dev/null
+ready=false
+for _ in $(seq 1 45); do
+  if adb shell pidof "$package" >/dev/null && adb logcat -d | grep -q 'Native menu ready'; then
+    ready=true
+    break
+  fi
+  sleep 2
+done
+if [ "$ready" != true ]; then
+  echo '::error::Release-template menu did not become ready within 90 seconds'
+  false
+fi
+sleep 2
 # New Story from the menu; exercise a jump and movement on the release template.
 adb shell input tap 640 339
 sleep 20

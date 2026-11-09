@@ -155,6 +155,7 @@ func run_test() -> void:
 		scene.hero._physics_process(1.0 / 60.0)
 		if scene.hero.health < before_collision:
 			break
+	print("Collision diagnostic hero=", scene.hero.position, " velocity=", scene.hero.velocity, " car=", car.position, " mask=", scene.hero.collision_mask, " count=", scene.hero.get_slide_collision_count(), " hp=", scene.hero.health)
 	check(scene.hero.health < before_collision, "walking into a car causes a real physics impact")
 	scene.hero.health = before_collision
 	scene.hero.vehicle_impact_cooldown = 0

@@ -111,6 +111,9 @@ func run_test() -> void:
 	scene.cutscenes_enabled = true
 	scene.start_story_cutscene()
 	check(scene.cinematic_time > 0.0 and not scene.hero.playing and not scene.controls.active, "story cutscene suspends gameplay")
+	var civilian_before: Vector3 = scene.people[0].position
+	scene.people[0]._physics_process(0.5)
+	check(scene.people[0].position == civilian_before, "story cutscene freezes civilian physics")
 	scene.finish_story_cutscene()
 	check(scene.hero.playing and scene.controls.active and scene.cinematic_time == 0.0, "skipping cutscene resumes gameplay")
 	scene.cutscenes_enabled = false

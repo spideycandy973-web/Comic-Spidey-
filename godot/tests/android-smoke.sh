@@ -35,6 +35,22 @@ sleep 20
 adb shell pidof "$package" >/dev/null
 # Open credits from the actual Android menu, then return and choose the mode.
 adb exec-out screencap -p > /tmp/android-menu.png
+# Check the actual graphics menu on Android; restore defaults after exercising it.
+tap_center 513
+sleep 2
+tap_center 210
+tap_center 268
+tap_center 326
+tap_center 384
+sleep 2
+tap_center 210
+tap_center 210
+tap_center 268
+tap_center 326
+tap_center 384
+sleep 2
+tap_center 442
+sleep 2
 tap_center 225
 sleep 3
 tap_center 47
@@ -87,6 +103,12 @@ PYSCREEN
   echo '::error::Touch attack, movement or swinging input did not reach native gameplay'
   exit 1
 fi
+for option in scale fxaa shadows fps; do
+  if ! grep -q "Native graphics changed: $option" /tmp/native-android-log.txt; then
+    echo "::error::Graphics setting $option did not respond to Android touch"
+    exit 1
+  fi
+done
 if ! grep -q 'Native credits opened' /tmp/native-android-log.txt || ! grep -q 'Native game resumed' /tmp/native-android-log.txt; then
   echo '::error::Credits or pause/resume did not respond to Android touch'
   exit 1

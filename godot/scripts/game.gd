@@ -187,6 +187,8 @@ func change_graphics(option: String) -> void:
 		"fps": graphics.fps_limit = 30 if graphics.fps_limit == 60 else 60
 		_: return
 	graphics.apply(get_viewport(), sun)
+	if OS.is_debug_build():
+		print("Native graphics changed: ", option)
 	if not graphics.save_settings():
 		push_warning("Could not save graphics settings")
 	show_graphics()

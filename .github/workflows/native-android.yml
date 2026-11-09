@@ -86,6 +86,28 @@ jobs:
             python3 -c 'from pathlib import Path; s=Path("/tmp/native-export.log").read_text(errors="replace")[-12000:]; print("::error::"+s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A"))' 
             exit "$result"
           fi
+      # This checks the release export template with a throwaway CI key.
+      # It is NOT the persistent signing key and must never be distributed as a release.
+      - name: Build and verify release-template APK with temporary test key
+        run: |
+          set -euo pipefail
+          password=$(openssl rand -hex 16)
+          keytool -genkeypair -keystore /tmp/ci-release-test.keystore -storepass "$password" -alias citest -keypass "$password" -dname 'CN=CI Test Only,O=Comic Spidey,C=US' -keyalg RSA -validity 30 >/dev/null 2>&1
+          export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=/tmp/ci-release-test.keystore
+          export GODOT_ANDROID_KEYSTORE_RELEASE_USER=citest
+          export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$password"
+          /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --path godot --export-release Android /tmp/comic-spidey-release-ci-only.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose /tmp/comic-spidey-release-ci-only.apk
+          if "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/comic-spidey-release-ci-only.apk | grep -q '^application-debuggable'; then
+            echo '::error::Release-template APK is marked debuggable'
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-template-ci-only-do-not-distribute
+          path: /tmp/comic-spidey-release-ci-only.apk
+          retention-days: 1
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: comic-spidey-native-debug
@@ -101,6 +123,10 @@ jobs:
         with:
           name: comic-spidey-native-debug
           path: /tmp/native-apk
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-template-ci-only-do-not-distribute
+          path: /tmp/release-apk
       - name: Install screenshot diagnostics
         run: python3 -m pip install --user --break-system-packages Pillow
       - name: Enable emulator acceleration
@@ -116,4 +142,4 @@ jobs:
           target: google_apis
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
-          script: bash godot/tests/android-smoke.sh /tmp/native-apk/comic-spidey-native-debug.apk 720 1280 Story && bash godot/tests/android-smoke.sh /tmp/native-apk/comic-spidey-native-debug.apk 540 1200 "Free Roam"
+          script: bash godot/tests/android-smoke.sh /tmp/native-apk/comic-spidey-native-debug.apk 720 1280 Story && bash godot/tests/android-smoke.sh /tmp/native-apk/comic-spidey-native-debug.apk 540 1200 "Free Roam" && bash godot/tests/android-release-smoke.sh /tmp/release-apk/comic-spidey-release-ci-only.apk

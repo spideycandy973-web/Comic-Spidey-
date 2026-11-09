@@ -12,7 +12,7 @@ Progress is autosaved locally per mode, at Story checkpoints, periodically durin
 
 ## Development verification
 
-Open `project.godot` in Godot 4.3 and run `main.tscn`. The native workflow imports models; tests objectives, combat, obstacle pursuit, multitouch and saves; runs an automated input-driven Story playthrough; compares rendered frames; exports a debug APK; and attempts Android emulator installation, launch and touch input. The automated playthrough uses accelerated simulation and a scripted controller, not a human player. An emulator and automated checks do not replace hands-on testing on real devices. No signed final release is produced by this workflow.
+Open `project.godot` in Godot 4.3 and run `main.tscn`. The native workflow imports models; tests objectives, combat, obstacle pursuit, multitouch and saves; runs an automated input-driven Story playthrough; compares rendered frames; exports a debug APK; and attempts Android emulator installation, launch and touch input. The automated playthrough uses accelerated simulation and a scripted controller, not a human player. An emulator and automated checks do not replace hands-on testing on real devices. The workflow also checks a non-debug release-template APK signed with a throwaway CI key; that APK is for CI only and must not be distributed. Actual repository releases must use a persistent, securely backed-up release signing key and a non-debug APK. No signed final release is produced by this workflow.
 
 ## Additional citizen generation
 

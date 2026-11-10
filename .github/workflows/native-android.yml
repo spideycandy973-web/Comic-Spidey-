@@ -147,3 +147,31 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
           script: bash godot/tests/android-smoke.sh /tmp/native-apk/comic-spidey-native-debug.apk 720 1280 Story && bash godot/tests/android-smoke.sh /tmp/native-apk/comic-spidey-native-debug.apk 540 1200 "Free Roam" && bash godot/tests/android-release-smoke.sh /tmp/release-apk/comic-spidey-release-ci-only.apk
+  android-lifecycle:
+    needs: native
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        emulator: [1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-template-ci-only-do-not-distribute
+          path: /tmp/release-apk
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Repeat cold launch and background return
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash godot/tests/android-lifecycle-stress.sh /tmp/release-apk/comic-spidey-release-ci-only.apk 5

@@ -8,7 +8,7 @@ on_error() {
   trap - ERR
   set +e
   echo "::error::Release-template emulator check failed at line $line (exit $code)"
-  adb logcat -b crash -d | tail -25 | while IFS= read -r text; do echo "::notice::Crash: $text"; done
+  adb logcat -b crash -d | head -100 | while IFS= read -r text; do echo "::notice::Crash: $text"; done
   adb logcat -d | grep -iE 'godot|comicspidey|fatal exception' | tail -20 | while IFS= read -r text; do echo "::notice::$text"; done
   exit "$code"
 }

@@ -33,15 +33,21 @@ jobs:
           unzip -q /tmp/templates.zip -d /tmp/templates
           mv /tmp/templates/templates/* ~/.local/share/godot/export_templates/4.3.stable/
           printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' "$ANDROID_HOME" "$JAVA_HOME" > ~/.config/godot/editor_settings-4.tres
+      - name: Generate one-time transport public key
+        run: |
+          set -euo pipefail
+          umask 077
+          dir="$RUNNER_TEMP/update-signing"
+          mkdir "$dir"
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out "$dir/ephemeral.pem" 2>/dev/null
+          openssl pkey -in "$dir/ephemeral.pem" -pubout -out "$dir/public.pem"
+          echo "::notice::UPDATE_PUBLIC_KEY=$(base64 -w0 "$dir/public.pem")"
       - name: Securely receive signing material and build update
         run: |
           set -euo pipefail
           umask 077
-          dir=$(mktemp -d)
+          dir="$RUNNER_TEMP/update-signing"
           trap 'rm -rf "$dir"' EXIT
-          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out "$dir/ephemeral.pem" 2>/dev/null
-          openssl pkey -in "$dir/ephemeral.pem" -pubout -out "$dir/public.pem"
-          echo "::notice::UPDATE_PUBLIC_KEY=$(base64 -w0 "$dir/public.pem")"
           found=false
           for i in $(seq 1 120); do
             if gh release download v0.4.1-native --pattern signing-transfer.tar --dir "$dir" >/dev/null 2>&1; then found=true; break; fi

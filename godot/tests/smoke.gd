@@ -87,6 +87,8 @@ func run_test() -> void:
 	check(is_equal_approx(root.scaling_3d_scale, 0.7), "3D resolution setting changes the viewport")
 	scene.change_graphics("fxaa")
 	check(root.screen_space_aa == Viewport.SCREEN_SPACE_AA_FXAA, "FXAA setting applies")
+	scene.graphics.shadows = false
+	scene.graphics.apply(root, scene.sun)
 	scene.change_graphics("shadows")
 	check(scene.sun.shadow_enabled, "shadow setting applies")
 	scene.change_graphics("fps")
@@ -189,7 +191,7 @@ func run_test() -> void:
 	check(not hero_meshes.is_empty(), "hero model has visible mesh")
 	if not hero_meshes.is_empty():
 		var hero_material = hero_meshes[0].get_active_material(0)
-		check(hero_material is BaseMaterial3D and hero_material.next_pass is ShaderMaterial and hero_material.diffuse_mode == BaseMaterial3D.DIFFUSE_TOON, "hero has toon lighting and an ink outline")
+		check(hero_material is BaseMaterial3D and hero_material.next_pass is ShaderMaterial and hero_material.diffuse_mode == BaseMaterial3D.DIFFUSE_BURLEY and hero_material.albedo_texture != null, "hero keeps its suit texture, shaded material, and ink outline")
 	check(scene.hero.hand_bone >= 0 and scene.hero.animator.has_animation("run"), "hand and run animation imported")
 	check(scene.hero.animator.get_animation("run").loop_mode == Animation.LOOP_LINEAR, "run animation loops")
 	check(scene.sound.samples.size() == 5, "offline sound cues were generated")

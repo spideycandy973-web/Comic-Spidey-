@@ -30,6 +30,7 @@ var shot_end := Vector3.ZERO
 var shot_line: MeshInstance3D
 var web: MeshInstance3D
 var punch_flash: MeshInstance3D
+var contact_shadow: MeshInstance3D
 var punch_timer := 0.0
 var playing := false
 var debug_movement_reported := false
@@ -91,6 +92,17 @@ func setup() -> void:
 	punch_flash.material_override = mat
 	game.add_child(punch_flash)
 	punch_flash.visible = false
+	contact_shadow = MeshInstance3D.new()
+	contact_shadow.name = "ContactShadow"
+	var shadow_quad := QuadMesh.new()
+	shadow_quad.size = Vector2(1.0, 1.0)
+	contact_shadow.mesh = shadow_quad
+	contact_shadow.rotation.x = -PI * 0.5
+	var shadow_material := ShaderMaterial.new()
+	shadow_material.shader = preload("res://scripts/contact_shadow.gdshader")
+	contact_shadow.material_override = shadow_material
+	contact_shadow.visible = false
+	game.add_child(contact_shadow)
 
 func _physics_process(delta: float) -> void:
 	if not playing:
@@ -138,7 +150,7 @@ func _physics_process(delta: float) -> void:
 		debug_movement_reported = true
 		print("Native movement input received")
 	if desired.length() > 0.05:
-		visual.rotation.y = lerp_angle(visual.rotation.y, atan2(desired.x, desired.z) + PI, delta * 10)
+		visual.rotation.y = rotate_toward(visual.rotation.y, atan2(desired.x, desired.z) + PI, delta * 10.0)
 	var accel := 13.0 if is_on_floor() else (8.0 if rope_active else 4.0)
 	var top_speed := 7.5 if is_on_floor() else 11.0
 	if rope_active:
@@ -149,8 +161,14 @@ func _physics_process(delta: float) -> void:
 		velocity.x = horizontal_speed.x
 		velocity.z = horizontal_speed.y
 	elif is_on_floor():
-		velocity.x = move_toward(velocity.x, desired.x * top_speed, accel * delta)
-		velocity.z = move_toward(velocity.z, desired.z * top_speed, accel * delta)
+		# Limit acceleration as a vector: per-axis acceleration makes diagonal
+		# turns unnaturally faster and causes different braking by direction.
+		var horizontal := Vector2(velocity.x, velocity.z)
+		var goal := Vector2(desired.x, desired.z) * top_speed
+		var ground_accel := 20.0 if desired.length_squared() < 0.01 else accel
+		horizontal = horizontal.move_toward(goal, ground_accel * delta)
+		velocity.x = horizontal.x
+		velocity.z = horizontal.y
 	else:
 		# Air steering adds acceleration rather than instantly braking a fast
 		# swing release back to walking speed. Gentle drag prevents endless drift.
@@ -249,6 +267,7 @@ func _physics_process(delta: float) -> void:
 			update_web()
 	update_animation(desired)
 	update_camera(delta)
+	update_contact_shadow()
 
 # Step onto a rooftop once the climber reaches its lip. Both the roof ray and
 # capsule clearance are checked so the move cannot put the hero inside a wall
@@ -307,12 +326,39 @@ func update_camera(delta: float) -> void:
 	var target := global_position + Vector3.UP * 1.5
 	var horizontal := Vector3(sin(yaw), 0, cos(yaw))
 	var wanted := target + horizontal * (6.5 * cos(pitch)) + Vector3.UP * (1.2 + sin(pitch) * 6.5)
-	var query := PhysicsRayQueryParameters3D.create(target, wanted, 1)
+	# Smooth first, then resolve collision against the actual interpolated
+	# position. Clipping only the desired point lets the camera pass through
+	# buildings when it moves from one side of an obstacle to the other.
+	var smoothed := camera.global_position.lerp(wanted, 1.0 - exp(-10.0 * delta))
+	var query := PhysicsRayQueryParameters3D.create(target, smoothed, 5)
+	query.exclude = [get_rid()]
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if not hit.is_empty():
-		wanted = hit.position + hit.normal * 0.25
-	camera.global_position = camera.global_position.lerp(wanted, minf(1, delta * 10))
-	camera.look_at(target, Vector3.UP)
+		smoothed = hit.position + hit.normal * 0.25
+	camera.global_position = smoothed
+	if smoothed.distance_squared_to(target) > 0.0001:
+		camera.look_at(target, Vector3.UP)
+
+# A lightweight soft contact shadow remains available on lower-end devices
+# when real sun shadows are switched off. It follows static ground and rooftops.
+func update_contact_shadow() -> void:
+	if not is_instance_valid(contact_shadow):
+		return
+	if game.sun.shadow_enabled:
+		contact_shadow.visible = false
+		return
+	var start := global_position + Vector3.UP * 0.4
+	var query := PhysicsRayQueryParameters3D.create(start, global_position + Vector3.DOWN * 8.0, 1)
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty() or hit.normal.y < 0.8:
+		contact_shadow.visible = false
+		return
+	var height := maxf(0.0, global_position.y - hit.position.y)
+	contact_shadow.global_position = hit.position + Vector3.UP * 0.035
+	var size := 1.15 + height * 0.12
+	contact_shadow.scale = Vector3(size, size, size)
+	contact_shadow.material_override.set_shader_parameter("opacity", 0.28 * clampf(1.0 - height / 8.0, 0.0, 1.0))
+	contact_shadow.visible = true
 
 func attach_web(forward: Vector3, transfer: bool = false) -> void:
 	var start := global_position + Vector3.UP * 1.4

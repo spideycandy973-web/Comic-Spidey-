@@ -69,6 +69,7 @@ func _ready() -> void:
 	sun = DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-55, 35, 0)
 	sun.light_energy = 1.3
+	sun.directional_shadow_max_distance = 75.0
 	add_child(sun)
 	graphics.load_settings()
 	graphics.apply(get_viewport(), sun)

@@ -132,7 +132,10 @@ func _input(event: InputEvent) -> void:
 			look_delta += event.relative
 
 func set_movement(pos: Vector2) -> void:
-	movement = ((pos - stick_center()) / (70.0 * control_scale())).limit_length(1.0)
+	var raw := ((pos - stick_center()) / (70.0 * control_scale())).limit_length(1.0)
+	# Suppress tiny touch jitter, while retaining analog walking speed.
+	var magnitude := raw.length()
+	movement = Vector2.ZERO if magnitude <= 0.1 else raw.normalized() * ((magnitude - 0.1) / 0.9)
 
 func consume(name: String) -> bool:
 	var value: bool = pressed_once.get(name, false)

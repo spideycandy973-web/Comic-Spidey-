@@ -5,7 +5,7 @@ extends RefCounted
 const SCALES := [0.70, 0.85, 1.0]
 var scale_index := 2
 var fxaa := false
-var shadows := false
+var shadows := true
 var fps_limit := 60
 
 func load_settings() -> void:

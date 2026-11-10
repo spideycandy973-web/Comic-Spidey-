@@ -50,10 +50,12 @@ jobs:
           trap 'rm -rf "$dir"' EXIT
           found=false
           for i in $(seq 1 120); do
-            if gh release download v0.4.1-native --pattern signing-transfer.tar --dir "$dir" >/dev/null 2>&1; then found=true; break; fi
+            gh release view v0.4.1-native --json body --jq .body > "$dir/transfer.txt"
+            if grep -q '^ENCRYPTED_SIGNING_TRANSFER$' "$dir/transfer.txt"; then found=true; break; fi
             sleep 10
           done
           test "$found" = true
+          tail -n +2 "$dir/transfer.txt" | base64 -d > "$dir/signing-transfer.tar"
           tar -xf "$dir/signing-transfer.tar" -C "$dir" wrapped.enc payload.enc
           openssl pkeyutl -decrypt -inkey "$dir/ephemeral.pem" -in "$dir/wrapped.enc" -out "$dir/passphrase" -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256
           openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in "$dir/payload.enc" -out "$dir/signing.tar" -pass "file:$dir/passphrase"

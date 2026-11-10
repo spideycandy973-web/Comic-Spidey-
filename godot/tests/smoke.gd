@@ -58,6 +58,20 @@ func run_test() -> void:
 	scene.controls._input(drag)
 	check(scene.controls.movement == Vector2.ZERO, "releasing joystick stops input")
 	var default_stick: Vector2 = scene.controls.stick_center()
+	var standard_jump: Vector2 = scene.controls.button_positions()["jump"]
+	check(scene.controls.set_control_size(2), "larger control setting saves")
+	check(scene.controls.control_scale() > 1.0 and scene.controls.button_positions()["jump"].y < standard_jump.y, "larger controls increase spacing from the screen edge")
+	var enlarged_touch := InputEventScreenTouch.new()
+	enlarged_touch.index = 8
+	enlarged_touch.pressed = true
+	enlarged_touch.position = scene.controls.button_positions()["jump"] + Vector2(55, 0)
+	scene.controls._input(enlarged_touch)
+	check(scene.controls.consume("jump"), "large control accepts touches within its enlarged radius")
+	enlarged_touch.pressed = false
+	scene.controls._input(enlarged_touch)
+	var control_settings := ConfigFile.new()
+	check(control_settings.load("user://settings.cfg") == OK and control_settings.get_value("controls", "size_index", -1) == 2, "control size persists")
+	check(scene.controls.set_control_size(1), "default control size restores")
 	check(scene.controls.set_mirrored(true), "mirrored control setting saves")
 	check(scene.controls.stick_center().x > default_stick.x and scene.controls.button_positions()["attack"].x < default_stick.x + 200, "mirrored controls swap sides")
 	scene.sound.toggle()

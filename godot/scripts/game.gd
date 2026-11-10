@@ -155,6 +155,7 @@ func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
 		add_menu_button(box, "New " + label, request_new_mode.bind(label))
 	add_menu_button(box, "How to play", show_help)
 	add_menu_button(box, "Graphics settings", show_graphics)
+	add_menu_button(box, "Control size: " + controls.CONTROL_SIZE_LABELS[controls.control_size_index], toggle_control_size)
 
 func show_graphics() -> void:
 	if is_instance_valid(menu):
@@ -239,7 +240,7 @@ Use HIT up close, or SHOT to web an enemy from a distance. TAP TALK near a perso
 
 Follow the arrow and beacon. In Story, complete objectives and protect the city. In Free Roam, answer emergency calls.
 
-Pause to change sound or mirror the controls. Your progress saves locally."""
+Pause to change sound, mirror the controls, or resize them. Scroll the menu to see every option. Your progress saves locally."""
 	instructions.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	instructions.add_theme_font_size_override("font_size", 22)
 	instructions.add_theme_color_override("font_color", Color("fff8df"))
@@ -329,6 +330,11 @@ func close_credits() -> void:
 func toggle_layout() -> void:
 	if not controls.set_mirrored(not controls.mirrored):
 		push_warning("Could not save the control layout setting")
+	show_menu(is_instance_valid(hero) and not hero.playing and hero.health > 0 and not mode.is_empty(), is_instance_valid(hero) and hero.health <= 0)
+
+func toggle_control_size() -> void:
+	if not controls.set_control_size((controls.control_size_index + 1) % controls.CONTROL_SCALES.size()):
+		push_warning("Could not save the control size setting")
 	show_menu(is_instance_valid(hero) and not hero.playing and hero.health > 0 and not mode.is_empty(), is_instance_valid(hero) and hero.health <= 0)
 
 func toggle_sound() -> void:

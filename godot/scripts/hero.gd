@@ -36,6 +36,7 @@ var debug_movement_reported := false
 var vehicle_impact_cooldown := 0.0
 var climbing := false
 var transfer_timer := 0.0
+var mantle_cooldown := 0.0
 
 func setup() -> void:
 	var shape := CollisionShape3D.new()
@@ -99,6 +100,7 @@ func _physics_process(delta: float) -> void:
 		return
 	vehicle_impact_cooldown = maxf(0.0, vehicle_impact_cooldown - delta)
 	transfer_timer = maxf(0.0, transfer_timer - delta)
+	mantle_cooldown = maxf(0.0, mantle_cooldown - delta)
 	web_retry = maxf(0, web_retry - delta)
 	landing_timer = maxf(0, landing_timer - delta)
 	coyote_timer = 0.12 if is_on_floor() else maxf(0.0, coyote_timer - delta)
@@ -163,6 +165,8 @@ func _physics_process(delta: float) -> void:
 	climbing = not rope_active and not is_on_floor() and is_on_wall() and absf(get_wall_normal().y) < 0.4 and desired.dot(-get_wall_normal()) > 0.3
 	if climbing:
 		velocity.y = 4.0
+		if mantle_cooldown <= 0.0 and jump_buffer <= 0.0:
+			try_mantle(get_wall_normal())
 	if jump_buffer > 0:
 		var jumped := false
 		if rope_active:
@@ -245,6 +249,39 @@ func _physics_process(delta: float) -> void:
 			update_web()
 	update_animation(desired)
 	update_camera(delta)
+
+# Step onto a rooftop once the climber reaches its lip. Both the roof ray and
+# capsule clearance are checked so the move cannot put the hero inside a wall
+# or under a low ceiling. Only a static-world surface can be a landing.
+func try_mantle(wall_normal: Vector3) -> bool:
+	var toward := -Vector3(wall_normal.x, 0.0, wall_normal.z).normalized()
+	if toward.length_squared() < 0.5:
+		return false
+	var space := get_world_3d().direct_space_state
+	var front := global_position + toward * 0.95
+	var ray := PhysicsRayQueryParameters3D.create(front + Vector3.UP * 2.2, front + Vector3.DOWN * 0.1, 1)
+	var hit := space.intersect_ray(ray)
+	if hit.is_empty() or hit.normal.y < 0.8:
+		return false
+	var rise: float = hit.position.y - global_position.y
+	if rise < -0.05 or rise > 1.2:
+		return false
+	var destination := Vector3(front.x, hit.position.y + 0.06, front.z)
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.32
+	capsule.height = 1.8
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = capsule
+	query.transform = Transform3D(Basis.IDENTITY, destination + Vector3.UP * 0.93)
+	query.collision_mask = 5
+	query.exclude = [get_rid()]
+	if not space.intersect_shape(query, 1).is_empty():
+		return false
+	global_position = destination
+	velocity = toward * 2.0
+	climbing = false
+	mantle_cooldown = 0.5
+	return true
 
 func update_animation(_desired: Vector3) -> void:
 	if not animator:

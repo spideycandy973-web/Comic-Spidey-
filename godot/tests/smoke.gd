@@ -114,6 +114,10 @@ func run_test() -> void:
 	var civilian_before: Vector3 = scene.people[0].position
 	scene.people[0]._physics_process(0.5)
 	check(scene.people[0].position == civilian_before, "story cutscene freezes civilian physics")
+	scene.mission_enemies.append(scene.people[0])
+	scene.cinematic_time = 2.5
+	check(scene.story_cutscene_focus().distance_to(scene.people[0].global_position + Vector3.UP * 1.2) < 0.01, "boss cutscene focuses on the opposing character")
+	scene.mission_enemies.clear()
 	scene.finish_story_cutscene()
 	check(scene.hero.playing and scene.controls.active and scene.cinematic_time == 0.0, "skipping cutscene resumes gameplay")
 	scene.cutscenes_enabled = false
@@ -229,6 +233,14 @@ func run_test() -> void:
 		scene.hero._physics_process(1.0 / 60.0)
 	check(scene.hero.is_on_wall() and not scene.hero.is_on_floor(), "hero can reach a wall in the air")
 	check(scene.hero.climbing and scene.hero.velocity.y > 0, "holding toward a wall climbs upward")
+	scene.hero.position = Vector3(0, 5.3, -2.43)
+	scene.hero.velocity = Vector3.ZERO
+	await physics_frame
+	check(scene.hero.try_mantle(Vector3.BACK) and scene.hero.position.y > 6.0, "climbing can mantle onto a clear rooftop")
+	scene.hero.position = Vector3(0, 4, -2.3)
+	scene.hero.velocity = Vector3.ZERO
+	for frame in range(20):
+		scene.hero._physics_process(1.0 / 60.0)
 	scene.controls.pressed_once["jump"] = true
 	scene.hero._physics_process(1.0 / 60.0)
 	check(scene.hero.velocity.y > 5 and scene.hero.velocity.z > 0, "jumping against a wall launches up and away")

@@ -407,6 +407,8 @@ func begin_play() -> void:
 	hero.landing_timer = 0
 	hero.coyote_timer = 0
 	hero.jump_buffer = 0
+	hero.mantle_cooldown = 0
+	hero.climbing = false
 	hero.punch_flash.visible = false
 	hero.shot_line.visible = false
 	hero.punch_timer = 0
@@ -569,9 +571,18 @@ func start_story_cutscene() -> void:
 	skip.pressed.connect(finish_story_cutscene)
 	row.add_child(skip)
 
+# Cut to the speaking opponent in the middle of boss scenes, then return to
+# the hero. Intro and finale scenes without an opponent stay on the hero.
+func story_cutscene_focus() -> Vector3:
+	if cinematic_time < 3.1 and cinematic_time > 0.9:
+		for actor in mission_enemies:
+			if is_instance_valid(actor) and not actor.is_queued_for_deletion():
+				return actor.global_position + Vector3.UP * 1.2
+	return hero.global_position + Vector3.UP * 1.2
+
 func update_story_cutscene(delta: float) -> void:
 	cinematic_time = maxf(0.0, cinematic_time - delta)
-	var target: Vector3 = hero.global_position + Vector3.UP * 1.2
+	var target: Vector3 = story_cutscene_focus()
 	var angle: float = hero.yaw + (4.5 - cinematic_time) * 0.15
 	var wanted := target + Vector3(sin(angle) * 5.5, 2.3, cos(angle) * 5.5)
 	var hit: Dictionary = hero.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(target, wanted, 1))

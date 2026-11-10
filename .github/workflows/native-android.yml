@@ -68,6 +68,11 @@ jobs:
           cat /tmp/native-smoke.log /tmp/native-traversal.log /tmp/native-pursuit.log /tmp/native-playthrough.log /tmp/native-patrol.log /tmp/native-render.log /tmp/native-comic.log >> /tmp/native-import.log 2>/dev/null || true
           grep -E "Graphics layout:|Native scene smoke checks passed|Native boss rendering check passed|Boss rendered pixel changes|Objective rendered pixel changes|Playthrough stage|Playthrough stalled|Playthrough stopped|Input-driven story playthrough passed|Input-driven Free Roam emergencies passed|TEST FAILED" /tmp/native-import.log | while IFS= read -r line; do echo "::notice::$line"; done
           if [ "$result" -ne 0 ] || grep -qE 'SCRIPT ERROR|ERROR:' /tmp/native-import.log; then
+            for f in /tmp/native-import.log /tmp/native-smoke.log /tmp/native-traversal.log /tmp/native-pursuit.log /tmp/native-playthrough.log /tmp/native-patrol.log /tmp/native-render.log /tmp/native-comic.log; do
+              if [ -f "$f" ]; then
+                python3 -c 'import pathlib,sys; p=pathlib.Path(sys.argv[1]); lines=p.read_text(errors="replace").splitlines(); s="\n".join(line for line in lines if "ERROR:" in line or "TEST FAILED" in line); print("::error::"+p.name+": "+s[:3000].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")) if s else None' "$f"
+              fi
+            done
             grep -E -A1 'SCRIPT ERROR|ERROR:' /tmp/native-import.log | head -60 | while IFS= read -r line; do echo "::error::$line"; done
             exit 1
           fi

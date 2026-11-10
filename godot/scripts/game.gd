@@ -155,7 +155,8 @@ func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
 		add_menu_button(box, "New " + label, request_new_mode.bind(label))
 	add_menu_button(box, "How to play", show_help)
 	add_menu_button(box, "Graphics settings", show_graphics)
-	add_menu_button(box, "Control size: " + controls.CONTROL_SIZE_LABELS[controls.control_size_index], toggle_control_size)
+	if can_resume:
+		add_menu_button(box, "Control size: " + controls.CONTROL_SIZE_LABELS[controls.control_size_index], toggle_control_size)
 
 func show_graphics() -> void:
 	if is_instance_valid(menu):

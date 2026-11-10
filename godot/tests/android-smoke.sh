@@ -71,7 +71,12 @@ tap_center 326
 sleep 1
 tap_center 384
 sleep 2
+# Exercise and restore the city mood, then leave graphics settings.
 tap_center 442
+sleep 2
+tap_center 442
+sleep 2
+tap_center 500
 sleep 2
 tap_center 225
 sleep 3
@@ -125,7 +130,7 @@ PYSCREEN
   echo '::error::Touch attack, movement or swinging input did not reach native gameplay'
   exit 1
 fi
-for option in scale fxaa shadows fps; do
+for option in scale fxaa shadows fps city; do
   if ! grep -q "Native graphics changed: $option" /tmp/native-android-log.txt; then
     echo "::error::Graphics setting $option did not respond to Android touch"
     exit 1

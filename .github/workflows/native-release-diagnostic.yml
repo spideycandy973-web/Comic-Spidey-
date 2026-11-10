@@ -1,0 +1,38 @@
+name: Diagnose signed native APK
+on:
+  push:
+    branches: ['arena/0caf332d-comic-spidey']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  emulator:
+    if: contains(github.event.head_commit.message, '[diagnose-native-apk]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        attempt: [1, 2]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: comic-spidey-0.4.1-candidate
+          path: /tmp/native-release
+          run-id: 42889301176
+          github-token: ${{ github.token }}
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Test signed release on Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash godot/tests/android-release-smoke.sh /tmp/native-release/Comic-Spidey-0.4.1.apk

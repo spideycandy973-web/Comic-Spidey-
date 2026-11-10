@@ -1,0 +1,105 @@
+# One-time update build: the signing key is encrypted to a per-job ephemeral key.
+# Do not reuse the transfer bundle or run this workflow without the owner.
+name: Prepare native 0.4.1 update
+on:
+  push:
+    branches: ['arena/0caf332d-comic-spidey']
+permissions:
+  contents: write
+jobs:
+  build:
+    if: contains(github.event.head_commit.message, '[prepare-native-0.4.1]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 364e2f411627802390452776cf4771e6f10ca2b6
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Validate draft and install build tools
+        run: |
+          set -euo pipefail
+          gh release view v0.4.1-native --json isDraft,targetCommitish,assets --jq '.isDraft == true and .targetCommitish == "364e2f411627802390452776cf4771e6f10ca2b6" and (.assets | length == 0)' | grep -qx true
+          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip -O /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          chmod +x /tmp/godot/Godot_v4.3-stable_linux.x86_64
+          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz -O /tmp/templates.zip
+          mkdir -p ~/.local/share/godot/export_templates/4.3.stable ~/.config/godot
+          unzip -q /tmp/templates.zip -d /tmp/templates
+          mv /tmp/templates/templates/* ~/.local/share/godot/export_templates/4.3.stable/
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' "$ANDROID_HOME" "$JAVA_HOME" > ~/.config/godot/editor_settings-4.tres
+      - name: Securely receive signing material and build update
+        run: |
+          set -euo pipefail
+          umask 077
+          dir=$(mktemp -d)
+          trap 'rm -rf "$dir"' EXIT
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out "$dir/ephemeral.pem" 2>/dev/null
+          openssl pkey -in "$dir/ephemeral.pem" -pubout -out "$dir/public.pem"
+          echo "::notice::UPDATE_PUBLIC_KEY=$(base64 -w0 "$dir/public.pem")"
+          found=false
+          for i in $(seq 1 120); do
+            if gh release download v0.4.1-native --pattern signing-transfer.tar --dir "$dir" >/dev/null 2>&1; then found=true; break; fi
+            sleep 10
+          done
+          test "$found" = true
+          tar -xf "$dir/signing-transfer.tar" -C "$dir" wrapped.enc payload.enc
+          openssl pkeyutl -decrypt -inkey "$dir/ephemeral.pem" -in "$dir/wrapped.enc" -out "$dir/passphrase" -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in "$dir/payload.enc" -out "$dir/signing.tar" -pass "file:$dir/passphrase"
+          tar -xf "$dir/signing.tar" -C "$dir" release.p12 password.txt
+          export RELEASE_PASSWORD=$(cat "$dir/password.txt")
+          echo "::add-mask::$RELEASE_PASSWORD"
+          export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$dir/release.p12"
+          export GODOT_ANDROID_KEYSTORE_RELEASE_USER=comicspidey
+          export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$RELEASE_PASSWORD"
+          /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --path godot --editor --import --quit
+          /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --path godot --export-release Android /tmp/Comic-Spidey-0.4.1.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/Comic-Spidey-0.4.1.apk > /tmp/signature.txt
+          grep -qx 'Signer #1 certificate SHA-256 digest: 6e1314880e4b8a95fc480df7e7dfbdfe308c6499df7dfd36765d9b7018f32699' /tmp/signature.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/Comic-Spidey-0.4.1.apk > /tmp/badging.txt
+          grep -q "package: name='com.comicspidey.nativegame' versionCode='3' versionName='0.4.1'" /tmp/badging.txt
+          if grep -q '^application-debuggable' /tmp/badging.txt; then echo '::error::APK is debuggable'; exit 1; fi
+          echo "::notice::UPDATE_APK_SHA256=$(sha256sum /tmp/Comic-Spidey-0.4.1.apk | cut -d' ' -f1)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: comic-spidey-0.4.1-candidate
+          path: /tmp/Comic-Spidey-0.4.1.apk
+          retention-days: 2
+          if-no-files-found: error
+  emulator:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 364e2f411627802390452776cf4771e6f10ca2b6
+      - uses: actions/download-artifact@v4
+        with:
+          name: comic-spidey-0.4.1-candidate
+          path: /tmp/native-release
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Test signed release on Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash godot/tests/android-release-smoke.sh /tmp/native-release/Comic-Spidey-0.4.1.apk
+      - name: Upload tested APK to the draft
+        run: |
+          gh release view v0.4.1-native --json isDraft,targetCommitish --jq '.isDraft == true and .targetCommitish == "364e2f411627802390452776cf4771e6f10ca2b6"' | grep -qx true
+          gh release upload v0.4.1-native /tmp/native-release/Comic-Spidey-0.4.1.apk

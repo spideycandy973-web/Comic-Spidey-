@@ -49,11 +49,14 @@ jobs:
           export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$RELEASE_PASSWORD"
           /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --path godot --editor --import --quit
           /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --path godot --export-release Android /tmp/Comic-Spidey-0.4.0.apk
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/Comic-Spidey-0.4.0.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/Comic-Spidey-0.4.0.apk | tee /tmp/signature.txt
+          cert=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' /tmp/signature.txt)
+          test ${#cert} -eq 64
+          echo "::notice::COMIC_CERT_SHA256=$cert"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/Comic-Spidey-0.4.0.apk > /tmp/badging.txt
           grep -q "package: name='com.comicspidey.nativegame' versionCode='2' versionName='0.4.0'" /tmp/badging.txt
           if grep -q '^application-debuggable' /tmp/badging.txt; then echo '::error::APK is debuggable'; exit 1; fi
-          sha256sum /tmp/Comic-Spidey-0.4.0.apk
+          echo "::notice::COMIC_APK_SHA256=$(sha256sum /tmp/Comic-Spidey-0.4.0.apk | cut -d' ' -f1)"
           # Encrypt the key AND its password to the owner's offline recovery
           # public key. Only ciphertext is recorded in the public Actions log.
           cat > "$dir/transport-public.pem" <<'PUBLICKEY'
@@ -77,7 +80,12 @@ jobs:
           openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in "$dir/backup.tar" -out "$dir/backup.enc" -pass "file:$dir/envelope-pass.txt"
           openssl pkeyutl -encrypt -pubin -inkey "$dir/transport-public.pem" -in "$dir/envelope-pass.txt" -out "$dir/envelope.enc" -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256
           echo "::notice::COMIC_ENVELOPE=$(base64 -w0 "$dir/envelope.enc")"
-          echo "::notice::COMIC_BACKUP=$(base64 -w0 "$dir/backup.enc")"
+          base64 -w0 "$dir/backup.enc" > "$dir/backup.b64"
+          # GitHub truncates annotations at 4096 characters, so chunk them.
+          split -b 3000 -d -a 3 "$dir/backup.b64" "$dir/chunk-"
+          for chunk in "$dir"/chunk-*; do
+            echo "::notice::COMIC_BACKUP_$(basename "$chunk" | cut -d- -f2)=$(cat "$chunk")"
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: comic-spidey-0.4.0-candidate

@@ -233,18 +233,39 @@ func run_test() -> void:
 		scene.hero._physics_process(1.0 / 60.0)
 	check(scene.hero.is_on_wall() and not scene.hero.is_on_floor(), "hero can reach a wall in the air")
 	check(scene.hero.climbing and scene.hero.velocity.y > 0, "holding toward a wall climbs upward")
-	scene.hero.position = Vector3(0, 5.3, -2.43)
-	scene.hero.velocity = Vector3.ZERO
-	await physics_frame
-	check(scene.hero.try_mantle(Vector3.BACK) and scene.hero.position.y > 6.0, "climbing can mantle onto a clear rooftop")
-	scene.hero.position = Vector3(0, 4, -2.3)
-	scene.hero.velocity = Vector3.ZERO
-	for frame in range(20):
-		scene.hero._physics_process(1.0 / 60.0)
 	scene.controls.pressed_once["jump"] = true
 	scene.hero._physics_process(1.0 / 60.0)
 	check(scene.hero.velocity.y > 5 and scene.hero.velocity.z > 0, "jumping against a wall launches up and away")
 	jump_wall.queue_free()
+	await physics_frame
+	# A deep rooftop is needed for a safe landing; a separate thin wall above
+	# verifies that a low ceiling blocks the mantle rather than trapping the hero.
+	var roof := StaticBody3D.new()
+	var roof_collision := CollisionShape3D.new()
+	var roof_box := BoxShape3D.new()
+	roof_box.size = Vector3(4, 6, 4)
+	roof_collision.shape = roof_box
+	roof.add_child(roof_collision)
+	roof.position = Vector3(0, 3, -3)
+	scene.add_child(roof)
+	var ceiling := StaticBody3D.new()
+	var ceiling_collision := CollisionShape3D.new()
+	var ceiling_box := BoxShape3D.new()
+	ceiling_box.size = Vector3(4, 0.4, 4)
+	ceiling_collision.shape = ceiling_box
+	ceiling.add_child(ceiling_collision)
+	ceiling.position = Vector3(0, 7.8, -3)
+	scene.add_child(ceiling)
+	scene.hero.position = Vector3(0, 5.3, -0.63)
+	scene.hero.velocity = Vector3.ZERO
+	await physics_frame
+	await physics_frame
+	check(not scene.hero.try_mantle(Vector3.BACK), "mantle refuses a low ceiling")
+	ceiling.queue_free()
+	await physics_frame
+	await physics_frame
+	check(scene.hero.try_mantle(Vector3.BACK) and scene.hero.position.y > 6.0, "climbing can mantle onto a clear rooftop")
+	roof.queue_free()
 	scene.controls.movement = Vector2.ZERO
 	scene.hero.position = Vector3(0, 5, 0)
 	scene.hero.velocity = Vector3.ZERO

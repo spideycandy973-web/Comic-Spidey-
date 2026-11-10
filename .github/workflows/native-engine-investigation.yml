@@ -1,0 +1,68 @@
+# Temporary CI-only experiment; no persistent release signing key is used.
+name: Compare Android engine lifecycle
+on:
+  push:
+    branches: ['arena/0caf332d-comic-spidey']
+permissions:
+  contents: read
+jobs:
+  build:
+    if: contains(github.event.head_commit.message, '[investigate-android-engine]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Export temporary-key 4.5.2 comparison APK
+        run: |
+          set -euo pipefail
+          wget -q https://github.com/godotengine/godot/releases/download/4.5.2-stable/Godot_v4.5.2-stable_linux.x86_64.zip -O /tmp/godot.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          wget -q https://github.com/godotengine/godot/releases/download/4.5.2-stable/Godot_v4.5.2-stable_export_templates.tpz -O /tmp/templates.zip
+          mkdir -p ~/.local/share/godot/export_templates/4.5.2.stable ~/.config/godot
+          unzip -q /tmp/templates.zip -d /tmp/templates
+          mv /tmp/templates/templates/* ~/.local/share/godot/export_templates/4.5.2.stable/
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' "$ANDROID_HOME" "$JAVA_HOME" > ~/.config/godot/editor_settings-4.tres
+          password=$(openssl rand -hex 16)
+          keytool -genkeypair -keystore /tmp/test.p12 -storepass "$password" -alias citest -keypass "$password" -dname 'CN=CI Test Only' -keyalg RSA -validity 30 >/dev/null 2>&1
+          export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=/tmp/test.p12
+          export GODOT_ANDROID_KEYSTORE_RELEASE_USER=citest
+          export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$password"
+          /tmp/godot/Godot_v4.5.2-stable_linux.x86_64 --headless --path godot --editor --import --quit
+          /tmp/godot/Godot_v4.5.2-stable_linux.x86_64 --headless --path godot --export-release Android /tmp/compare.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: engine-comparison-ci-only
+          path: /tmp/compare.apk
+          retention-days: 1
+  lifecycle:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        emulator: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: engine-comparison-ci-only
+          path: /tmp/engine-test
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Exercise cold starts and background return
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash godot/tests/android-lifecycle-stress.sh /tmp/engine-test/compare.apk 5

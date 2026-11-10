@@ -209,8 +209,8 @@ func make_chunk(key: Vector2i) -> void:
 			# Graphic edge strips are batched geometry, not dynamic lights: this keeps
 			# the optional night palette inexpensive on mobile hardware.
 			if district in ["Downtown", "Midtown"] and rng.randi_range(0, 2) != 0:
-				var strip_x := center.x + dx * (size.x * 0.5 + 0.09)
-				var strips := neon_cyan if rng.randi_range(0, 1) == 0 else neon_pink
+				var strip_x: float = center.x + dx * (size.x * 0.5 + 0.09)
+				var strips: Array[Transform3D] = neon_cyan if rng.randi_range(0, 1) == 0 else neon_pink
 				strips.append(Transform3D(Basis.from_scale(Vector3(0.12, height * 0.62, 0.18)), Vector3(strip_x, height * 0.60, center.z + dz * (size.z * 0.5 - 0.35))))
 				strips.append(Transform3D(Basis.from_scale(Vector3(0.12, 0.18, size.z * 0.85)), Vector3(strip_x, height * 0.90, center.z)))
 			var palette := [Color("d17b76"), Color("e4a27e"), Color("7c8da6"), Color("af84a1"), Color("d39a92"), Color("9c9bb0")]

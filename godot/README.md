@@ -35,3 +35,18 @@ models remain those already credited; the additional Drive vehicle pack has not
 been integrated because it needs conversion, optimization and provenance review.
 
 The first public native Android build is [0.4.0](https://github.com/spideycandy973-web/Comic-Spidey-/releases/tag/v0.4.0-native). It is a signed, non-debug early build, not a claim that the game is finished or physically device-validated. Preserve the existing signing key for updates; see [release signing](RELEASE_SIGNING.md).
+
+### Reference-inspired city mood
+
+Graphics settings include Sunset and Neon night moods. Sunset uses a warmer
+comic palette and a taller downtown skyline; Neon night changes the sky,
+lighting and windows and adds batched cyan/magenta trim. The setting persists
+and applies to newly streamed city blocks. This is original procedural art
+inspired by the supplied references, not their images or an exact recreation;
+it does not include their characters, detailed architecture or cinematic effects.
+The visual and performance impact still needs hands-on phone testing.
+
+There is an unresolved intermittent Android emulator startup crash inside
+Godot's native initialization (a destroyed mutex during activity relaunch).
+Some runs pass; others crash. Its cause is not established and this work does
+not claim to fix it. Do not publish the 0.4.1 update until investigated.

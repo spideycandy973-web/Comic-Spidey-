@@ -93,9 +93,12 @@ func run_test() -> void:
 	check(scene.sun.shadow_enabled, "shadow setting applies")
 	scene.change_graphics("fps")
 	check(Engine.max_fps == 30, "frame limit setting applies")
+	scene.change_graphics("city")
+	check(scene.graphics.neon_city and scene.world.neon_city, "neon city mood applies")
+	check(is_equal_approx(scene.world.facade_material.get_shader_parameter("night_mix"), 1.0), "neon window lighting applies")
 	var graphics_copy = load("res://scripts/graphics.gd").new()
 	graphics_copy.load_settings()
-	check(graphics_copy.scale_index == 0 and graphics_copy.fxaa and graphics_copy.shadows and graphics_copy.fps_limit == 30, "graphics settings persist")
+	check(graphics_copy.scale_index == 0 and graphics_copy.fxaa and graphics_copy.shadows and graphics_copy.fps_limit == 30 and graphics_copy.neon_city, "graphics settings persist")
 	settings.load("user://settings.cfg")
 	check(settings.get_value("controls", "mirrored", false), "graphics settings preserve touch layout")
 	# Restore defaults for the remaining gameplay and rendering tests.
@@ -103,7 +106,9 @@ func run_test() -> void:
 	scene.graphics.fxaa = false
 	scene.graphics.shadows = false
 	scene.graphics.fps_limit = 60
+	scene.graphics.neon_city = false
 	scene.graphics.apply(root, scene.sun)
+	scene.apply_city_mood()
 	scene.graphics.save_settings()
 	scene.close_credits()
 	if is_instance_valid(scene.menu):

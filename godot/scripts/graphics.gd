@@ -7,6 +7,8 @@ var scale_index := 2
 var fxaa := false
 var shadows := true
 var fps_limit := 60
+# Sunset is the default; neon night is an optional stylized city palette.
+var neon_city := false
 
 func load_settings() -> void:
 	var config := ConfigFile.new()
@@ -21,6 +23,9 @@ func load_settings() -> void:
 	var shadow = config.get_value("graphics", "shadows", shadows)
 	if shadow is bool:
 		shadows = shadow
+	var neon = config.get_value("graphics", "neon_city", neon_city)
+	if neon is bool:
+		neon_city = neon
 	var limit = config.get_value("graphics", "fps_limit", fps_limit)
 	if limit is int and limit in [30, 60]:
 		fps_limit = limit
@@ -38,4 +43,5 @@ func save_settings() -> bool:
 	config.set_value("graphics", "fxaa", fxaa)
 	config.set_value("graphics", "shadows", shadows)
 	config.set_value("graphics", "fps_limit", fps_limit)
+	config.set_value("graphics", "neon_city", neon_city)
 	return config.save("user://settings.cfg") == OK

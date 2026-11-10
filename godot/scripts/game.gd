@@ -19,6 +19,8 @@ var hero
 var controls
 var sound
 var sun: DirectionalLight3D
+var city_environment: Environment
+var city_sky: ProceduralSkyMaterial
 var graphics = GraphicsScript.new()
 var people: Array = []
 var traffic: Array = []
@@ -50,10 +52,12 @@ var cinematic_ui: CanvasLayer
 func _ready() -> void:
 	var env := WorldEnvironment.new()
 	var environment := Environment.new()
+	city_environment = environment
 	# A lightweight procedural horizon gives the city depth without large
 	# sky textures or a network-dependent environment map.
 	environment.background_mode = Environment.BG_SKY
 	var sky_material := ProceduralSkyMaterial.new()
+	city_sky = sky_material
 	sky_material.sky_top_color = Color("397caa")
 	sky_material.sky_horizon_color = Color("c5e4e5")
 	sky_material.ground_bottom_color = Color("495a70")
@@ -77,6 +81,7 @@ func _ready() -> void:
 	world.set_script(WorldScript)
 	add_child(world)
 	world.update_chunks(Vector3.ZERO)
+	apply_city_mood()
 	sound = Node.new()
 	sound.set_script(SoundScript)
 	add_child(sound)
@@ -187,6 +192,7 @@ func show_graphics() -> void:
 	add_menu_button(box, "Anti-aliasing: " + ("FXAA" if graphics.fxaa else "Off"), change_graphics.bind("fxaa"))
 	add_menu_button(box, "Sun shadows: " + ("On" if graphics.shadows else "Off"), change_graphics.bind("shadows"))
 	add_menu_button(box, "Frame limit: %d FPS" % graphics.fps_limit, change_graphics.bind("fps"))
+	add_menu_button(box, "City mood: " + ("Neon night" if graphics.neon_city else "Sunset"), change_graphics.bind("city"))
 	add_menu_button(box, "Back", close_credits)
 	var note := Label.new()
 	note.text = "Lower resolution or turn shadows off for better performance."
@@ -201,13 +207,37 @@ func change_graphics(option: String) -> void:
 		"fxaa": graphics.fxaa = not graphics.fxaa
 		"shadows": graphics.shadows = not graphics.shadows
 		"fps": graphics.fps_limit = 30 if graphics.fps_limit == 60 else 60
+		"city": graphics.neon_city = not graphics.neon_city
 		_: return
 	graphics.apply(get_viewport(), sun)
+	apply_city_mood()
 	if OS.is_debug_build():
 		print("Native graphics changed: ", option)
 	if not graphics.save_settings():
 		push_warning("Could not save graphics settings")
 	show_graphics()
+
+# Lightweight mood changes: no post-processing/bloom dependency on mobile.
+func apply_city_mood() -> void:
+	if graphics.neon_city:
+		city_sky.sky_top_color = Color("101432")
+		city_sky.sky_horizon_color = Color("51497d")
+		city_sky.ground_bottom_color = Color("111829")
+		city_sky.ground_horizon_color = Color("393455")
+		city_environment.ambient_light_color = Color("879dd5")
+		city_environment.ambient_light_energy = 0.48
+		sun.light_color = Color("a8b9ff")
+		sun.light_energy = 0.52
+	else:
+		city_sky.sky_top_color = Color("68579b")
+		city_sky.sky_horizon_color = Color("ffb994")
+		city_sky.ground_bottom_color = Color("4b3a62")
+		city_sky.ground_horizon_color = Color("db9da5")
+		city_environment.ambient_light_color = Color("d2c2df")
+		city_environment.ambient_light_energy = 0.58
+		sun.light_color = Color("ffe4c1")
+		sun.light_energy = 1.15
+	world.set_neon_city(graphics.neon_city)
 
 func show_help() -> void:
 	if is_instance_valid(menu):

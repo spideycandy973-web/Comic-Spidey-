@@ -8,7 +8,7 @@ permissions:
   contents: write
 jobs:
   build:
-    if: contains(github.event.head_commit.message, '[prepare-native-0.4.1]')
+    if: contains(github.event.head_commit.message, '[prepare-city-release]')
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 364e2f411627802390452776cf4771e6f10ca2b6
+          ref: d3fa3a56dec365f18190262e127b3f69b2794dbe
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -24,14 +24,14 @@ jobs:
       - name: Validate draft and install build tools
         run: |
           set -euo pipefail
-          gh release view v0.4.1-native --json isDraft,targetCommitish,assets --jq '.isDraft == true and .targetCommitish == "364e2f411627802390452776cf4771e6f10ca2b6" and (.assets | length == 0)' | grep -qx true
-          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip -O /tmp/godot.zip
+          gh release view v0.4.1-native --json isDraft,targetCommitish,assets --jq '.isDraft == true and .targetCommitish == "d3fa3a56dec365f18190262e127b3f69b2794dbe" and (.assets | length == 0)' | grep -qx true
+          wget -q https://github.com/godotengine/godot/releases/download/4.5.2-stable/Godot_v4.5.2-stable_linux.x86_64.zip -O /tmp/godot.zip
           unzip -q /tmp/godot.zip -d /tmp/godot
-          chmod +x /tmp/godot/Godot_v4.3-stable_linux.x86_64
-          wget -q https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz -O /tmp/templates.zip
-          mkdir -p ~/.local/share/godot/export_templates/4.3.stable ~/.config/godot
+          chmod +x /tmp/godot/Godot_v4.5.2-stable_linux.x86_64
+          wget -q https://github.com/godotengine/godot/releases/download/4.5.2-stable/Godot_v4.5.2-stable_export_templates.tpz -O /tmp/templates.zip
+          mkdir -p ~/.local/share/godot/export_templates/4.5.2.stable ~/.config/godot
           unzip -q /tmp/templates.zip -d /tmp/templates
-          mv /tmp/templates/templates/* ~/.local/share/godot/export_templates/4.3.stable/
+          mv /tmp/templates/templates/* ~/.local/share/godot/export_templates/4.5.2.stable/
           printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\n' "$ANDROID_HOME" "$JAVA_HOME" > ~/.config/godot/editor_settings-4.tres
       - name: Generate one-time transport public key
         run: |
@@ -65,8 +65,8 @@ jobs:
           export GODOT_ANDROID_KEYSTORE_RELEASE_PATH="$dir/release.p12"
           export GODOT_ANDROID_KEYSTORE_RELEASE_USER=comicspidey
           export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$RELEASE_PASSWORD"
-          /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --path godot --editor --import --quit
-          /tmp/godot/Godot_v4.3-stable_linux.x86_64 --headless --path godot --export-release Android /tmp/Comic-Spidey-0.4.1.apk
+          /tmp/godot/Godot_v4.5.2-stable_linux.x86_64 --headless --path godot --editor --import --quit
+          /tmp/godot/Godot_v4.5.2-stable_linux.x86_64 --headless --path godot --export-release Android /tmp/Comic-Spidey-0.4.1.apk
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs /tmp/Comic-Spidey-0.4.1.apk > /tmp/signature.txt
           grep -qx 'Signer #1 certificate SHA-256 digest: 6e1314880e4b8a95fc480df7e7dfbdfe308c6499df7dfd36765d9b7018f32699' /tmp/signature.txt
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging /tmp/Comic-Spidey-0.4.1.apk > /tmp/badging.txt
@@ -88,7 +88,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 364e2f411627802390452776cf4771e6f10ca2b6
+          ref: d3fa3a56dec365f18190262e127b3f69b2794dbe
       - uses: actions/download-artifact@v4
         with:
           name: comic-spidey-0.4.1-candidate
@@ -106,8 +106,8 @@ jobs:
           target: google_apis
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           disable-animations: true
-          script: bash godot/tests/android-release-smoke.sh /tmp/native-release/Comic-Spidey-0.4.1.apk
+          script: bash godot/tests/android-release-smoke.sh /tmp/native-release/Comic-Spidey-0.4.1.apk && bash godot/tests/android-lifecycle-stress.sh /tmp/native-release/Comic-Spidey-0.4.1.apk 5
       - name: Upload tested APK to the draft
         run: |
-          gh release view v0.4.1-native --json isDraft,targetCommitish --jq '.isDraft == true and .targetCommitish == "364e2f411627802390452776cf4771e6f10ca2b6"' | grep -qx true
+          gh release view v0.4.1-native --json isDraft,targetCommitish --jq '.isDraft == true and .targetCommitish == "d3fa3a56dec365f18190262e127b3f69b2794dbe"' | grep -qx true
           gh release upload v0.4.1-native /tmp/native-release/Comic-Spidey-0.4.1.apk

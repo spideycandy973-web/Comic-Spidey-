@@ -4,7 +4,7 @@ extends RefCounted
 # that a device can sustain a particular frame rate or quality level.
 const SCALES := [0.70, 0.85, 1.0]
 var scale_index := 2
-var fxaa := false
+var msaa := false
 var shadows := true
 var fps_limit := 60
 # Sunset is the default; neon night is an optional stylized city palette.
@@ -17,9 +17,9 @@ func load_settings() -> void:
 	var scale = config.get_value("graphics", "scale_index", scale_index)
 	if scale is int and scale >= 0 and scale < SCALES.size():
 		scale_index = scale
-	var aa = config.get_value("graphics", "fxaa", fxaa)
+	var aa = config.get_value("graphics", "msaa", config.get_value("graphics", "fxaa", msaa))
 	if aa is bool:
-		fxaa = aa
+		msaa = aa
 	var shadow = config.get_value("graphics", "shadows", shadows)
 	if shadow is bool:
 		shadows = shadow
@@ -32,7 +32,7 @@ func load_settings() -> void:
 
 func apply(viewport: Viewport, sun: DirectionalLight3D) -> void:
 	viewport.scaling_3d_scale = SCALES[scale_index]
-	viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA if fxaa else Viewport.SCREEN_SPACE_AA_DISABLED
+	viewport.msaa_3d = Viewport.MSAA_2X if msaa else Viewport.MSAA_DISABLED
 	sun.shadow_enabled = shadows
 	Engine.max_fps = fps_limit
 
@@ -40,7 +40,7 @@ func save_settings() -> bool:
 	var config := ConfigFile.new()
 	config.load("user://settings.cfg")
 	config.set_value("graphics", "scale_index", scale_index)
-	config.set_value("graphics", "fxaa", fxaa)
+	config.set_value("graphics", "msaa", msaa)
 	config.set_value("graphics", "shadows", shadows)
 	config.set_value("graphics", "fps_limit", fps_limit)
 	config.set_value("graphics", "neon_city", neon_city)

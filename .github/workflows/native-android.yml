@@ -24,7 +24,7 @@ jobs:
       - name: Import and test the native scene
         run: |
           set +e
-          xvfb-run -a /tmp/godot/Godot_v4.5.2-stable_linux.x86_64 --rendering-method gl_compatibility --rendering-driver opengl3 --audio-driver Dummy --path godot --editor --import --quit > /tmp/native-import.log 2>&1
+          /tmp/godot/Godot_v4.5.2-stable_linux.x86_64 --headless --audio-driver Dummy --path godot --editor --import --quit > /tmp/native-import.log 2>&1
           timeout 90s xvfb-run -a /tmp/godot/Godot_v4.5.2-stable_linux.x86_64 --rendering-method gl_compatibility --rendering-driver opengl3 --audio-driver Dummy --path godot --script res://tests/smoke.gd > /tmp/native-smoke.log 2>&1
           result=$?
           if [ "$result" -eq 0 ]; then

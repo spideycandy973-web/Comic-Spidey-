@@ -85,8 +85,8 @@ func run_test() -> void:
 		print("Graphics layout: ", button.text, " ", button.get_global_rect())
 	scene.change_graphics("scale")
 	check(is_equal_approx(root.scaling_3d_scale, 0.7), "3D resolution setting changes the viewport")
-	scene.change_graphics("fxaa")
-	check(root.screen_space_aa == Viewport.SCREEN_SPACE_AA_FXAA, "FXAA setting applies")
+	scene.change_graphics("msaa")
+	check(root.msaa_3d == Viewport.MSAA_2X, "MSAA setting applies")
 	scene.graphics.shadows = false
 	scene.graphics.apply(root, scene.sun)
 	scene.change_graphics("shadows")
@@ -98,12 +98,12 @@ func run_test() -> void:
 	check(is_equal_approx(scene.world.facade_material.get_shader_parameter("night_mix"), 1.0), "neon window lighting applies")
 	var graphics_copy = load("res://scripts/graphics.gd").new()
 	graphics_copy.load_settings()
-	check(graphics_copy.scale_index == 0 and graphics_copy.fxaa and graphics_copy.shadows and graphics_copy.fps_limit == 30 and graphics_copy.neon_city, "graphics settings persist")
+	check(graphics_copy.scale_index == 0 and graphics_copy.msaa and graphics_copy.shadows and graphics_copy.fps_limit == 30 and graphics_copy.neon_city, "graphics settings persist")
 	settings.load("user://settings.cfg")
 	check(settings.get_value("controls", "mirrored", false), "graphics settings preserve touch layout")
 	# Restore defaults for the remaining gameplay and rendering tests.
 	scene.graphics.scale_index = 2
-	scene.graphics.fxaa = false
+	scene.graphics.msaa = false
 	scene.graphics.shadows = false
 	scene.graphics.fps_limit = 60
 	scene.graphics.neon_city = false

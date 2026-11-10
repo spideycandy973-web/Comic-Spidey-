@@ -130,7 +130,7 @@ PYSCREEN
   echo '::error::Touch attack, movement or swinging input did not reach native gameplay'
   exit 1
 fi
-for option in scale fxaa shadows fps city; do
+for option in scale msaa shadows fps city; do
   if ! grep -q "Native graphics changed: $option" /tmp/native-android-log.txt; then
     echo "::error::Graphics setting $option did not respond to Android touch"
     exit 1

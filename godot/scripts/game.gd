@@ -189,7 +189,7 @@ func show_graphics() -> void:
 	title.add_theme_color_override("font_color", Color("ffe15d"))
 	box.add_child(title)
 	add_menu_button(box, "3D resolution: %d%%" % roundi(graphics.SCALES[graphics.scale_index] * 100), change_graphics.bind("scale"))
-	add_menu_button(box, "Anti-aliasing: " + ("FXAA" if graphics.fxaa else "Off"), change_graphics.bind("fxaa"))
+	add_menu_button(box, "Anti-aliasing: " + ("2x MSAA" if graphics.msaa else "Off"), change_graphics.bind("msaa"))
 	add_menu_button(box, "Sun shadows: " + ("On" if graphics.shadows else "Off"), change_graphics.bind("shadows"))
 	add_menu_button(box, "Frame limit: %d FPS" % graphics.fps_limit, change_graphics.bind("fps"))
 	add_menu_button(box, "City mood: " + ("Neon night" if graphics.neon_city else "Sunset"), change_graphics.bind("city"))
@@ -204,7 +204,7 @@ func show_graphics() -> void:
 func change_graphics(option: String) -> void:
 	match option:
 		"scale": graphics.scale_index = (graphics.scale_index + 1) % graphics.SCALES.size()
-		"fxaa": graphics.fxaa = not graphics.fxaa
+		"msaa": graphics.msaa = not graphics.msaa
 		"shadows": graphics.shadows = not graphics.shadows
 		"fps": graphics.fps_limit = 30 if graphics.fps_limit == 60 else 60
 		"city": graphics.neon_city = not graphics.neon_city

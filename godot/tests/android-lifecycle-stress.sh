@@ -7,9 +7,10 @@ package=com.comicspidey.nativegame
 cycles="${2:-5}"
 report_crash() {
   adb logcat -b crash -d > /tmp/native-lifecycle-crash.txt || true
+  adb logcat -d | grep -iE 'godot|comicspidey|fatal exception' | tail -30 > /tmp/native-lifecycle-relevant.txt || true
   python3 - <<'PY'
 from pathlib import Path
-s = Path('/tmp/native-lifecycle-crash.txt').read_text(errors='replace')[:3600]
+s = (Path('/tmp/native-lifecycle-crash.txt').read_text(errors='replace') + '\nRecent Godot logs:\n' + Path('/tmp/native-lifecycle-relevant.txt').read_text(errors='replace'))[:3600]
 print('::error::Android lifecycle crash details: ' + s.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
 PY
 }
@@ -24,9 +25,12 @@ for cycle in $(seq 1 "$cycles"); do
   adb shell monkey -p "$package" -c android.intent.category.LAUNCHER 1 >/dev/null
   ready=false
   for _ in $(seq 1 45); do
-    if adb shell pidof "$package" >/dev/null && adb logcat -d | grep -q 'Native menu ready'; then
-      ready=true
-      break
+    if adb shell pidof "$package" >/dev/null; then
+      adb logcat -d > /tmp/native-lifecycle-startup.txt
+      if grep -q 'Native menu ready' /tmp/native-lifecycle-startup.txt; then
+        ready=true
+        break
+      fi
     fi
     sleep 2
   done
@@ -42,7 +46,8 @@ for cycle in $(seq 1 "$cycles"); do
     echo "::error::Application died after background/return in cycle $cycle"
     exit 1
   fi
-  if adb logcat -b crash -d | grep -q "$package"; then
+  adb logcat -b crash -d > /tmp/native-lifecycle-check.txt
+  if grep -q "$package" /tmp/native-lifecycle-check.txt; then
     echo "::error::Native crash occurred in lifecycle cycle $cycle"
     exit 1
   fi

@@ -41,7 +41,7 @@ jobs:
           mkdir "$dir"
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out "$dir/ephemeral.pem" 2>/dev/null
           openssl pkey -in "$dir/ephemeral.pem" -pubout -out "$dir/public.pem"
-          echo "::notice::UPDATE_PUBLIC_KEY=$(base64 -w0 "$dir/public.pem")"
+          gh release upload v0.4.1-native "$dir/public.pem"
       - name: Securely receive signing material and build update
         run: |
           set -euo pipefail

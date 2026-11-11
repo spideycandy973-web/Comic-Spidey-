@@ -1,18 +1,18 @@
 # Native Godot Android game — work in progress
 
-This Godot 4.3 project is a native Android game, separate from the legacy WebView in `../app`. It is **not yet a finished release**. It contains a 13-objective Story sequence with dialogue and visible objective props, repeatable Free Roam emergencies, checkpoint retry and separate local saves, touch controls, a minimap, and an original procedurally generated city with distinct districts, parks, rooftop scenery and simple road traffic, and the supplied Spider-Man and Doctor Octopus models. Citizens use four generated rigged variants. Combat has melee, web shots, enemy AI and health; swinging uses a physics rope attached to rooftops. Airborne steering preserves swing-release momentum, and jumps have brief input buffering and ledge grace time. City streaming skips rebuilding unchanged blocks; street surfaces include subtle procedural detail and a procedural sky provides a horizon. The game works offline and uses original synthesized sound effects.
+This Godot 4.5.2 project is a native Android game, separate from the legacy WebView in `../app`. It is **not yet a finished release**. It contains a 13-objective Story sequence with dialogue and visible objective props, repeatable Free Roam emergencies, checkpoint retry and separate local saves, touch controls, a minimap, and an original procedurally generated city with distinct districts, parks, rooftop scenery and simple road traffic, and the supplied Spider-Man and Doctor Octopus models. Citizens use four generated rigged variants. Combat has melee, web shots, enemy AI and health; swinging uses a physics rope attached to rooftops. Airborne steering preserves swing-release momentum, and jumps have brief input buffering and ledge grace time. City streaming skips rebuilding unchanged blocks; street surfaces include subtle procedural detail and a procedural sky provides a horizon. The game works offline and uses original synthesized sound effects.
 
 Important limitations: the city and vehicles use original procedural geometry, not the detailed finished artwork requested. The Doctor Octopus model is not rigged and uses procedural tentacle deformation and a body lunge rather than a skeletal rig; Spider-Man's punch uses a procedural arm pose rather than a supplied combat animation. Pedestrian dialogue and behavior are basic, and only four citizen models are used. Swinging, combat feel, performance and screen layouts have not been validated on physical Android devices. This must not be described or distributed as the finished game.
 
 ## Controls
 
-On touchscreens use the left stick, drag empty space to look, hold WEB and release to let go, or press JUMP while swinging for a boosted release; press JUMP against a wall while airborne to leap away; HIT for melee, SHOT for web shots, JUMP and TALK. The north-up minimap shows streets, parks, your facing and the objective; the compass points toward the objective. Use the pause button for resume, restarting modes, sound and mirrored touch layout. Graphics settings provide 3D resolution scaling, optional FXAA and sun shadows, and a 30/60 FPS cap. Lowering resolution or disabling shadows may improve performance; the FPS cap is not a performance guarantee. Settings persist on the device. Keyboard: WASD, Space jump, Shift hold web, F attack, Q web shot, E talk, Escape pause.
+On touchscreens use the left stick, drag empty space to look, hold WEB and release to let go, or press JUMP while swinging for a boosted release; press JUMP against a wall while airborne to leap away; HIT for melee, SHOT for web shots, JUMP and TALK. The north-up minimap shows streets, parks, your facing and the objective; the compass points toward the objective. Use the pause button for resume, restarting modes, sound, mirrored touch layout and three control sizes (scroll the menu to see the control-size option). Graphics settings provide 3D resolution scaling, optional 2x MSAA and sun shadows, and a 30/60 FPS cap. Lowering resolution or disabling shadows may improve performance; the FPS cap is not a performance guarantee. Settings persist on the device. Keyboard: WASD, Space jump, Shift hold web, F attack, Q web shot, E talk, Escape pause.
 
 Progress is autosaved locally per mode, at Story checkpoints, periodically during play, and on pause. Starting a new mode replaces that mode's save. No account or internet connection is required. This build's separate package ID means it does not import saves from the older WebView app.
 
 ## Development verification
 
-Open `project.godot` in Godot 4.3 and run `main.tscn`. The native workflow imports models; tests objectives, combat, obstacle pursuit, multitouch and saves; runs an automated input-driven Story playthrough; compares rendered frames; exports a debug APK; and attempts Android emulator installation, launch and touch input. The automated playthrough uses accelerated simulation and a scripted controller, not a human player. An emulator and automated checks do not replace hands-on testing on real devices. The workflow also checks a non-debug release-template APK signed with a throwaway CI key; that APK is for CI only and must not be distributed. Actual repository releases must use a persistent, securely backed-up release signing key and a non-debug APK. No signed final release is produced by this workflow.
+Open `project.godot` in Godot 4.5.2 and run `main.tscn`. The native workflow imports models; tests objectives, combat, obstacle pursuit, multitouch and saves; runs an automated input-driven Story playthrough; compares rendered frames; exports a debug APK; and attempts Android emulator installation, launch and touch input. The automated playthrough uses accelerated simulation and a scripted controller, not a human player. An emulator and automated checks do not replace hands-on testing on real devices. The workflow also checks a non-debug release-template APK signed with a throwaway CI key; that APK is for CI only and must not be distributed. Actual repository releases must use a persistent, securely backed-up release signing key and a non-debug APK. No signed final release is produced by this workflow.
 
 ## Additional citizen generation
 
@@ -21,3 +21,33 @@ The two additional citizens were generated from Citizen Maker using `tools/make-
 The native game's current comic-art pass uses cel lighting and ink outlines on characters, graphic window framing and a saturated palette for the procedural city, and comic-inspired interface panels using the OFL-licensed Bangers font. This is an ongoing visual treatment, not a claim of finished comic artwork or device-validated performance.
 
 Original storefront sign textures are generated by `tools/create-comic-signs.mjs` using `@napi-rs/canvas` and the bundled Bangers font. To rebuild, install that package in a directory available to Node's module resolver and run the script with the repository path as its argument.
+
+### Current traversal and Story work
+
+Touch targets have been enlarged; moving toward a vertical wall while airborne
+starts a basic climb and can mantle onto a clear rooftop, and holding WEB can transfer to a forward rooftop after
+passing the previous anchor. Story uses short skippable in-engine camera shots
+at selected milestones. Traffic uses a separate collision layer, correctly
+oriented collision boxes and a cooldown-limited impact response for the hero.
+These are initial implementations, not a claim of production-quality physics,
+cinematics, accessibility or physical-phone validation. The character and boss
+models remain those already credited; the additional Drive vehicle pack has not
+been integrated because it needs conversion, optimization and provenance review.
+
+The first public native Android build is [0.4.0](https://github.com/spideycandy973-web/Comic-Spidey-/releases/tag/v0.4.0-native). It is a signed, non-debug early build, not a claim that the game is finished or physically device-validated. Preserve the existing signing key for updates; see [release signing](RELEASE_SIGNING.md).
+
+### Reference-inspired city mood
+
+Graphics settings include Sunset and Neon night moods. Sunset uses a warmer
+comic palette and a taller downtown skyline; Neon night changes the sky,
+lighting and windows and adds batched cyan/magenta trim. The setting persists
+and applies to newly streamed city blocks. This is original procedural art
+inspired by the supplied references, not their images or an exact recreation;
+it does not include their characters, detailed architecture or cinematic effects.
+The visual and performance impact still needs hands-on phone testing.
+
+The previous Godot 4.3 build intermittently crashed inside native startup on
+the Android x86_64 emulator. Godot 4.5.2 is being evaluated as a mitigation:
+initial repeated emulator launches passed, but the underlying cause is not
+confirmed and physical devices have not been tested. Do not publish an update
+until the full suite and the actual signed APK have also been verified.

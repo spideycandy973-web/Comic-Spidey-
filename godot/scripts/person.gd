@@ -122,7 +122,7 @@ func set_civilian_clothes(variant: int) -> void:
 			i += 1
 
 func _physics_process(delta: float) -> void:
-	if not is_instance_valid(hero) or health <= 0:
+	if not is_instance_valid(hero) or not hero.playing or health <= 0:
 		return
 	attack_cooldown = maxf(0, attack_cooldown - delta)
 	stun = maxf(0, stun - delta)

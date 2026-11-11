@@ -24,6 +24,7 @@ func run_test() -> void:
 			free_roam_visible = rect.position.y >= 0 and rect.end.y <= root.get_visible_rect().size.y
 	check(free_roam_visible, "free roam button fits within the menu viewport")
 	scene.save_enabled = false
+	scene.cutscenes_enabled = false
 	scene.start_mode("Story")
 	scene.set_process(false)
 	scene.hero.set_physics_process(false)
@@ -57,6 +58,20 @@ func run_test() -> void:
 	scene.controls._input(drag)
 	check(scene.controls.movement == Vector2.ZERO, "releasing joystick stops input")
 	var default_stick: Vector2 = scene.controls.stick_center()
+	var standard_jump: Vector2 = scene.controls.button_positions()["jump"]
+	check(scene.controls.set_control_size(2), "larger control setting saves")
+	check(scene.controls.control_scale() > 1.0 and scene.controls.button_positions()["jump"].y < standard_jump.y, "larger controls increase spacing from the screen edge")
+	var enlarged_touch := InputEventScreenTouch.new()
+	enlarged_touch.index = 8
+	enlarged_touch.pressed = true
+	enlarged_touch.position = scene.controls.button_positions()["jump"] + Vector2(55, 0)
+	scene.controls._input(enlarged_touch)
+	check(scene.controls.consume("jump"), "large control accepts touches within its enlarged radius")
+	enlarged_touch.pressed = false
+	scene.controls._input(enlarged_touch)
+	var control_settings := ConfigFile.new()
+	check(control_settings.load("user://settings.cfg") == OK and control_settings.get_value("controls", "size_index", -1) == 2, "control size persists")
+	check(scene.controls.set_control_size(1), "default control size restores")
 	check(scene.controls.set_mirrored(true), "mirrored control setting saves")
 	check(scene.controls.stick_center().x > default_stick.x and scene.controls.button_positions()["attack"].x < default_stick.x + 200, "mirrored controls swap sides")
 	scene.sound.toggle()
@@ -68,25 +83,36 @@ func run_test() -> void:
 	await process_frame
 	for button in scene.menu.find_children("*", "Button", true, false):
 		print("Graphics layout: ", button.text, " ", button.get_global_rect())
+	# Verify the low-resolution option and cycling without relying on prior settings.
+	scene.graphics.scale_index = 2
+	scene.change_graphics("scale")
+	check(is_equal_approx(root.scaling_3d_scale, 0.5), "50% 3D resolution setting applies")
 	scene.change_graphics("scale")
 	check(is_equal_approx(root.scaling_3d_scale, 0.7), "3D resolution setting changes the viewport")
-	scene.change_graphics("fxaa")
-	check(root.screen_space_aa == Viewport.SCREEN_SPACE_AA_FXAA, "FXAA setting applies")
+	scene.change_graphics("msaa")
+	check(root.msaa_3d == Viewport.MSAA_2X, "MSAA setting applies")
+	scene.graphics.shadows = false
+	scene.graphics.apply(root, scene.sun)
 	scene.change_graphics("shadows")
 	check(scene.sun.shadow_enabled, "shadow setting applies")
 	scene.change_graphics("fps")
 	check(Engine.max_fps == 30, "frame limit setting applies")
+	scene.change_graphics("city")
+	check(scene.graphics.neon_city and scene.world.neon_city, "neon city mood applies")
+	check(is_equal_approx(scene.world.facade_material.get_shader_parameter("night_mix"), 1.0), "neon window lighting applies")
 	var graphics_copy = load("res://scripts/graphics.gd").new()
 	graphics_copy.load_settings()
-	check(graphics_copy.scale_index == 0 and graphics_copy.fxaa and graphics_copy.shadows and graphics_copy.fps_limit == 30, "graphics settings persist")
+	check(graphics_copy.scale_index == 0 and graphics_copy.msaa and graphics_copy.shadows and graphics_copy.fps_limit == 30 and graphics_copy.neon_city, "graphics settings persist")
 	settings.load("user://settings.cfg")
 	check(settings.get_value("controls", "mirrored", false), "graphics settings preserve touch layout")
 	# Restore defaults for the remaining gameplay and rendering tests.
 	scene.graphics.scale_index = 2
-	scene.graphics.fxaa = false
+	scene.graphics.msaa = false
 	scene.graphics.shadows = false
 	scene.graphics.fps_limit = 60
+	scene.graphics.neon_city = false
 	scene.graphics.apply(root, scene.sun)
+	scene.apply_city_mood()
 	scene.graphics.save_settings()
 	scene.close_credits()
 	if is_instance_valid(scene.menu):
@@ -97,6 +123,29 @@ func run_test() -> void:
 	check(scene.controls.map_has_target and scene.controls.map_target == Missions.STORY[0].at, "minimap tracks the story objective")
 	check(scene.controls.map_offset(Vector3.ZERO, Vector3(1000, 0, 0)).length() <= 72.01, "distant map objectives stay inside the minimap")
 	check(scene.traffic.size() == 6, "native traffic spawns")
+	check(scene.hero.collision_mask & 4 != 0 and scene.traffic[0].collision_layer == 4, "hero collides with vehicles on their own layer")
+	check(is_equal_approx(absf(scene.traffic[1].get_child(0).rotation.y), PI * 0.5), "east-west traffic collision shape rotates")
+	var hp_before: float = scene.hero.health
+	scene.hero.vehicle_impact(Vector3(0, 0, 8), Vector3(0, 0, -1))
+	check(scene.hero.health < hp_before and scene.hero.velocity.y > 0, "vehicle collision applies damage and knockback")
+	var hp_after: float = scene.hero.health
+	scene.hero.vehicle_impact(Vector3(0, 0, 8), Vector3(0, 0, -1))
+	check(scene.hero.health == hp_after, "vehicle impact cooldown prevents repeated damage")
+	scene.hero.health = hp_before
+	scene.hero.velocity = Vector3.ZERO
+	scene.cutscenes_enabled = true
+	scene.start_story_cutscene()
+	check(scene.cinematic_time > 0.0 and not scene.hero.playing and not scene.controls.active, "story cutscene suspends gameplay")
+	var civilian_before: Vector3 = scene.people[0].position
+	scene.people[0]._physics_process(0.5)
+	check(scene.people[0].position == civilian_before, "story cutscene freezes civilian physics")
+	scene.mission_enemies.append(scene.people[0])
+	scene.cinematic_time = 2.5
+	check(scene.story_cutscene_focus().distance_to(scene.people[0].global_position + Vector3.UP * 1.2) < 0.01, "boss cutscene focuses on the opposing character")
+	scene.mission_enemies.clear()
+	scene.finish_story_cutscene()
+	check(scene.hero.playing and scene.controls.active and scene.cinematic_time == 0.0, "skipping cutscene resumes gameplay")
+	scene.cutscenes_enabled = false
 	check(scene.people[2].anim != null and scene.people[2].anim.has_animation("run") and scene.people[3].anim != null and scene.people[3].anim.has_animation("run"), "additional rigged citizens have run clips")
 	check(scene.world.district_for(Vector2i(0, 0)) == "Downtown" and scene.world.district_for(Vector2i(5, 0)) == "Industrial" and scene.world.district_for(Vector2i(-5, 0)) == "Residential", "city districts have distinct profiles")
 	var tank_count := 0
@@ -108,6 +157,7 @@ func run_test() -> void:
 	check(scene.world.stream_revision == revision, "stationary city streaming avoids rebuilding anchors and blocks")
 	check(scene.world.sidewalk_material is ShaderMaterial, "street surfaces use the shared detail material")
 	var block = scene.world.chunks[Vector2i(0, 0)]
+	check(block.find_children("NeighborhoodStreetLight", "Node3D", false, false).size() == 2, "supplied street lights are placed per block")
 	var facades = block.get_node_or_null("BuildingFacades")
 	check(facades != null and facades.multimesh.instance_count == 4, "city batches building visuals without removing collisions")
 	var car = scene.traffic[0]
@@ -125,12 +175,33 @@ func run_test() -> void:
 	check(Vector2(car.velocity.x, car.velocity.z).length() > 0.1, "traffic does not stop for someone high overhead")
 	scene.hero.position = Vector3(0, 0.1, 0)
 	car.recenter(0)
+	car.position = Vector3(0, 0.1, -5)
+	car.velocity = Vector3.ZERO
+	scene.hero.position = Vector3(0, 0.1, 0)
+	scene.hero.velocity = Vector3.ZERO
+	scene.hero.vehicle_impact_cooldown = 0
+	scene.hero.yaw = 0
+	scene.controls.movement = Vector2(0, -1)
+	var before_collision: float = scene.hero.health
+	await physics_frame
+	for frame in range(90):
+		await physics_frame
+		scene.hero._physics_process(1.0 / 60.0)
+		if scene.hero.health < before_collision:
+			break
+	check(scene.hero.health < before_collision, "walking into a car causes a real physics impact")
+	scene.hero.health = before_collision
+	scene.hero.vehicle_impact_cooldown = 0
+	scene.controls.movement = Vector2.ZERO
+	scene.hero.position = Vector3(0, 0.1, 0)
+	scene.hero.velocity = Vector3.ZERO
+	car.recenter(0)
 	check(scene.hero.animator != null and scene.hero.skeleton != null, "hero model and skeleton imported")
 	var hero_meshes: Array = scene.hero.visual.find_children("*", "MeshInstance3D", true, false)
 	check(not hero_meshes.is_empty(), "hero model has visible mesh")
 	if not hero_meshes.is_empty():
 		var hero_material = hero_meshes[0].get_active_material(0)
-		check(hero_material is BaseMaterial3D and hero_material.next_pass is ShaderMaterial and hero_material.diffuse_mode == BaseMaterial3D.DIFFUSE_TOON, "hero has toon lighting and an ink outline")
+		check(hero_material is BaseMaterial3D and hero_material.next_pass is ShaderMaterial and hero_material.diffuse_mode == BaseMaterial3D.DIFFUSE_BURLEY and hero_material.albedo_texture != null, "hero keeps its suit texture, shaded material, and ink outline")
 	check(scene.hero.hand_bone >= 0 and scene.hero.animator.has_animation("run"), "hand and run animation imported")
 	check(scene.hero.animator.get_animation("run").loop_mode == Animation.LOOP_LINEAR, "run animation loops")
 	check(scene.sound.samples.size() == 5, "offline sound cues were generated")
@@ -158,6 +229,20 @@ func run_test() -> void:
 	scene.controls.buttons_down.erase("swing")
 	scene.hero._physics_process(1.0 / 60.0)
 	check(not scene.hero.swing_blocked_until_release, "web can be used again after releasing the button")
+	# Two unobstructed synthetic rooftops verify transfer independently of
+	# the particular streamed city layout.
+	var saved_anchors: Array[Vector3] = scene.world.anchors.duplicate()
+	scene.hero.position = Vector3(0, 100, 0)
+	scene.hero.velocity = Vector3.ZERO
+	scene.world.anchors.clear()
+	scene.world.anchors.append(Vector3(0, 120, -20))
+	scene.world.anchors.append(Vector3(0, 120, -40))
+	scene.hero.attach_web(Vector3.FORWARD)
+	var first_anchor: Vector3 = scene.hero.anchor
+	scene.hero.attach_web(Vector3.FORWARD, true)
+	check(scene.hero.rope_active and scene.hero.anchor != first_anchor, "web transfer selects a different reachable anchor")
+	scene.hero.release_web()
+	scene.world.anchors = saved_anchors
 	var jump_wall := StaticBody3D.new()
 	var jump_collision := CollisionShape3D.new()
 	var jump_box := BoxShape3D.new()
@@ -173,10 +258,40 @@ func run_test() -> void:
 	for frame in range(20):
 		scene.hero._physics_process(1.0 / 60.0)
 	check(scene.hero.is_on_wall() and not scene.hero.is_on_floor(), "hero can reach a wall in the air")
+	check(scene.hero.climbing and scene.hero.velocity.y > 0, "holding toward a wall climbs upward")
 	scene.controls.pressed_once["jump"] = true
 	scene.hero._physics_process(1.0 / 60.0)
 	check(scene.hero.velocity.y > 5 and scene.hero.velocity.z > 0, "jumping against a wall launches up and away")
 	jump_wall.queue_free()
+	await physics_frame
+	# A deep rooftop is needed for a safe landing; a separate thin wall above
+	# verifies that a low ceiling blocks the mantle rather than trapping the hero.
+	var roof := StaticBody3D.new()
+	var roof_collision := CollisionShape3D.new()
+	var roof_box := BoxShape3D.new()
+	roof_box.size = Vector3(4, 6, 4)
+	roof_collision.shape = roof_box
+	roof.add_child(roof_collision)
+	roof.position = Vector3(0, 3, -3)
+	scene.add_child(roof)
+	var ceiling := StaticBody3D.new()
+	var ceiling_collision := CollisionShape3D.new()
+	var ceiling_box := BoxShape3D.new()
+	ceiling_box.size = Vector3(4, 0.4, 4)
+	ceiling_collision.shape = ceiling_box
+	ceiling.add_child(ceiling_collision)
+	ceiling.position = Vector3(0, 7.8, -3)
+	scene.add_child(ceiling)
+	scene.hero.position = Vector3(0, 5.3, -0.63)
+	scene.hero.velocity = Vector3.ZERO
+	await physics_frame
+	await physics_frame
+	check(not scene.hero.try_mantle(Vector3.BACK), "mantle refuses a low ceiling")
+	ceiling.queue_free()
+	await physics_frame
+	await physics_frame
+	check(scene.hero.try_mantle(Vector3.BACK) and scene.hero.position.y > 6.0, "climbing can mantle onto a clear rooftop")
+	roof.queue_free()
 	scene.controls.movement = Vector2.ZERO
 	scene.hero.position = Vector3(0, 5, 0)
 	scene.hero.velocity = Vector3.ZERO
@@ -260,6 +375,7 @@ func run_test() -> void:
 					check(enemy.health == previous - 35 and enemy.stun == 2.0, "web shot damages and stuns enemy")
 				if expected == 1:
 					check(enemy.skeleton != null and enemy.strike_arm >= 0, "street enemy has a rigged striking arm")
+					scene.hero.health = 100
 					enemy.stun = 0
 					enemy.attack_cooldown = 0
 					enemy._physics_process(0.05)
@@ -340,6 +456,7 @@ func run_test() -> void:
 
 	# Use a real user:// slot to test round-trip and malformed saves.
 	scene.save_enabled = true
+	scene.cutscenes_enabled = false
 	scene.start_mode("Story")
 	scene.hero.position = Vector3(0, 0.1, -44)
 	scene.update_story()

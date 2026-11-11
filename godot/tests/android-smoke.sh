@@ -18,7 +18,12 @@ on_error() {
   echo "::error::Android smoke command failed at line $line (exit $code)"
   adb shell pidof "$package" | while IFS= read -r text; do echo "::notice::App PID: $text"; done
   adb shell dumpsys activity activities | grep -iE 'mResumedActivity|topResumedActivity|comicspidey' | tail -8 | while IFS= read -r text; do echo "::notice::$text"; done
-  adb logcat -b crash -d | tail -40 | while IFS= read -r text; do echo "::notice::Crash: $text"; done
+  adb logcat -b crash -d > /tmp/android-smoke-crash.txt
+  python3 - <<'PYCRASH'
+from pathlib import Path
+s = Path('/tmp/android-smoke-crash.txt').read_text(errors='replace')[:3400]
+print('::error::Android crash details: ' + s.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))
+PYCRASH
   adb logcat -d | grep -iE 'fatal exception|androidruntime|godot|comicspidey|lowmemorykiller|lmkd' | tail -25 | while IFS= read -r text; do echo "::notice::$text"; done
   exit "$code"
 }
@@ -71,7 +76,12 @@ tap_center 326
 sleep 1
 tap_center 384
 sleep 2
+# Exercise and restore the city mood, then leave graphics settings.
 tap_center 442
+sleep 2
+tap_center 442
+sleep 2
+tap_center 500
 sleep 2
 tap_center 225
 sleep 3
@@ -80,9 +90,9 @@ sleep 3
 if [ "$mode" = "Free Roam" ]; then tap_center 397; else tap_center 339; fi
 sleep 20
 # Exercise the touch buttons and movement joystick through Android, not injected Godot events.
-tap_right 165 635
+tap_right 177 645
 swipe_left 100 620 100 550 1500
-swipe_right 82 530 82 530 1800
+swipe_right 68 515 68 515 1800
 sleep 3
 # Pause and resume through the touch UI.
 tap_right 48 50
@@ -125,7 +135,7 @@ PYSCREEN
   echo '::error::Touch attack, movement or swinging input did not reach native gameplay'
   exit 1
 fi
-for option in scale fxaa shadows fps; do
+for option in scale msaa shadows fps city; do
   if ! grep -q "Native graphics changed: $option" /tmp/native-android-log.txt; then
     echo "::error::Graphics setting $option did not respond to Android touch"
     exit 1

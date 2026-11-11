@@ -12,11 +12,15 @@ namespace ComicSpidey
         private Vector3 velocity;
         private Transform webAnchor;
         private float ropeLength;
-        private float yaw = 0f;
+        private float yaw = 180f;
         private float pitch = 18f;
         private int joystickFinger = -1, lookFinger = -1, webFinger = -1;
         private Vector2 joystickOrigin, moveInput;
-        private bool jumpRequested;
+        private bool jumpRequested, attackRequested, encounterSpawned;
+        private readonly CombatHealth health = new CombatHealth(6);
+        private readonly List<PrototypeEnemy> enemies = new List<PrototypeEnemy>();
+        private float nextAttack, invulnerableUntil, respawnNoticeUntil;
+        private Material enemyMaterial, enemyHitMaterial;
         private bool trackingMouse;
         private Vector3 lastMouse;
         private LineRenderer webLine;
@@ -42,6 +46,7 @@ namespace ComicSpidey
         private float ButtonMargin => Mathf.Max(12f, Screen.height * 0.03f);
         private Rect JumpRect => new Rect(Screen.width - ButtonMargin - ButtonSize, ButtonMargin, ButtonSize, ButtonSize);
         private Rect WebRect => new Rect(JumpRect.x, JumpRect.yMax + ButtonMargin, ButtonSize, ButtonSize);
+        private Rect AttackRect => new Rect(JumpRect.x, WebRect.yMax + ButtonMargin, ButtonSize, ButtonSize);
 
         private void Update()
         {
@@ -78,7 +83,12 @@ namespace ComicSpidey
             var collisions = motor.Move(velocity * Time.deltaTime);
             if ((collisions & CollisionFlags.Above) != 0 && velocity.y > 0) velocity.y = 0;
             if ((collisions & CollisionFlags.Below) != 0 && velocity.y < 0) velocity.y = -2f;
-            story.Visit(transform.position.x, transform.position.y - 1f, transform.position.z);
+            // Stop after the first experimental encounter; the following legacy
+            // objectives are outside this small test world and are not the campaign.
+            if (story.Stage == 0 && story.Visit(transform.position.x, transform.position.y - 1f, transform.position.z))
+                SpawnEncounter();
+            if (attackRequested) TryAttack();
+            attackRequested = false;
             if (webAnchor != null)
             {
                 Vector3 rope = transform.position - webAnchor.position;
@@ -117,6 +127,7 @@ namespace ComicSpidey
                 moveInput = new Vector2((Input.GetKey(KeyCode.D) ? 1 : 0) - (Input.GetKey(KeyCode.A) ? 1 : 0),
                     (Input.GetKey(KeyCode.W) ? 1 : 0) - (Input.GetKey(KeyCode.S) ? 1 : 0));
                 if (Input.GetKeyDown(KeyCode.Space)) jumpRequested = true;
+                if (Input.GetKeyDown(KeyCode.F)) attackRequested = true;
                 if (Input.GetMouseButton(1))
                 {
                     Vector3 mouse = Input.mousePosition;
@@ -140,6 +151,7 @@ namespace ComicSpidey
                 {
                     if (JumpRect.Contains(p)) jumpRequested = true;
                     else if (WebRect.Contains(p) && webFinger == -1) { webFinger = touch.fingerId; AttachWeb(); }
+                    else if (AttackRect.Contains(p)) attackRequested = true;
                     else if (p.x < Screen.width * 0.45f && joystickFinger == -1) { joystickFinger = touch.fingerId; joystickOrigin = p; moveInput = Vector2.zero; }
                     else if (lookFinger == -1) lookFinger = touch.fingerId;
                 }
@@ -157,6 +169,70 @@ namespace ComicSpidey
                     if (touch.fingerId == webFinger) { webFinger = -1; webAnchor = null; }
                 }
             }
+        }
+
+        private void SpawnEncounter()
+        {
+            if (encounterSpawned) return;
+            encounterSpawned = true;
+            Shader shader = Resources.Load<Shader>("Hero/HeroLit");
+            enemyMaterial = new Material(shader) { color = new Color(0.44f, 0.12f, 0.22f) };
+            enemyHitMaterial = new Material(shader) { color = new Color(1f, 0.8f, 0.25f) };
+            for (int i = 0; i < 2; i++)
+            {
+                var enemy = new GameObject("TestAttacker" + i);
+                enemy.transform.position = new Vector3(i == 0 ? -4f : 4f, 1f, -48f);
+                var enemyMotor = enemy.AddComponent<CharacterController>();
+                enemyMotor.height = 2f;
+                enemyMotor.radius = 0.45f;
+                var actor = enemy.AddComponent<PrototypeEnemy>();
+                actor.Initialize(this, "test-attacker-" + i, enemyMaterial, enemyHitMaterial);
+                enemies.Add(actor);
+            }
+        }
+
+        private void TryAttack()
+        {
+            if (story.Stage != 1 || Time.time < nextAttack) return;
+            nextAttack = Time.time + 0.45f;
+            PrototypeEnemy target = null;
+            float bestSquared = 2.8f * 2.8f;
+            foreach (var enemy in enemies)
+            {
+                if (enemy == null || !enemy.Alive) continue;
+                float distanceSquared = (enemy.transform.position - transform.position).sqrMagnitude;
+                if (distanceSquared < bestSquared) { bestSquared = distanceSquared; target = enemy; }
+            }
+            if (target != null) target.ReceiveHit();
+        }
+
+        public void EnemyDefeated(string enemyId)
+        {
+            if (story.Stage == 1) story.EnemyDefeated(enemyId);
+        }
+
+        public void ReceiveDamage(int amount)
+        {
+            if (Time.time < invulnerableUntil || !health.Damage(amount)) return;
+            invulnerableUntil = Time.time + 0.65f;
+            if (!health.IsDefeated) return;
+            // A simple retry for this prototype: enemies already defeated stay
+            // defeated. This is not the game's checkpoint/save implementation.
+            motor.enabled = false;
+            transform.position = new Vector3(0, 1, -35);
+            motor.enabled = true;
+            velocity = Vector3.zero;
+            webAnchor = null;
+            health.Restore();
+            invulnerableUntil = Time.time + 2f;
+            respawnNoticeUntil = Time.time + 3f;
+        }
+
+        private void OnDestroy()
+        {
+            if (enemyMaterial != null) Destroy(enemyMaterial);
+            if (enemyHitMaterial != null) Destroy(enemyHitMaterial);
+            if (webLine != null && webLine.material != null) Destroy(webLine.material);
         }
 
         private void LimitOutwardVelocity(Vector3 rope)
@@ -186,6 +262,7 @@ namespace ComicSpidey
             moveInput = Vector2.zero;
             webAnchor = null;
             jumpRequested = false;
+            attackRequested = false;
             trackingMouse = false;
         }
 
@@ -195,11 +272,15 @@ namespace ComicSpidey
             int font = Mathf.Max(16, Mathf.RoundToInt(unit * 0.035f));
             var panel = new GUIStyle(GUI.skin.box) { fontSize = font, alignment = TextAnchor.MiddleCenter, wordWrap = true };
             var label = new GUIStyle(GUI.skin.label) { fontSize = font, wordWrap = true };
-            GUI.Box(new Rect(ButtonMargin, ButtonMargin, Screen.width * 0.45f, unit * 0.09f), "PROTOTYPE - " + story.Current.Title, panel);
-            if (story.Current.Kind == ObjectiveKind.Fight)
-                GUI.Label(new Rect(ButtonMargin, unit * 0.13f, Screen.width * 0.55f, unit * 0.1f), "Encounter not implemented yet.", label);
+            string objective = story.Stage >= 2 ? "Test encounter complete" : story.Current.Title;
+            GUI.Box(new Rect(ButtonMargin, ButtonMargin, Screen.width * 0.45f, unit * 0.09f), "PROTOTYPE - " + objective, panel);
+            string status = "Health " + health.Current + "/" + health.Maximum;
+            if (story.Stage == 1) status += "   Attackers " + story.DefeatedCount + "/2";
+            if (Time.time < respawnNoticeUntil) status += "   RETRY";
+            GUI.Label(new Rect(ButtonMargin, unit * 0.13f, Screen.width * 0.55f, unit * 0.1f), status, label);
             GUI.Box(new Rect(WebRect.x, Screen.height - WebRect.yMax, WebRect.width, WebRect.height), "HOLD\nWEB", panel);
             GUI.Box(new Rect(JumpRect.x, Screen.height - JumpRect.yMax, JumpRect.width, JumpRect.height), "JUMP", panel);
+            GUI.Box(new Rect(AttackRect.x, Screen.height - AttackRect.yMax, AttackRect.width, AttackRect.height), "ATTACK", panel);
             if (joystickFinger == -1)
                 GUI.Label(new Rect(ButtonMargin, Screen.height - unit * 0.14f, Screen.width * 0.4f, unit * 0.1f), "Drag left to move", label);
         }

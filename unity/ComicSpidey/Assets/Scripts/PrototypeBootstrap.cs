@@ -64,13 +64,22 @@ namespace ComicSpidey
                 anchors.Add(anchor.transform);
             }
 
-            // The first travel objective is the only playable Story milestone.
+            AddSuppliedStreetLights();
+
+            // Temporary test objective and highly visible beacon; not campaign mission 1.
             var marker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             marker.name = "FirstObjectiveMarker";
             marker.transform.position = new Vector3(0, 0.1f, -44);
             marker.transform.localScale = new Vector3(2f, 0.1f, 2f);
             marker.GetComponent<Renderer>().sharedMaterial = MakeMaterial(new Color(1f, 0.75f, 0.1f));
             Object.Destroy(marker.GetComponent<Collider>());
+            var beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            beacon.name = "ObjectiveBeacon";
+            beacon.transform.SetParent(marker.transform, false);
+            beacon.transform.localPosition = new Vector3(0, 22f, 0);
+            beacon.transform.localScale = new Vector3(0.25f, 22f, 0.25f);
+            beacon.GetComponent<Renderer>().sharedMaterial = marker.GetComponent<Renderer>().sharedMaterial;
+            Object.Destroy(beacon.GetComponent<Collider>());
 
             var player = new GameObject("PrototypePlayer");
             player.transform.position = new Vector3(0, 1, 0);
@@ -88,6 +97,29 @@ namespace ComicSpidey
             view.AddComponent<Camera>();
             view.AddComponent<AudioListener>();
             player.AddComponent<PrototypeController>().Initialize(view.transform, anchors);
+        }
+
+        private static void AddSuppliedStreetLights()
+        {
+            var source = Resources.Load<GameObject>("City/street-light");
+            var texture = Resources.Load<Texture2D>("City/street-light");
+            if (source == null || texture == null) return;
+            var material = MakeMaterial(Color.white);
+            material.mainTexture = texture;
+            // The supplied model uses centimetre-scale coordinates. Pole-only
+            // collision is approximate and needs physical-device verification.
+            for (int i = -2; i <= 2; i++)
+            {
+                var light = Object.Instantiate(source);
+                light.name = "SuppliedStreetLight";
+                light.transform.position = new Vector3(6f, 0.087f, i * 20f);
+                light.transform.localScale = Vector3.one * 0.01f;
+                foreach (var renderer in light.GetComponentsInChildren<Renderer>())
+                    renderer.sharedMaterial = material;
+                var pole = light.AddComponent<BoxCollider>();
+                pole.center = new Vector3(0, 290, 0);
+                pole.size = new Vector3(14, 580, 14);
+            }
         }
 
         private static void AddDecoration(string name, Vector3 position, Vector3 scale, Material material)

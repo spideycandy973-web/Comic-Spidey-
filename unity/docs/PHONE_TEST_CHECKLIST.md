@@ -25,6 +25,15 @@ Add what happened and a screenshot or screen recording if possible.
 - [ ] Climb walls, wall-run and transition to rooftops.
 - [ ] Air tricks and appropriate jumping, falling, landing and swinging animations.
 
+## Next test build: temporary encounter only
+- [ ] Follow the gold marker and two placeholder attackers appear.
+- [ ] Attack button damages a nearby attacker; they pursue and damage the player.
+- [ ] Defeat both attackers; the test-encounter completion message appears.
+- [ ] Let the player be defeated and check that retry restores player health.
+
+These are source changes awaiting a Unity build; don't mark them as working
+until actually tested on the phone. This is not the full robbery mission.
+
 ## World and comic presentation
 - [ ] Peter's correct model and suit render and animate correctly.
 - [ ] Supplied city, civilian, vehicle and villain models load with correct textures.
@@ -59,9 +68,11 @@ Add what happened and a screenshot or screen recording if possible.
   using the web. The user reported that nothing appeared. This does **not** prove
   movement, physics, animations, performance or other features work correctly.
 - Later changes to landscape orientation, control sizing, street markings,
-  window textures and experimental swing momentum are **not yet Unity-built or
-  phone-tested**. They are not the final city or the full traversal system.
+  window textures, experimental swing momentum and a basic placeholder enemy
+  encounter and converted supplied street lights are **not yet Unity-built or
+  phone-tested**. They are not the final
+  city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the
-  requested campaign. Combat, full Story and most checklist items are absent.
+  requested campaign. Full combat, full Story and most checklist items are absent.
 - 120 FPS is a desired option on capable devices, not a guaranteed result.
   High graphics and high frame rate compete for battery, heat and GPU capacity.

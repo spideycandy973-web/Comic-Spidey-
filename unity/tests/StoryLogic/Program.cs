@@ -46,6 +46,17 @@ static class Program
         CheckSwing(0, -5, 0, 3, 0, 2, 3, 0, 2, "Tangential velocity is retained");
         CheckSwing(0, 0, 0, 3, -4, 2, 3, -4, 2, "Zero-length rope is safe");
         CheckSwing(1, 1, 0, 2, 0, 1, 1, -1, 1, "Diagonal projection");
-        Console.WriteLine("Story and swing math tests passed.");
+        bool rejectedInvalidMaximum = false;
+        try { new CombatHealth(0); }
+        catch (ArgumentOutOfRangeException) { rejectedInvalidMaximum = true; }
+        Check(rejectedInvalidMaximum, "Non-positive maximum health is rejected");
+        var health = new CombatHealth(3);
+        Check(!health.Damage(0) && !health.Damage(-1) && health.Current == 3, "Invalid damage is ignored");
+        Check(health.Damage(1) && health.Current == 2 && !health.IsDefeated, "Damage reduces health");
+        Check(health.Damage(99) && health.Current == 0 && health.IsDefeated, "Damage is clamped at zero");
+        Check(!health.Damage(1), "Defeated actor cannot take damage twice");
+        health.Restore();
+        Check(health.Current == 3 && !health.IsDefeated, "Restore returns actor to maximum health");
+        Console.WriteLine("Story, swing math and combat health tests passed.");
     }
 }

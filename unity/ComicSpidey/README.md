@@ -14,20 +14,27 @@ camera and directional light. It attempts to use the supplied rigged Spider-Man
 FBX with its texture and stand, run and hanging clips. These assets were supplied
 by the user; redistribution permission was confirmed, but ownership and licensing
 have not been independently verified. If the model or texture cannot be loaded,
-the capsule remains visible. The importer, rig, textures and animations have not
-been verified in Unity. The source suit is red and blue, not the requested
-black-and-red Miles-style suit. The prototype implements basic camera-relative
+the capsule remains visible. Build #3 showed the textured red-and-blue hero model on the user's phone, but animation and rig behaviour have not been fully verified. The
+requested Peter-led campaign and Miles as a later character are not implemented. The prototype implements basic camera-relative
 movement, jumping, multitouch joystick/look areas and an experimental hold-to-web
-tether. Desktop controls are WASD, Space, right-mouse drag and E. The tether is
+tether. Desktop controls are WASD, Space, right-mouse drag, E (web) and F (attack). The tether is
 not yet a polished or physically validated swinging mechanic. The city remains
-primitive geometry; there is no complete Story,
-combat, NPC, vehicle, graphics menu, save migration or final UI yet. The first
-travel objective can advance to an unimplemented encounter; later Story rules
-are present but are not connected to enemies, interactions or an escort.
+primitive geometry; there is no complete Story, combat system, NPC population,
+vehicle, graphics menu, save migration or final UI yet. A new **untested**
+placeholder encounter spawns two capsule attackers after the first temporary
+travel objective. A basic attack button, enemy pursuit, health and retry are
+implemented in source only; they have not been built or played in Unity. The
+prototype stops after this encounter; later legacy Story rules are not connected.
+This test encounter is not the user's campaign mission 1.
 
 The next revision requests landscape orientation on mobile, enlarges text and
-touch targets, and adds temporary road markings and window textures. These
-changes are unverified and do not replace the requested city assets or suit.
+touch targets, and adds temporary road markings and window textures. A supplied
+neighborhood street-light mesh and base-colour texture have been converted to
+OBJ/PNG and placed in the test world. This conversion, the approximate pole
+collision and the other changes are unverified in Unity and on the phone. They
+do not replace the requested full city or art direction. The source GLB and
+repeatable conversion tool are `godot/assets/city/street-light.glb` and
+`unity/tools/convert_street_light.py` (paths relative to the repository root).
 
 ## Next build and testing steps
 
@@ -53,7 +60,8 @@ engine does not by itself correct logic or guarantee smooth performance.
 ## Logic-only tests
 
 `dotnet run --project unity/tests/StoryLogic/StoryLogic.csproj --configuration Release`
-exercises the engine-independent Story progression rules without a Unity license.
+exercises engine-independent Story progression, tether projection and health
+rules without a Unity license.
 These tests do not compile or run the Unity scene and cannot validate Android.
 
 Asset checks can also be run with `npm ci && npm test` in

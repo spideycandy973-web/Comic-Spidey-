@@ -39,3 +39,15 @@ test('Unity manifest does not request a nonexistent legacy-input package', () =>
   const manifest = JSON.parse(readFileSync(new URL('../../ComicSpidey/Packages/manifest.json', import.meta.url), 'utf8'));
   assert.equal(Object.hasOwn(manifest.dependencies, 'com.unity.modules.inputlegacy'), false);
 });
+
+// Conversion is checked structurally here; Unity import, UV orientation,
+// appearance, scale and collision still need editor/device verification.
+test('supplied street light OBJ and base-colour PNG are structurally present', () => {
+  const city = path => new URL(`../../ComicSpidey/Assets/Resources/City/${path}`, import.meta.url);
+  const obj = readFileSync(city('street-light.obj'), 'utf8');
+  assert.equal((obj.match(/^v /gm) || []).length, 1110);
+  assert.equal((obj.match(/^vt /gm) || []).length, 1110);
+  assert.equal((obj.match(/^vn /gm) || []).length, 1110);
+  assert.equal((obj.match(/^f /gm) || []).length, 1082);
+  assert.equal(readFileSync(city('street-light.png')).subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+});

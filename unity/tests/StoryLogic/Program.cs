@@ -57,6 +57,16 @@ static class Program
         Check(!health.Damage(1), "Defeated actor cannot take damage twice");
         health.Restore();
         Check(health.Current == 3 && !health.IsDefeated, "Restore returns actor to maximum health");
-        Console.WriteLine("Story, swing math and combat health tests passed.");
+        var options = new GraphicsOptionsData(-5, 100, -2, true);
+        Check(options.Quality == 0 && options.FrameRateIndex == 2 && options.ResolutionIndex == 0, "Corrupt preference indices are clamped");
+        Check(GraphicsOptionsData.FrameRates[options.FrameRateIndex] == 120, "120 is an available target");
+        options.CycleFrameRate();
+        options.CycleResolution();
+        options.CycleQuality();
+        options.ToggleShadows();
+        Check(GraphicsOptionsData.FrameRates[options.FrameRateIndex] == 30 &&
+            GraphicsOptionsData.ResolutionPercent[options.ResolutionIndex] == 75 &&
+            options.Quality == 1 && !options.Shadows, "Options cycle and toggle");
+        Console.WriteLine("Story, swing math, combat health and graphics options tests passed.");
     }
 }

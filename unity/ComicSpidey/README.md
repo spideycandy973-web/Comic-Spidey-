@@ -17,10 +17,14 @@ have not been independently verified. If the model or texture cannot be loaded,
 the capsule remains visible. Build #3 showed the textured red-and-blue hero model on the user's phone, but animation and rig behaviour have not been fully verified. The
 requested Peter-led campaign and Miles as a later character are not implemented. The prototype implements basic camera-relative
 movement, jumping, multitouch joystick/look areas and an experimental hold-to-web
-tether. Desktop controls are WASD, Space, right-mouse drag, E (web) and F (attack). The tether is
-not yet a polished or physically validated swinging mechanic. The city remains
+tether. Desktop controls are WASD, Space, right-mouse drag, E (web) and F (attack).
+Source now includes experimental wall climbing and wall jumping, plus building
+surface raycasts for web attachment. These traversal changes are not yet built
+or physically tested, and climbing does not yet have a rooftop mantle or its
+own animation. The tether is not yet a polished or physically validated
+swinging mechanic. The city remains
 primitive geometry; there is no complete Story, combat system, NPC population,
-vehicle, graphics menu, save migration or final UI yet. A new **untested**
+vehicle, final graphics menu, save migration or final UI yet. A new **untested**
 placeholder encounter spawns two capsule attackers after the first temporary
 travel objective. A basic attack button, enemy pursuit, health and retry are
 implemented in source only; they have not been built or played in Unity. The
@@ -32,7 +36,11 @@ touch targets, and adds temporary road markings and window textures. A supplied
 neighborhood street-light mesh and base-colour texture have been converted to
 OBJ/PNG and placed in the test world. This conversion, the approximate pole
 collision and the other changes are unverified in Unity and on the phone. They
-do not replace the requested full city or art direction. The source GLB and
+do not replace the requested full city or art direction. A new prototype
+settings panel offers quality, frame-rate targets (30/60/120), shadow toggle and
+render scale and stores the choices locally. Actual frame rate is device-limited;
+render scaling may be unsupported by a device or rendering backend. None of
+these settings have yet been verified in Unity or on the phone. The source GLB and
 repeatable conversion tool are `godot/assets/city/street-light.glb` and
 `unity/tools/convert_street_light.py` (paths relative to the repository root).
 
@@ -60,8 +68,8 @@ engine does not by itself correct logic or guarantee smooth performance.
 ## Logic-only tests
 
 `dotnet run --project unity/tests/StoryLogic/StoryLogic.csproj --configuration Release`
-exercises engine-independent Story progression, tether projection and health
-rules without a Unity license.
+exercises engine-independent Story progression, tether projection, health and
+option-selection rules without a Unity license.
 These tests do not compile or run the Unity scene and cannot validate Android.
 
 Asset checks can also be run with `npm ci && npm test` in

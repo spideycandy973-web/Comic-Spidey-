@@ -56,6 +56,7 @@ namespace ComicSpidey
                 float height = 10 + ((Mathf.Abs(x * 13 + z * 7) % 4) * 5);
                 var building = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 building.name = "TestBuilding";
+                building.AddComponent<ClimbableSurface>();
                 building.transform.position = new Vector3(x * 40 + 18, height / 2, z * 40 + 18);
                 building.transform.localScale = new Vector3(22, height, 22);
                 building.GetComponent<Renderer>().sharedMaterial = buildingMaterial;
@@ -94,8 +95,9 @@ namespace ComicSpidey
             player.AddComponent<HeroVisual>().Initialize(body);
             var view = new GameObject("FollowCamera");
             view.tag = "MainCamera";
-            view.AddComponent<Camera>();
+            var camera = view.AddComponent<Camera>();
             view.AddComponent<AudioListener>();
+            player.AddComponent<PrototypeSettings>().Initialize(camera, light);
             player.AddComponent<PrototypeController>().Initialize(view.transform, anchors);
         }
 

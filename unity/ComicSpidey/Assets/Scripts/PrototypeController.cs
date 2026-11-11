@@ -10,7 +10,8 @@ namespace ComicSpidey
         private Transform cameraTransform;
         private List<Transform> anchors;
         private Vector3 velocity;
-        private Transform webAnchor;
+        private Vector3 webPoint;
+        private bool webAttached;
         private float ropeLength;
         private float yaw = 180f;
         private float pitch = 18f;
@@ -25,12 +26,16 @@ namespace ComicSpidey
         private Vector3 lastMouse;
         private LineRenderer webLine;
         private HeroVisual heroVisual;
+        private PrototypeSettings settings;
+        private float climbBlockedUntil;
+        private bool climbing;
         private readonly StoryProgress story = new StoryProgress();
 
         public void Initialize(Transform cameraView, List<Transform> webAnchors)
         {
             motor = GetComponent<CharacterController>();
             heroVisual = GetComponent<HeroVisual>();
+            settings = GetComponent<PrototypeSettings>();
             cameraTransform = cameraView;
             anchors = webAnchors;
             webLine = gameObject.AddComponent<LineRenderer>();
@@ -51,32 +56,55 @@ namespace ComicSpidey
         private void Update()
         {
             if (cameraTransform == null) return;
+            if (settings != null && settings.IsOpen)
+            {
+                ResetInput();
+                return;
+            }
             HandleInput();
             var heading = Quaternion.Euler(0, yaw, 0);
             var desired = heading * new Vector3(moveInput.x, 0, moveInput.y);
             if (desired.sqrMagnitude > 1) desired.Normalize();
-            if (motor.isGrounded && velocity.y < 0) velocity.y = -2f;
-            if (jumpRequested && motor.isGrounded) velocity.y = 8f;
-            jumpRequested = false;
-            velocity.y -= 20f * Time.deltaTime;
-            Vector3 horizontal = new Vector3(velocity.x, 0, velocity.z);
-            // Do not overwrite horizontal velocity while airborne: release from
-            // the tether should retain momentum rather than stopping instantly.
-            if (webAnchor != null)
+            climbing = false;
+            if (!webAttached && Time.time >= climbBlockedUntil && moveInput.y > 0.25f && desired.sqrMagnitude > 0.01f &&
+                Physics.Raycast(transform.position + Vector3.up * 0.3f, desired.normalized, out RaycastHit wall,
+                    motor.radius + 0.4f, ~0, QueryTriggerInteraction.Ignore) &&
+                wall.collider.GetComponent<ClimbableSurface>() != null && Mathf.Abs(wall.normal.y) < 0.2f &&
+                Vector3.Dot(desired, wall.normal) < -0.15f)
             {
-                // Steering adds acceleration instead of erasing swing momentum.
-                horizontal += desired * (5f * Time.deltaTime);
-                horizontal = Vector3.ClampMagnitude(horizontal, 24f);
+                climbing = true;
+                if (jumpRequested)
+                {
+                    // A wall jump disengages briefly so input can't reattach instantly.
+                    velocity = wall.normal * 6f + Vector3.up * 7f;
+                    climbing = false;
+                    climbBlockedUntil = Time.time + 0.4f;
+                }
+                else velocity = Vector3.up * 4f - wall.normal * 0.6f;
             }
-            else if (motor.isGrounded || desired.sqrMagnitude > 0.001f)
-                horizontal = Vector3.MoveTowards(horizontal, desired * 7f, (motor.isGrounded ? 28f : 4f) * Time.deltaTime);
-            velocity.x = horizontal.x;
-            velocity.z = horizontal.z;
+            else
+            {
+                if (motor.isGrounded && velocity.y < 0) velocity.y = -2f;
+                if (jumpRequested && motor.isGrounded) velocity.y = 8f;
+                velocity.y -= 20f * Time.deltaTime;
+                Vector3 horizontal = new Vector3(velocity.x, 0, velocity.z);
+                // Steering adds acceleration instead of erasing tether momentum.
+                if (webAttached)
+                {
+                    horizontal += desired * (5f * Time.deltaTime);
+                    horizontal = Vector3.ClampMagnitude(horizontal, 24f);
+                }
+                else if (motor.isGrounded || desired.sqrMagnitude > 0.001f)
+                    horizontal = Vector3.MoveTowards(horizontal, desired * 7f, (motor.isGrounded ? 28f : 4f) * Time.deltaTime);
+                velocity.x = horizontal.x;
+                velocity.z = horizontal.z;
+            }
+            jumpRequested = false;
 
             // An intentionally simple tether prototype, not a finished swing system.
-            if (webAnchor != null)
+            if (webAttached)
             {
-                Vector3 rope = transform.position - webAnchor.position;
+                Vector3 rope = transform.position - webPoint;
                 if (rope.magnitude >= ropeLength - 0.05f)
                     LimitOutwardVelocity(rope);
             }
@@ -89,20 +117,20 @@ namespace ComicSpidey
                 SpawnEncounter();
             if (attackRequested) TryAttack();
             attackRequested = false;
-            if (webAnchor != null)
+            if (webAttached)
             {
-                Vector3 rope = transform.position - webAnchor.position;
+                Vector3 rope = transform.position - webPoint;
                 if (rope.magnitude > ropeLength)
                 {
                     motor.Move(-rope.normalized * (rope.magnitude - ropeLength));
-                    LimitOutwardVelocity(transform.position - webAnchor.position);
+                    LimitOutwardVelocity(transform.position - webPoint);
                 }
                 webLine.enabled = true;
                 webLine.SetPosition(0, transform.position + Vector3.up * 0.5f);
-                webLine.SetPosition(1, webAnchor.position);
+                webLine.SetPosition(1, webPoint);
             }
             else webLine.enabled = false;
-            if (heroVisual != null) heroVisual.UpdateMotion(motor.isGrounded, webAnchor != null, velocity);
+            if (heroVisual != null) heroVisual.UpdateMotion(motor.isGrounded, webAttached, velocity);
             if (desired.sqrMagnitude > 0.01f)
                 transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(desired), 12f * Time.deltaTime);
         }
@@ -142,13 +170,14 @@ namespace ComicSpidey
                 }
                 else trackingMouse = false;
                 if (Input.GetKeyDown(KeyCode.E)) AttachWeb();
-                if (Input.GetKeyUp(KeyCode.E)) webAnchor = null;
+                if (Input.GetKeyUp(KeyCode.E)) webAttached = false;
             }
             foreach (Touch touch in Input.touches)
             {
                 Vector2 p = touch.position; // Touch positions have a bottom-left origin.
                 if (touch.phase == TouchPhase.Began)
                 {
+                    if (settings != null && settings.BlocksTouch(p)) continue;
                     if (JumpRect.Contains(p)) jumpRequested = true;
                     else if (WebRect.Contains(p) && webFinger == -1) { webFinger = touch.fingerId; AttachWeb(); }
                     else if (AttackRect.Contains(p)) attackRequested = true;
@@ -166,7 +195,7 @@ namespace ComicSpidey
                 {
                     if (touch.fingerId == joystickFinger) { joystickFinger = -1; moveInput = Vector2.zero; }
                     if (touch.fingerId == lookFinger) lookFinger = -1;
-                    if (touch.fingerId == webFinger) { webFinger = -1; webAnchor = null; }
+                    if (touch.fingerId == webFinger) { webFinger = -1; webAttached = false; }
                 }
             }
         }
@@ -222,7 +251,7 @@ namespace ComicSpidey
             transform.position = new Vector3(0, 1, -35);
             motor.enabled = true;
             velocity = Vector3.zero;
-            webAnchor = null;
+            webAttached = false;
             health.Restore();
             invulnerableUntil = Time.time + 2f;
             respawnNoticeUntil = Time.time + 3f;
@@ -244,23 +273,42 @@ namespace ComicSpidey
 
         private void AttachWeb()
         {
-            Transform nearest = null;
-            float best = 38f;
+            // Try nearby building rooftops, but attach only where an unobstructed
+            // ray actually hits a tagged building. Do not tether to empty sky.
+            webAttached = false;
+            float bestScore = float.MaxValue;
+            Vector3 origin = transform.position + Vector3.up * 0.5f;
+            Vector3 viewForward = Quaternion.Euler(0, yaw, 0) * Vector3.forward;
             foreach (Transform anchor in anchors)
             {
-                float distance = Vector3.Distance(transform.position, anchor.position);
-                if (distance < best) { best = distance; nearest = anchor; }
+                if (anchor == null) continue;
+                Vector3 target = anchor.position - Vector3.up;
+                Vector3 direction = target - origin;
+                float distance = direction.magnitude;
+                if (distance < 0.01f || distance > 45f) continue;
+                if (!Physics.Raycast(origin, direction / distance, out RaycastHit hit,
+                    distance + 0.2f, ~0, QueryTriggerInteraction.Ignore) ||
+                    hit.collider.GetComponent<ClimbableSurface>() == null || hit.point.y < origin.y + 0.5f) continue;
+                Vector3 flat = new Vector3(direction.x, 0, direction.z).normalized;
+                float score = distance - Vector3.Dot(viewForward, flat) * 8f;
+                if (score >= bestScore) continue;
+                bestScore = score;
+                webPoint = hit.point;
+                webAttached = true;
             }
-            webAnchor = nearest;
-            if (webAnchor != null) ropeLength = best;
+            if (webAttached) ropeLength = Vector3.Distance(transform.position, webPoint);
         }
 
         private void OnApplicationFocus(bool focus)
         {
-            if (focus) return;
+            if (!focus) ResetInput();
+        }
+
+        private void ResetInput()
+        {
             joystickFinger = lookFinger = webFinger = -1;
             moveInput = Vector2.zero;
-            webAnchor = null;
+            webAttached = false;
             jumpRequested = false;
             attackRequested = false;
             trackingMouse = false;
@@ -277,6 +325,7 @@ namespace ComicSpidey
             string status = "Health " + health.Current + "/" + health.Maximum;
             if (story.Stage == 1) status += "   Attackers " + story.DefeatedCount + "/2";
             if (Time.time < respawnNoticeUntil) status += "   RETRY";
+            if (climbing) status += "   CLIMB";
             GUI.Label(new Rect(ButtonMargin, unit * 0.13f, Screen.width * 0.55f, unit * 0.1f), status, label);
             GUI.Box(new Rect(WebRect.x, Screen.height - WebRect.yMax, WebRect.width, WebRect.height), "HOLD\nWEB", panel);
             GUI.Box(new Rect(JumpRect.x, Screen.height - JumpRect.yMax, JumpRect.width, JumpRect.height), "JUMP", panel);

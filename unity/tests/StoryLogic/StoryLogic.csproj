@@ -8,6 +8,7 @@
     <Compile Include="../../ComicSpidey/Assets/Scripts/StoryProgress.cs" Link="StoryProgress.cs" />
     <Compile Include="../../ComicSpidey/Assets/Scripts/SwingMath.cs" Link="SwingMath.cs" />
     <Compile Include="../../ComicSpidey/Assets/Scripts/CombatHealth.cs" Link="CombatHealth.cs" />
+    <Compile Include="../../ComicSpidey/Assets/Scripts/GraphicsOptionsData.cs" Link="GraphicsOptionsData.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 </Project>

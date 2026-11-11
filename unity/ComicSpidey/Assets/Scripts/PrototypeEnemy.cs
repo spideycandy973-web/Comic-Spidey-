@@ -36,7 +36,7 @@ namespace ComicSpidey
 
         private void Update()
         {
-            if (!Alive || player == null) return;
+            if (!Alive || player == null || Time.timeScale == 0f) return;
             body.sharedMaterial = Time.time < hitUntil ? hitMaterial : normalMaterial;
             Vector3 offset = player.transform.position - transform.position;
             Vector3 flat = new Vector3(offset.x, 0, offset.z);

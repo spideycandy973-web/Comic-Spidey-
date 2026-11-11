@@ -9,3 +9,22 @@ node_modules/
 /godot/.godot/
 /godot/*.apk
 /godot/*.aab
+
+# Unreal generated files and local IDE state (retain source and project files)
+/unreal/**/Binaries/
+/unreal/**/DerivedDataCache/
+/unreal/**/Intermediate/
+/unreal/**/Saved/
+/unreal/**/.vs/
+/unreal/**/*.sln
+/unreal/**/*.xcodeproj/
+
+# Unity generated files; project assets and metadata remain tracked.
+/unity/**/Library/
+/unity/**/Temp/
+/unity/**/Obj/
+/unity/**/Logs/
+/unity/**/UserSettings/
+/unity/**/Builds/
+/unity/**/*.csproj
+/unity/**/*.sln

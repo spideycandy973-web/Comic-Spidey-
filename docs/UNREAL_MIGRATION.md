@@ -1,11 +1,11 @@
 # Unreal Engine Android migration — earlier assessment
 
-The user subsequently chose to continue with the native Godot Android project. This document records the earlier Unreal assessment; Unreal is not the current development target.
+The user has requested a move to Unreal Engine. An uncompiled starter scaffold is now in `unreal/ComicSpidey/`; the Godot project remains available as a reference and existing release, not as a completed Unreal migration.
 
 The requested target is an Unreal Engine native Android game, not the Godot or
-WebView builds in this repository. No Unreal project, packaged Unreal app or
-validated Unreal gameplay exists here yet. Keep the older projects as references;
-do not release them as the requested Unreal game.
+WebView builds in this repository. There is an initial Unreal source scaffold,
+but no packaged Unreal app or validated Unreal gameplay exists yet. Keep the
+older projects as references; do not release them as the requested Unreal game.
 
 ## Direction and scope
 

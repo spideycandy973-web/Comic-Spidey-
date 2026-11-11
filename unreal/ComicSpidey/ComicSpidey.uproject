@@ -1,0 +1,9 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.7",
+  "Category": "Games",
+  "Description": "Early Unreal migration scaffold; not a playable replacement yet.",
+  "Modules": [
+    { "Name": "ComicSpidey", "Type": "Runtime", "LoadingPhase": "Default" }
+  ]
+}

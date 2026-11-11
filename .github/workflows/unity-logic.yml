@@ -1,0 +1,21 @@
+name: Unity engine-independent story logic
+on:
+  push:
+    branches: ['arena/fcf116e2-comic-spidey']
+    paths:
+      - 'unity/**'
+      - '.github/workflows/unity-logic.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  story:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Test engine-independent story rules
+        run: dotnet run --project unity/tests/StoryLogic/StoryLogic.csproj --configuration Release

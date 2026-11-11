@@ -1,8 +1,8 @@
 # Project status
 
-**Current direction: a native Godot Android game.** Development continues in `godot/`; it is unfinished and is not a WebView or PWA. An Unreal migration was considered but no Unreal build environment or Unreal APK was created; see [the earlier Unreal assessment](docs/UNREAL_MIGRATION.md). The WebView project below is legacy and is not the requested game.
+**Current direction: migrate to Unity for Android.** The initial, uncompiled Unity prototype is in [`unity/ComicSpidey/`](unity/ComicSpidey/README.md). No Unity APK or validated Unity gameplay exists yet. The existing Godot game, Unreal scaffold and WebView project are retained as references; the existing Godot prerelease is not a Unity build.
 
-The Android WebView game described below is the legacy implementation and does not satisfy the request for a native-engine Android game. The native Godot game under development is in [`godot/`](godot/README.md). Neither project is a finished release.
+The description below documents the legacy WebView prototype, not the new Unity project. See [`godot/`](godot/README.md) for the earlier native game.
 
 # Comic Spidey — development build
 

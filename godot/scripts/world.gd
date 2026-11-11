@@ -192,7 +192,7 @@ func make_chunk(key: Vector2i) -> void:
 	# Keep them on the sidewalk and scale the original centimeter-sized mesh.
 	for dz in [9.0, 35.0]:
 		var light := STREET_LIGHT.instantiate() as Node3D
-		light.name = "NeighborhoodStreetLight"
+		light.name = "NeighborhoodStreetLight_%d" % int(dz)
 		light.position = Vector3(ox + 5.4, 0.06, oz + dz)
 		light.scale = Vector3.ONE * 0.0069
 		chunk.add_child(light)

@@ -157,7 +157,7 @@ func run_test() -> void:
 	check(scene.world.stream_revision == revision, "stationary city streaming avoids rebuilding anchors and blocks")
 	check(scene.world.sidewalk_material is ShaderMaterial, "street surfaces use the shared detail material")
 	var block = scene.world.chunks[Vector2i(0, 0)]
-	check(block.find_children("NeighborhoodStreetLight", "Node3D", false, false).size() == 2, "supplied street lights are placed per block")
+	check(block.find_children("NeighborhoodStreetLight_*", "Node3D", false, false).size() == 2, "supplied street lights are placed per block")
 	var facades = block.get_node_or_null("BuildingFacades")
 	check(facades != null and facades.multimesh.instance_count == 4, "city batches building visuals without removing collisions")
 	var car = scene.traffic[0]

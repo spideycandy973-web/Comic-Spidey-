@@ -34,3 +34,8 @@ test('suit texture is a PNG and the Unity resource shader exists', () => {
   assert.ok(png.readUInt32BE(16) > 0 && png.readUInt32BE(20) > 0);
   assert.match(readFileSync(asset('HeroLit.shader'), 'utf8'), /ComicSpidey\/HeroLit/);
 });
+
+test('Unity manifest does not request a nonexistent legacy-input package', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../../ComicSpidey/Packages/manifest.json', import.meta.url), 'utf8'));
+  assert.equal(Object.hasOwn(manifest.dependencies, 'com.unity.modules.inputlegacy'), false);
+});

@@ -38,7 +38,7 @@ namespace ComicSpidey
         }
 
         // Use viewport-relative sizes so the touch targets scale on phones.
-        private float ButtonSize => Mathf.Min(Screen.height * 0.17f, Screen.width * 0.12f);
+        private float ButtonSize => Mathf.Min(Screen.height * 0.20f, Screen.width * 0.12f);
         private float ButtonMargin => Mathf.Max(12f, Screen.height * 0.03f);
         private Rect JumpRect => new Rect(Screen.width - ButtonMargin - ButtonSize, ButtonMargin, ButtonSize, ButtonSize);
         private Rect WebRect => new Rect(JumpRect.x, JumpRect.yMax + ButtonMargin, ButtonSize, ButtonSize);
@@ -135,7 +135,7 @@ namespace ComicSpidey
                     else if (lookFinger == -1) lookFinger = touch.fingerId;
                 }
                 if (touch.fingerId == joystickFinger)
-                    moveInput = Vector2.ClampMagnitude((p - joystickOrigin) / 70f, 1f);
+                    moveInput = Vector2.ClampMagnitude((p - joystickOrigin) / (Mathf.Min(Screen.width, Screen.height) * 0.12f), 1f);
                 if (touch.fingerId == lookFinger && touch.phase == TouchPhase.Moved)
                 {
                     yaw += touch.deltaPosition.x * 0.16f;
@@ -175,12 +175,17 @@ namespace ComicSpidey
 
         private void OnGUI()
         {
-            GUI.Box(new Rect(12, 12, 420, 46), "UNITY PROTOTYPE - " + story.Current.Title);
+            float unit = Mathf.Min(Screen.width, Screen.height);
+            int font = Mathf.Max(16, Mathf.RoundToInt(unit * 0.035f));
+            var panel = new GUIStyle(GUI.skin.box) { fontSize = font, alignment = TextAnchor.MiddleCenter, wordWrap = true };
+            var label = new GUIStyle(GUI.skin.label) { fontSize = font, wordWrap = true };
+            GUI.Box(new Rect(ButtonMargin, ButtonMargin, Screen.width * 0.45f, unit * 0.09f), "PROTOTYPE - " + story.Current.Title, panel);
             if (story.Current.Kind == ObjectiveKind.Fight)
-                GUI.Label(new Rect(16, 60, 540, 34), "Encounter not implemented yet - prototype stops here.");
-            GUI.Box(new Rect(WebRect.x, Screen.height - WebRect.yMax, WebRect.width, WebRect.height), "HOLD\nWEB");
-            GUI.Box(new Rect(JumpRect.x, Screen.height - JumpRect.yMax, JumpRect.width, JumpRect.height), "JUMP");
-            GUI.Label(new Rect(15, Screen.height - 48, 500, 36), "Left: move    Right: look    Space/E on keyboard");
+                GUI.Label(new Rect(ButtonMargin, unit * 0.13f, Screen.width * 0.55f, unit * 0.1f), "Encounter not implemented yet.", label);
+            GUI.Box(new Rect(WebRect.x, Screen.height - WebRect.yMax, WebRect.width, WebRect.height), "HOLD\nWEB", panel);
+            GUI.Box(new Rect(JumpRect.x, Screen.height - JumpRect.yMax, JumpRect.width, JumpRect.height), "JUMP", panel);
+            if (joystickFinger == -1)
+                GUI.Label(new Rect(ButtonMargin, Screen.height - unit * 0.14f, Screen.width * 0.4f, unit * 0.1f), "Drag left to move", label);
         }
     }
 }

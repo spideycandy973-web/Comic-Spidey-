@@ -2,8 +2,11 @@
 
 This is a new Unity project, **not a finished or released game**. It is pinned to
 Unity 2022.3.20f1 (built-in rendering pipeline). The Unity Editor and Android
-build tools are not installed in the current workspace; the project has not
-been opened in Unity, compiled, exported, or tested on any device.
+build tools are not installed in the current workspace. Unity Build Automation
+build #3 successfully exported commit `cbaa058`, and the user installed it on a
+Redmi Note 13 Pro+ 5G. The user reported that the city looked empty and the UI
+was too small; the screenshot showed portrait orientation and placeholder blocks.
+Changes after that build still need a new Unity build and device testing.
 
 `Assets/Scenes/Prototype.unity` is an initial scene registered in build settings.
 The runtime bootstrap creates a small temporary block city, placeholder capsule,
@@ -21,6 +24,10 @@ primitive geometry; there is no complete Story,
 combat, NPC, vehicle, graphics menu, save migration or final UI yet. The first
 travel objective can advance to an unimplemented encounter; later Story rules
 are present but are not connected to enemies, interactions or an escort.
+
+The next revision requests landscape orientation on mobile, enlarges text and
+touch targets, and adds temporary road markings and window textures. These
+changes are unverified and do not replace the requested city assets or suit.
 
 ## Next build and testing steps
 

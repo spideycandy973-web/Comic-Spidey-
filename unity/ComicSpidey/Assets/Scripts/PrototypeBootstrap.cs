@@ -11,6 +11,10 @@ namespace ComicSpidey
         {
             if (Object.FindObjectOfType<PrototypeController>() != null) return;
             Application.targetFrameRate = 60;
+#if UNITY_ANDROID || UNITY_IOS
+            // The prototype uses a wide third-person layout, not a portrait UI.
+            Screen.orientation = ScreenOrientation.LandscapeLeft;
+#endif
             RenderSettings.ambientLight = new Color(0.58f, 0.59f, 0.64f);
             Camera.main?.gameObject.SetActive(false);
 
@@ -20,13 +24,29 @@ namespace ComicSpidey
             light.intensity = 1f;
 
             var groundMaterial = MakeMaterial(new Color(0.23f, 0.28f, 0.34f));
-            var buildingMaterial = MakeMaterial(new Color(0.67f, 0.53f, 0.5f));
+            var buildingMaterial = MakeBuildingMaterial();
+            var roadMaterial = MakeMaterial(new Color(0.12f, 0.15f, 0.20f));
+            var markingMaterial = MakeMaterial(new Color(0.94f, 0.75f, 0.39f));
             var playerMaterial = MakeMaterial(new Color(0.12f, 0.12f, 0.14f));
             var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
             ground.name = "Ground";
             ground.transform.position = new Vector3(0, -0.5f, 0);
             ground.transform.localScale = new Vector3(240, 1, 240);
             ground.GetComponent<Renderer>().sharedMaterial = groundMaterial;
+
+            // Lightweight street markings and window textures make the test
+            // environment readable; these are still temporary geometry.
+            for (int street = -2; street <= 3; street++)
+            {
+                float offset = street * 40 - 2;
+                AddDecoration("Road", new Vector3(offset, 0.01f, 0), new Vector3(14, 0.02f, 240), roadMaterial);
+                AddDecoration("Road", new Vector3(0, 0.02f, offset), new Vector3(240, 0.02f, 14), roadMaterial);
+                for (int dash = -5; dash <= 5; dash++)
+                {
+                    AddDecoration("LaneMark", new Vector3(offset, 0.04f, dash * 20), new Vector3(0.22f, 0.02f, 4), markingMaterial);
+                    AddDecoration("LaneMark", new Vector3(dash * 20, 0.05f, offset), new Vector3(4, 0.02f, 0.22f), markingMaterial);
+                }
+            }
 
             var anchors = new List<Transform>();
             for (int x = -2; x <= 2; x++)
@@ -68,6 +88,33 @@ namespace ComicSpidey
             view.AddComponent<Camera>();
             view.AddComponent<AudioListener>();
             player.AddComponent<PrototypeController>().Initialize(view.transform, anchors);
+        }
+
+        private static void AddDecoration(string name, Vector3 position, Vector3 scale, Material material)
+        {
+            var item = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            item.name = name;
+            item.transform.position = position;
+            item.transform.localScale = scale;
+            item.GetComponent<Renderer>().sharedMaterial = material;
+            Object.Destroy(item.GetComponent<Collider>());
+        }
+
+        private static Material MakeBuildingMaterial()
+        {
+            var material = MakeMaterial(Color.white);
+            var texture = new Texture2D(64, 64, TextureFormat.RGB24, false);
+            texture.filterMode = FilterMode.Point;
+            for (int y = 0; y < 64; y++)
+            for (int x = 0; x < 64; x++)
+            {
+                bool window = x % 16 >= 3 && x % 16 <= 12 && y % 16 >= 3 && y % 16 <= 12;
+                bool lit = ((x / 16 * 3 + y / 16 * 7) % 3) != 0;
+                texture.SetPixel(x, y, window ? (lit ? new Color(0.55f, 0.72f, 0.78f) : new Color(0.13f, 0.23f, 0.33f)) : new Color(0.34f, 0.30f, 0.36f));
+            }
+            texture.Apply();
+            material.mainTexture = texture;
+            return material;
         }
 
         private static Material MakeMaterial(Color color)

@@ -1,0 +1,28 @@
+name: Unity build readiness
+on:
+  push:
+    branches: ['arena/fcf116e2-comic-spidey']
+    paths: ['.github/workflows/unity-build-readiness.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  activation-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+      UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+      UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+      UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+    steps:
+      - name: Check whether Unity activation is configured
+        shell: bash
+        run: |
+          # Only report readiness. Never print, upload, persist, or transmit values.
+          if [[ ( -n "$UNITY_LICENSE" || -n "$UNITY_SERIAL" ) && -n "$UNITY_EMAIL" && -n "$UNITY_PASSWORD" ]]; then
+            echo '::notice::Unity activation inputs are configured; validity is not verified.'
+          else
+            echo '::error::Unity activation inputs for the hosted build are incomplete.'
+            exit 1
+          fi

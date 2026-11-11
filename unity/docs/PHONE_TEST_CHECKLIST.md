@@ -30,6 +30,10 @@ Add what happened and a screenshot or screen recording if possible.
 - [ ] Attack button damages a nearby attacker; they pursue and damage the player.
 - [ ] Defeat both attackers; the test-encounter completion message appears.
 - [ ] Let the player be defeated and check that retry restores player health.
+- [ ] Defeat one attacker, close and reopen the app: only the other attacker returns.
+- [ ] Defeat both, close and reopen: the test encounter stays complete.
+- [ ] In Settings, confirm Reset Test Progress: the test objective starts over;
+      graphics settings should remain unchanged.
 - [ ] Hold movement into a marked test building to climb; tap jump to wall-jump.
 - [ ] Open Settings, change quality, FPS target, shadows and render scale; restart
       the app and check whether the chosen settings persist and take effect.
@@ -74,7 +78,8 @@ until actually tested on the phone. This is not the full robbery mission.
 - Later changes to landscape orientation, control sizing, street markings,
   window textures, experimental swing momentum and a basic placeholder enemy
   encounter, converted supplied street lights, experimental climb/web changes
-  and graphics settings are **not yet Unity-built or phone-tested**. They are not the final
+  graphics settings and test-encounter checkpoint are **not yet Unity-built or
+  phone-tested**. They are not the final
   city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the
   requested campaign. Full combat, full Story and most checklist items are absent.

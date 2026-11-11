@@ -67,6 +67,19 @@ static class Program
         Check(GraphicsOptionsData.FrameRates[options.FrameRateIndex] == 30 &&
             GraphicsOptionsData.ResolutionPercent[options.ResolutionIndex] == 75 &&
             options.Quality == 1 && !options.Shadows, "Options cycle and toggle");
-        Console.WriteLine("Story, swing math, combat health and graphics options tests passed.");
+        var checkpoint = new PrototypeCheckpoint();
+        Check(checkpoint.Encode() == "v1:0:0", "New test checkpoint starts in travel");
+        Check(!checkpoint.MarkDefeated(0), "Defeat cannot happen before encounter");
+        checkpoint.StartEncounter();
+        Check(!checkpoint.MarkDefeated(-1) && !checkpoint.MarkDefeated(2), "Invalid enemy IDs are rejected");
+        Check(checkpoint.MarkDefeated(1) && !checkpoint.MarkDefeated(1), "Defeat is recorded once");
+        Check(PrototypeCheckpoint.TryDecode(checkpoint.Encode(), out var partial) &&
+            partial.Phase == 1 && partial.IsDefeated(1) && !partial.IsDefeated(0), "Partial checkpoint round trip");
+        Check(partial.MarkDefeated(0) && partial.Phase == 2 && partial.Encode() == "v1:2:3", "Completion persists");
+        Check(PrototypeCheckpoint.TryDecode(partial.Encode(), out var complete) && complete.Phase == 2 &&
+            !complete.MarkDefeated(0), "Completed checkpoint round trip is terminal");
+        foreach (string invalid in new[] { "", "v2:0:0", "v1:0:1", "v1:1:3", "v1:2:0", "v1:-1:0", "v1:1:0:extra", "v1:a:0" })
+            Check(!PrototypeCheckpoint.TryDecode(invalid, out _), "Reject malformed checkpoint: " + invalid);
+        Console.WriteLine("Story, swing, health, graphics options and prototype checkpoint tests passed.");
     }
 }

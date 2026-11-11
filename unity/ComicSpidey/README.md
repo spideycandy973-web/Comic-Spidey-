@@ -29,7 +29,12 @@ placeholder encounter spawns two capsule attackers after the first temporary
 travel objective. A basic attack button, enemy pursuit, health and retry are
 implemented in source only; they have not been built or played in Unity. The
 prototype stops after this encounter; later legacy Story rules are not connected.
-This test encounter is not the user's campaign mission 1.
+This test encounter is not the user's campaign mission 1. Source now stores a
+versioned local checkpoint for the test encounter: reaching it and defeating
+each attacker. On reload, surviving attackers return at full health and the
+player resumes near the encounter with full health. Settings has a two-tap
+reset for this test checkpoint only. This is not the future campaign save
+system and has not been verified in Unity or on a device.
 
 The next revision requests landscape orientation on mobile, enlarges text and
 touch targets, and adds temporary road markings and window textures. A supplied
@@ -69,7 +74,7 @@ engine does not by itself correct logic or guarantee smooth performance.
 
 `dotnet run --project unity/tests/StoryLogic/StoryLogic.csproj --configuration Release`
 exercises engine-independent Story progression, tether projection, health and
-option-selection rules without a Unity license.
+option-selection and prototype checkpoint rules without a Unity license.
 These tests do not compile or run the Unity scene and cannot validate Android.
 
 Asset checks can also be run with `npm ci && npm test` in

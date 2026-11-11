@@ -29,7 +29,9 @@ namespace ComicSpidey
         private PrototypeSettings settings;
         private float climbBlockedUntil;
         private bool climbing;
-        private readonly StoryProgress story = new StoryProgress();
+        private StoryProgress story = new StoryProgress();
+        private PrototypeCheckpoint checkpoint = new PrototypeCheckpoint();
+        private const string CheckpointKey = "comicspidey.prototype.test-encounter.v1";
 
         public void Initialize(Transform cameraView, List<Transform> webAnchors)
         {
@@ -44,6 +46,7 @@ namespace ComicSpidey
             webLine.startWidth = webLine.endWidth = 0.04f;
             webLine.positionCount = 2;
             webLine.enabled = false;
+            LoadTestCheckpoint();
         }
 
         // Use viewport-relative sizes so the touch targets scale on phones.
@@ -114,7 +117,11 @@ namespace ComicSpidey
             // Stop after the first experimental encounter; the following legacy
             // objectives are outside this small test world and are not the campaign.
             if (story.Stage == 0 && story.Visit(transform.position.x, transform.position.y - 1f, transform.position.z))
+            {
+                checkpoint.StartEncounter();
+                SaveTestCheckpoint();
                 SpawnEncounter();
+            }
             if (attackRequested) TryAttack();
             attackRequested = false;
             if (webAttached)
@@ -209,6 +216,7 @@ namespace ComicSpidey
             enemyHitMaterial = new Material(shader) { color = new Color(1f, 0.8f, 0.25f) };
             for (int i = 0; i < 2; i++)
             {
+                if (checkpoint.IsDefeated(i)) continue;
                 var enemy = new GameObject("TestAttacker" + i);
                 enemy.transform.position = new Vector3(i == 0 ? -4f : 4f, 1f, -48f);
                 var enemyMotor = enemy.AddComponent<CharacterController>();
@@ -237,7 +245,62 @@ namespace ComicSpidey
 
         public void EnemyDefeated(string enemyId)
         {
-            if (story.Stage == 1) story.EnemyDefeated(enemyId);
+            int index = enemyId == "test-attacker-0" ? 0 : enemyId == "test-attacker-1" ? 1 : -1;
+            if (story.Stage != 1 || !checkpoint.MarkDefeated(index)) return;
+            story.EnemyDefeated(enemyId);
+            SaveTestCheckpoint();
+        }
+
+        private void LoadTestCheckpoint()
+        {
+            if (!PrototypeCheckpoint.TryDecode(PlayerPrefs.GetString(CheckpointKey, ""), out var saved)) return;
+            checkpoint = saved;
+            if (checkpoint.Phase == 0) return;
+            // Rebuild runtime objective state from a validated, tiny checkpoint.
+            story.Visit(0, 0, -44);
+            for (int i = 0; i < 2; i++)
+                if (checkpoint.IsDefeated(i)) story.EnemyDefeated("test-attacker-" + i);
+            motor.enabled = false;
+            transform.position = new Vector3(0, 1, -35);
+            motor.enabled = true;
+            if (checkpoint.Phase == 1) SpawnEncounter();
+        }
+
+        private void SaveTestCheckpoint()
+        {
+            PlayerPrefs.SetString(CheckpointKey, checkpoint.Encode());
+            PlayerPrefs.Save();
+        }
+
+        // Settings exposes this as an explicitly confirmed reset of the test
+        // checkpoint only. It does not touch graphics options or other game data.
+        public void ResetTestProgress()
+        {
+            foreach (var enemy in enemies)
+            {
+                if (enemy == null) continue;
+                enemy.gameObject.SetActive(false);
+                Destroy(enemy.gameObject);
+            }
+            enemies.Clear();
+            if (enemyMaterial != null) Destroy(enemyMaterial);
+            if (enemyHitMaterial != null) Destroy(enemyHitMaterial);
+            enemyMaterial = enemyHitMaterial = null;
+            encounterSpawned = false;
+            checkpoint = new PrototypeCheckpoint();
+            story = new StoryProgress();
+            health.Restore();
+            motor.enabled = false;
+            transform.position = new Vector3(0, 1, 0);
+            motor.enabled = true;
+            velocity = Vector3.zero;
+            yaw = 180f;
+            pitch = 18f;
+            ResetInput();
+            webLine.enabled = false;
+            invulnerableUntil = 0f;
+            PlayerPrefs.DeleteKey(CheckpointKey);
+            PlayerPrefs.Save();
         }
 
         public void ReceiveDamage(int amount)

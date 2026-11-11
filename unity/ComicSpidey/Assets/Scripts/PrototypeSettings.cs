@@ -9,6 +9,7 @@ namespace ComicSpidey
         private GraphicsOptionsData options;
         private Light sun;
         private Camera view;
+        private bool confirmReset;
         public bool IsOpen { get; private set; }
         private float previousTimeScale = 1f;
 
@@ -53,7 +54,7 @@ namespace ComicSpidey
         {
             if (IsOpen == open) return;
             if (open) { previousTimeScale = Time.timeScale; Time.timeScale = 0f; }
-            else Time.timeScale = previousTimeScale;
+            else { Time.timeScale = previousTimeScale; confirmReset = false; }
             IsOpen = open;
         }
 
@@ -72,8 +73,8 @@ namespace ComicSpidey
                 return;
             }
             GUI.Box(new Rect(0, 0, Screen.width, Screen.height), "");
-            float x = Screen.width * 0.2f, width = Screen.width * 0.6f, h = Screen.height * 0.12f;
-            float y = Screen.height * 0.04f, gap = Screen.height * 0.025f;
+            float x = Screen.width * 0.2f, width = Screen.width * 0.6f, h = Screen.height * 0.10f;
+            float y = Screen.height * 0.035f, gap = Screen.height * 0.018f;
             if (GUI.Button(new Rect(x, y, width, h), "Quality: " + GraphicsOptionsData.QualityNames[options.Quality], button)) { options.CycleQuality(); Apply(); }
             y += h + gap;
             if (GUI.Button(new Rect(x, y, width, h), "Frame rate target: " + GraphicsOptionsData.FrameRates[options.FrameRateIndex], button)) { options.CycleFrameRate(); Apply(); }
@@ -81,6 +82,17 @@ namespace ComicSpidey
             if (GUI.Button(new Rect(x, y, width, h), "Render scale: " + GraphicsOptionsData.ResolutionPercent[options.ResolutionIndex] + "%", button)) { options.CycleResolution(); Apply(); }
             y += h + gap;
             if (GUI.Button(new Rect(x, y, width, h), "Shadows: " + (options.Shadows ? "On" : "Off"), button)) { options.ToggleShadows(); Apply(); }
+            y += h + gap;
+            if (GUI.Button(new Rect(x, y, width, h), confirmReset ? "CONFIRM RESET TEST PROGRESS" : "RESET TEST PROGRESS", button))
+            {
+                if (!confirmReset) confirmReset = true;
+                else
+                {
+                    var controller = GetComponent<PrototypeController>();
+                    if (controller != null) controller.ResetTestProgress();
+                    SetOpen(false);
+                }
+            }
             y += h + gap;
             GUI.Label(new Rect(x, y, width, h), "FPS and render scale depend on your device.", text);
             y += h + gap;

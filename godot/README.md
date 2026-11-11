@@ -34,7 +34,7 @@ cinematics, accessibility or physical-phone validation. The character and boss
 models remain those already credited; the additional Drive vehicle pack has not
 been integrated because it needs conversion, optimization and provenance review.
 
-The first public native Android build is [0.4.0](https://github.com/spideycandy973-web/Comic-Spidey-/releases/tag/v0.4.0-native). It is a signed, non-debug early build, not a claim that the game is finished or physically device-validated. Preserve the existing signing key for updates; see [release signing](RELEASE_SIGNING.md).
+The latest published native Android build is [0.4.1](https://github.com/spideycandy973-web/Comic-Spidey-/releases/tag/v0.4.1-native). It is a signed, non-debug early build, not a claim that the game is finished or physically device-validated. Preserve the existing signing key for updates; see [release signing](RELEASE_SIGNING.md).
 
 ### Reference-inspired city mood
 

@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test asset-check.test.mjs" },
+  "dependencies": { "three": "0.160.1" }
+}

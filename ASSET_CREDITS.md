@@ -14,3 +14,13 @@ If any supplied asset permission or attribution is incorrect, remove/replace it 
 `godot/assets/hero.glb` is a conversion of the supplied skinned Spider-Man FBX and six supplied Mixamo clips to glTF; the hero texture comes from the same user-supplied archive. `godot/assets/doctor_octopus.glb` is the supplied static Doctor Octopus model, and `godot/assets/citizen*.glb` include the two generated and optimized Citizen Maker characters described above plus two additional generated, rigged variants with walk and run clips. The additional variants were also simplified with glTF Transform and meshoptimizer. Godot Engine is distributed separately under the MIT license: https://godotengine.org/license/. The city remains predominantly procedural. `godot/assets/city/street-light.glb` is an extracted, resized-texture street light from the supplied neighborhood model; the full neighborhood is not used. The user confirmed permission to include and publicly redistribute the neighborhood and civil-service vehicle pack; ownership and license provenance have not been independently verified. The vehicle pack is not currently included.
 
 - **Bangers display font:** The Bangers Project Authors, SIL Open Font License 1.1. Source: https://github.com/google/fonts/tree/main/ofl/bangers. The license is included at `godot/fonts/BANGERS-OFL.txt` and in the native in-game credits.
+
+## Unity prototype
+
+`unity/ComicSpidey/Assets/Resources/Hero/` contains `stand.fbx`, `run.fbx`,
+`hanging.fbx` and the suit texture from the user's `spiderman.zip`. The FBX
+files contain the supplied rigged model and Mixamo clips. The user confirmed
+permission to include and publicly redistribute these character and animation
+assets; ownership and the chain of rights have not been independently verified.
+The Unity integration is untested and the supplied suit is not a Miles-style
+black-and-red model.

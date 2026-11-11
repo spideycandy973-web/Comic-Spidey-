@@ -62,6 +62,7 @@ namespace ComicSpidey
             Object.Destroy(body.GetComponent<Collider>());
             body.transform.SetParent(player.transform, false);
             body.GetComponent<Renderer>().sharedMaterial = playerMaterial;
+            player.AddComponent<HeroVisual>().Initialize(body);
             var view = new GameObject("FollowCamera");
             view.tag = "MainCamera";
             view.AddComponent<Camera>();
@@ -71,7 +72,7 @@ namespace ComicSpidey
 
         private static Material MakeMaterial(Color color)
         {
-            var material = new Material(Shader.Find("Standard"));
+            var material = new Material(Resources.Load<Shader>("Hero/HeroLit"));
             material.color = color;
             return material;
         }

@@ -19,3 +19,16 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Test engine-independent story rules
         run: dotnet run --project unity/tests/StoryLogic/StoryLogic.csproj --configuration Release
+  hero-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Inspect hero FBX and texture (not a Unity test)
+        working-directory: unity/tests/asset-check
+        run: |
+          npm ci --no-audit --no-fund
+          npm test

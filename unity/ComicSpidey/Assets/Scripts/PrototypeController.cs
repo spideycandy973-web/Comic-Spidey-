@@ -20,15 +20,17 @@ namespace ComicSpidey
         private bool trackingMouse;
         private Vector3 lastMouse;
         private LineRenderer webLine;
+        private HeroVisual heroVisual;
         private readonly StoryProgress story = new StoryProgress();
 
         public void Initialize(Transform cameraView, List<Transform> webAnchors)
         {
             motor = GetComponent<CharacterController>();
+            heroVisual = GetComponent<HeroVisual>();
             cameraTransform = cameraView;
             anchors = webAnchors;
             webLine = gameObject.AddComponent<LineRenderer>();
-            webLine.material = new Material(Shader.Find("Sprites/Default"));
+            webLine.material = new Material(Resources.Load<Shader>("Hero/HeroLit"));
             webLine.startColor = webLine.endColor = Color.white;
             webLine.startWidth = webLine.endWidth = 0.04f;
             webLine.positionCount = 2;
@@ -81,6 +83,7 @@ namespace ComicSpidey
                 webLine.SetPosition(1, webAnchor.position);
             }
             else webLine.enabled = false;
+            if (heroVisual != null) heroVisual.UpdateMotion(motor.isGrounded, webAnchor != null, velocity);
             if (desired.sqrMagnitude > 0.01f)
                 transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(desired), 12f * Time.deltaTime);
         }

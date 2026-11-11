@@ -7,11 +7,17 @@ been opened in Unity, compiled, exported, or tested on any device.
 
 `Assets/Scenes/Prototype.unity` is an initial scene registered in build settings.
 The runtime bootstrap creates a small temporary block city, placeholder capsule,
-camera and directional light. The prototype implements basic camera-relative
+camera and directional light. It attempts to use the supplied rigged Spider-Man
+FBX with its texture and stand, run and hanging clips. These assets were supplied
+by the user; redistribution permission was confirmed, but ownership and licensing
+have not been independently verified. If the model or texture cannot be loaded,
+the capsule remains visible. The importer, rig, textures and animations have not
+been verified in Unity. The source suit is red and blue, not the requested
+black-and-red Miles-style suit. The prototype implements basic camera-relative
 movement, jumping, multitouch joystick/look areas and an experimental hold-to-web
 tether. Desktop controls are WASD, Space, right-mouse drag and E. The tether is
-not yet a polished or physically validated swinging mechanic. The visual assets
-are primitives, not the supplied character/city models; there is no Story,
+not yet a polished or physically validated swinging mechanic. The city remains
+primitive geometry; there is no complete Story,
 combat, NPC, vehicle, graphics menu, save migration or final UI yet. The first
 travel objective can advance to an unimplemented encounter; later Story rules
 are present but are not connected to enemies, interactions or an escort.
@@ -42,3 +48,9 @@ engine does not by itself correct logic or guarantee smooth performance.
 `dotnet run --project unity/tests/StoryLogic/StoryLogic.csproj --configuration Release`
 exercises the engine-independent Story progression rules without a Unity license.
 These tests do not compile or run the Unity scene and cannot validate Android.
+
+Asset checks can also be run with `npm ci && npm test` in
+`unity/tests/asset-check`. They inspect FBX skeletons, clips and PNG structure
+using Three.js, not Unity; Unity-specific import, shader and animation behaviour
+still requires editor and device testing. Unity will generate model and texture
+import metadata on first opening this project.

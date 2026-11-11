@@ -26,5 +26,5 @@ node_modules/
 /unity/**/Logs/
 /unity/**/UserSettings/
 /unity/**/Builds/
-/unity/**/*.csproj
-/unity/**/*.sln
+/unity/ComicSpidey/*.csproj
+/unity/ComicSpidey/*.sln

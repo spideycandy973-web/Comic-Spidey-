@@ -61,3 +61,7 @@ Asset checks can also be run with `npm ci && npm test` in
 using Three.js, not Unity; Unity-specific import, shader and animation behaviour
 still requires editor and device testing. Unity will generate model and texture
 import metadata on first opening this project.
+
+## Campaign and phone test tracking
+
+See [the campaign roadmap](../docs/STORY_AND_ROADMAP.md) and [phone test checklist](../docs/PHONE_TEST_CHECKLIST.md). The 25-mission campaign has not yet been implemented.

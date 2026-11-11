@@ -8,6 +8,14 @@ static class Program
         if (!condition) throw new Exception(message);
     }
 
+    static void CheckSwing(float rx, float ry, float rz, float vx, float vy, float vz,
+        float expectedX, float expectedY, float expectedZ, string message)
+    {
+        SwingMath.LimitOutwardVelocity(rx, ry, rz, vx, vy, vz, out float x, out float y, out float z);
+        Check(Math.Abs(x - expectedX) < 0.0001f && Math.Abs(y - expectedY) < 0.0001f &&
+            Math.Abs(z - expectedZ) < 0.0001f, message);
+    }
+
     static void Main()
     {
         var story = new StoryProgress();
@@ -33,6 +41,11 @@ static class Program
         Check(story.EnemyDefeated("ock2"), "Second boss");
         Check(story.Interact("generator", 264, 0, -132), "Stabilize generator");
         Check(story.IsComplete && !story.Visit(264, 0, -132) && !story.EnemyDefeated("extra"), "Completion is terminal");
-        Console.WriteLine("Story logic tests passed.");
+        CheckSwing(0, -5, 0, 3, -4, 2, 3, 0, 2, "Outward velocity is removed");
+        CheckSwing(0, -5, 0, 3, 4, 2, 3, 4, 2, "Inward velocity is retained");
+        CheckSwing(0, -5, 0, 3, 0, 2, 3, 0, 2, "Tangential velocity is retained");
+        CheckSwing(0, 0, 0, 3, -4, 2, 3, -4, 2, "Zero-length rope is safe");
+        CheckSwing(1, 1, 0, 2, 0, 1, 1, -1, 1, "Diagonal projection");
+        Console.WriteLine("Story and swing math tests passed.");
     }
 }

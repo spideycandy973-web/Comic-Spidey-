@@ -57,7 +57,13 @@ namespace ComicSpidey
             Vector3 horizontal = new Vector3(velocity.x, 0, velocity.z);
             // Do not overwrite horizontal velocity while airborne: release from
             // the tether should retain momentum rather than stopping instantly.
-            if (motor.isGrounded || desired.sqrMagnitude > 0.001f)
+            if (webAnchor != null)
+            {
+                // Steering adds acceleration instead of erasing swing momentum.
+                horizontal += desired * (5f * Time.deltaTime);
+                horizontal = Vector3.ClampMagnitude(horizontal, 24f);
+            }
+            else if (motor.isGrounded || desired.sqrMagnitude > 0.001f)
                 horizontal = Vector3.MoveTowards(horizontal, desired * 7f, (motor.isGrounded ? 28f : 4f) * Time.deltaTime);
             velocity.x = horizontal.x;
             velocity.z = horizontal.z;
@@ -66,8 +72,8 @@ namespace ComicSpidey
             if (webAnchor != null)
             {
                 Vector3 rope = transform.position - webAnchor.position;
-                if (rope.magnitude > ropeLength && Vector3.Dot(velocity, rope) > 0)
-                    velocity -= Vector3.Project(velocity, rope);
+                if (rope.magnitude >= ropeLength - 0.05f)
+                    LimitOutwardVelocity(rope);
             }
             var collisions = motor.Move(velocity * Time.deltaTime);
             if ((collisions & CollisionFlags.Above) != 0 && velocity.y > 0) velocity.y = 0;
@@ -77,7 +83,10 @@ namespace ComicSpidey
             {
                 Vector3 rope = transform.position - webAnchor.position;
                 if (rope.magnitude > ropeLength)
+                {
                     motor.Move(-rope.normalized * (rope.magnitude - ropeLength));
+                    LimitOutwardVelocity(transform.position - webAnchor.position);
+                }
                 webLine.enabled = true;
                 webLine.SetPosition(0, transform.position + Vector3.up * 0.5f);
                 webLine.SetPosition(1, webAnchor.position);
@@ -148,6 +157,13 @@ namespace ComicSpidey
                     if (touch.fingerId == webFinger) { webFinger = -1; webAnchor = null; }
                 }
             }
+        }
+
+        private void LimitOutwardVelocity(Vector3 rope)
+        {
+            SwingMath.LimitOutwardVelocity(rope.x, rope.y, rope.z, velocity.x, velocity.y, velocity.z,
+                out float x, out float y, out float z);
+            velocity = new Vector3(x, y, z);
         }
 
         private void AttachWeb()

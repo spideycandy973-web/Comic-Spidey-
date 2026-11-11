@@ -6,6 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../ComicSpidey/Assets/Scripts/StoryProgress.cs" Link="StoryProgress.cs" />
+    <Compile Include="../../ComicSpidey/Assets/Scripts/SwingMath.cs" Link="SwingMath.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 </Project>

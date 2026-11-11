@@ -10,6 +10,8 @@ var stream_revision := 0
 var player: CharacterBody3D
 const FACADE = preload("res://scripts/facade.gdshader")
 const STREET_SURFACE = preload("res://scripts/street_surface.gdshader")
+# Extracted from the supplied neighborhood, scaled from its original units.
+const STREET_LIGHT = preload("res://assets/city/street-light.glb")
 const SIGN_TEXTURES = [preload("res://assets/signs/comics.png"), preload("res://assets/signs/pizza.png"), preload("res://assets/signs/bugle.png"), preload("res://assets/signs/cafe.png")]
 var sign_materials: Array[StandardMaterial3D] = []
 var paint_material: StandardMaterial3D
@@ -24,6 +26,9 @@ var facade_material: ShaderMaterial
 var sidewalk_material: ShaderMaterial
 var tank_material: StandardMaterial3D
 var path_material: StandardMaterial3D
+var neon_cyan_material: StandardMaterial3D
+var neon_pink_material: StandardMaterial3D
+var neon_city := false
 
 func _ready() -> void:
 	facade_material = ShaderMaterial.new()
@@ -44,6 +49,8 @@ func _ready() -> void:
 	sidewalk_material = surface_material(Color("b8b7a9"), 0.06)
 	tank_material = material(Color("b2764f"))
 	path_material = material(Color("ddcda1"))
+	neon_cyan_material = neon_material(Color("57e8ff"))
+	neon_pink_material = neon_material(Color("ff3cb9"))
 	var ground := StaticBody3D.new()
 	var ground_shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
@@ -70,6 +77,25 @@ func _ready() -> void:
 			wall.position = Vector3(side * 925, 200, 0) if axis == 0 else Vector3(0, 200, side * 925)
 			wall.add_child(wall_shape)
 			add_child(wall)
+
+func neon_material(color: Color) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = color
+	mat.emission_enabled = true
+	mat.emission = color
+	return mat
+
+func set_neon_city(enabled: bool) -> void:
+	neon_city = enabled
+	facade_material.set_shader_parameter("night_mix", 1.0 if enabled else 0.0)
+	for chunk in chunks.values():
+		set_chunk_neon(chunk, enabled)
+
+func set_chunk_neon(chunk: Node3D, enabled: bool) -> void:
+	for child in chunk.get_children():
+		if child.name == "NeonCyan" or child.name == "NeonPink":
+			child.visible = enabled
 
 func surface_material(color: Color, detail: float) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
@@ -135,7 +161,8 @@ func make_chunk(key: Vector2i) -> void:
 	var tank_legs: Array[Transform3D] = []
 	var doors: Array[Transform3D] = []
 	var awnings: Array[Transform3D] = []
-	var street_furniture: Array[Transform3D] = []
+	var neon_cyan: Array[Transform3D] = []
+	var neon_pink: Array[Transform3D] = []
 	var road_marks: Array[Transform3D] = []
 	var sign_comics: Array[Transform3D] = []
 	var sign_pizza: Array[Transform3D] = []
@@ -161,11 +188,14 @@ func make_chunk(key: Vector2i) -> void:
 		road_marks.append(Transform3D(Basis.from_scale(Vector3(0.55, 0.02, 2.0)), Vector3(ox + i * 1.7, 0.03, oz + 6)))
 		road_marks.append(Transform3D(Basis.from_scale(Vector3(2.0, 0.02, 0.55)), Vector3(ox + 6, 0.03, oz + i * 1.7)))
 	add_instances(chunk, road_marks, paint_material)
-	# Street lights stay outside the drivable road and are batched per block.
+	# Two lightweight supplied street lights per block, without extra collision.
+	# Keep them on the sidewalk and scale the original centimeter-sized mesh.
 	for dz in [9.0, 35.0]:
-		street_furniture.append(Transform3D(Basis.from_scale(Vector3(0.18, 4.0, 0.18)), Vector3(ox + 5.2, 2, oz + dz)))
-		street_furniture.append(Transform3D(Basis.from_scale(Vector3(0.6, 0.18, 0.4)), Vector3(ox + 5.0, 4, oz + dz)))
-	add_instances(chunk, street_furniture, metal_material)
+		var light := STREET_LIGHT.instantiate() as Node3D
+		light.name = "NeighborhoodStreetLight_%d" % int(dz)
+		light.position = Vector3(ox + 5.4, 0.06, oz + dz)
+		light.scale = Vector3.ONE * 0.0069
+		chunk.add_child(light)
 	if is_park:
 		add_park(chunk, key, rng)
 		chunk.set_meta("anchors", roofs)
@@ -173,14 +203,21 @@ func make_chunk(key: Vector2i) -> void:
 	for dx in [-1, 1]:
 		for dz in [-1, 1]:
 			var center := Vector3((key.x + 0.5) * CELL + dx * 8.2, 0, (key.y + 0.5) * CELL + dz * 8.2)
-			var height := rng.randf_range(18, 38) if district == "Downtown" else (rng.randf_range(9, 20) if district == "Residential" else (rng.randf_range(10, 24) if district == "Industrial" else rng.randf_range(13, 30)))
+			var height := rng.randf_range(24, 53) if district == "Downtown" else (rng.randf_range(9, 20) if district == "Residential" else (rng.randf_range(10, 24) if district == "Industrial" else rng.randf_range(13, 30)))
 			var size := Vector3(rng.randf_range(12, 15), height, rng.randf_range(12, 15))
 			var building := StaticBody3D.new()
 			building.position = center + Vector3.UP * height * 0.5
 			var shape := BoxShape3D.new()
 			shape.size = size
 			building_transforms.append(Transform3D(Basis.from_scale(size), building.position))
-			var palette := [Color("df886d"), Color("e8ba77"), Color("6d9da8"), Color("b694b3"), Color("d9a69b"), Color("9fb2a3")]
+			# Graphic edge strips are batched geometry, not dynamic lights: this keeps
+			# the optional night palette inexpensive on mobile hardware.
+			if district in ["Downtown", "Midtown"] and rng.randi_range(0, 2) != 0:
+				var strip_x: float = center.x + dx * (size.x * 0.5 + 0.09)
+				var strips: Array[Transform3D] = neon_cyan if rng.randi_range(0, 1) == 0 else neon_pink
+				strips.append(Transform3D(Basis.from_scale(Vector3(0.12, height * 0.62, 0.18)), Vector3(strip_x, height * 0.60, center.z + dz * (size.z * 0.5 - 0.35))))
+				strips.append(Transform3D(Basis.from_scale(Vector3(0.12, 0.18, size.z * 0.85)), Vector3(strip_x, height * 0.90, center.z)))
+			var palette := [Color("d17b76"), Color("e4a27e"), Color("7c8da6"), Color("af84a1"), Color("d39a92"), Color("9c9bb0")]
 			if district == "Residential":
 				palette = [Color("e5ae88"), Color("c98985"), Color("e7c78a"), Color("91b3a2")]
 			elif district == "Industrial":
@@ -213,6 +250,14 @@ func make_chunk(key: Vector2i) -> void:
 				for side_z in [-1, 1]:
 					roofs.append(center + Vector3(side_x * (size.x * 0.5 + 0.3), height + 0.25, side_z * (size.z * 0.5 + 0.3)))
 	add_buildings(chunk, building_transforms, building_colors)
+	if not neon_cyan.is_empty():
+		var cyan := add_instances(chunk, neon_cyan, neon_cyan_material)
+		cyan.name = "NeonCyan"
+		cyan.visible = neon_city
+	if not neon_pink.is_empty():
+		var pink := add_instances(chunk, neon_pink, neon_pink_material)
+		pink.name = "NeonPink"
+		pink.visible = neon_city
 	add_instances(chunk, rooftop_details, roof_material)
 	if not tanks.is_empty():
 		var tank_mesh := CylinderMesh.new()
@@ -264,7 +309,7 @@ func add_park(parent: Node3D, key: Vector2i, rng: RandomNumberGenerator) -> void
 	var foliage := SphereMesh.new()
 	add_instances(parent, canopies, leaf_material, foliage)
 
-func add_instances(parent: Node3D, transforms: Array[Transform3D], mat: Material, supplied_mesh: PrimitiveMesh = null) -> void:
+func add_instances(parent: Node3D, transforms: Array[Transform3D], mat: Material, supplied_mesh: PrimitiveMesh = null) -> MultiMeshInstance3D:
 	var mesh: PrimitiveMesh = supplied_mesh if supplied_mesh else BoxMesh.new()
 	mesh.material = mat
 	var multi := MultiMesh.new()
@@ -276,6 +321,7 @@ func add_instances(parent: Node3D, transforms: Array[Transform3D], mat: Material
 	var instance := MultiMeshInstance3D.new()
 	instance.multimesh = multi
 	parent.add_child(instance)
+	return instance
 
 # Draw the four building facades in each block as a single instanced mesh,
 # while retaining independent physics bodies and roof anchors.

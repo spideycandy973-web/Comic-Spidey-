@@ -19,6 +19,8 @@ var hero
 var controls
 var sound
 var sun: DirectionalLight3D
+var city_environment: Environment
+var city_sky: ProceduralSkyMaterial
 var graphics = GraphicsScript.new()
 var people: Array = []
 var traffic: Array = []
@@ -43,14 +45,19 @@ var crime_failed := 0
 var crime_civilian
 var mission_prop
 var pending_spawn_check := false
+var cutscenes_enabled := true
+var cinematic_time := 0.0
+var cinematic_ui: CanvasLayer
 
 func _ready() -> void:
 	var env := WorldEnvironment.new()
 	var environment := Environment.new()
+	city_environment = environment
 	# A lightweight procedural horizon gives the city depth without large
 	# sky textures or a network-dependent environment map.
 	environment.background_mode = Environment.BG_SKY
 	var sky_material := ProceduralSkyMaterial.new()
+	city_sky = sky_material
 	sky_material.sky_top_color = Color("397caa")
 	sky_material.sky_horizon_color = Color("c5e4e5")
 	sky_material.ground_bottom_color = Color("495a70")
@@ -66,6 +73,7 @@ func _ready() -> void:
 	sun = DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-55, 35, 0)
 	sun.light_energy = 1.3
+	sun.directional_shadow_max_distance = 75.0
 	add_child(sun)
 	graphics.load_settings()
 	graphics.apply(get_viewport(), sun)
@@ -73,6 +81,7 @@ func _ready() -> void:
 	world.set_script(WorldScript)
 	add_child(world)
 	world.update_chunks(Vector3.ZERO)
+	apply_city_mood()
 	sound = Node.new()
 	sound.set_script(SoundScript)
 	add_child(sound)
@@ -121,8 +130,8 @@ func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
 	var scroll := ScrollContainer.new()
 	scroll.name = "MenuScroll"
 	scroll.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	scroll.offset_left = -210
-	scroll.offset_right = 210
+	scroll.offset_left = -260
+	scroll.offset_right = 260
 	scroll.offset_top = -250
 	scroll.offset_bottom = 250
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -152,6 +161,8 @@ func show_menu(can_resume: bool = false, can_retry: bool = false) -> void:
 		add_menu_button(box, "New " + label, request_new_mode.bind(label))
 	add_menu_button(box, "How to play", show_help)
 	add_menu_button(box, "Graphics settings", show_graphics)
+	if can_resume:
+		add_menu_button(box, "Control size: " + controls.CONTROL_SIZE_LABELS[controls.control_size_index], toggle_control_size)
 
 func show_graphics() -> void:
 	if is_instance_valid(menu):
@@ -178,9 +189,10 @@ func show_graphics() -> void:
 	title.add_theme_color_override("font_color", Color("ffe15d"))
 	box.add_child(title)
 	add_menu_button(box, "3D resolution: %d%%" % roundi(graphics.SCALES[graphics.scale_index] * 100), change_graphics.bind("scale"))
-	add_menu_button(box, "Anti-aliasing: " + ("FXAA" if graphics.fxaa else "Off"), change_graphics.bind("fxaa"))
+	add_menu_button(box, "Anti-aliasing: " + ("2x MSAA" if graphics.msaa else "Off"), change_graphics.bind("msaa"))
 	add_menu_button(box, "Sun shadows: " + ("On" if graphics.shadows else "Off"), change_graphics.bind("shadows"))
 	add_menu_button(box, "Frame limit: %d FPS" % graphics.fps_limit, change_graphics.bind("fps"))
+	add_menu_button(box, "City mood: " + ("Neon night" if graphics.neon_city else "Sunset"), change_graphics.bind("city"))
 	add_menu_button(box, "Back", close_credits)
 	var note := Label.new()
 	note.text = "Lower resolution or turn shadows off for better performance."
@@ -192,16 +204,40 @@ func show_graphics() -> void:
 func change_graphics(option: String) -> void:
 	match option:
 		"scale": graphics.scale_index = (graphics.scale_index + 1) % graphics.SCALES.size()
-		"fxaa": graphics.fxaa = not graphics.fxaa
+		"msaa": graphics.msaa = not graphics.msaa
 		"shadows": graphics.shadows = not graphics.shadows
 		"fps": graphics.fps_limit = 30 if graphics.fps_limit == 60 else 60
+		"city": graphics.neon_city = not graphics.neon_city
 		_: return
 	graphics.apply(get_viewport(), sun)
+	apply_city_mood()
 	if OS.is_debug_build():
 		print("Native graphics changed: ", option)
 	if not graphics.save_settings():
 		push_warning("Could not save graphics settings")
 	show_graphics()
+
+# Lightweight mood changes: no post-processing/bloom dependency on mobile.
+func apply_city_mood() -> void:
+	if graphics.neon_city:
+		city_sky.sky_top_color = Color("101432")
+		city_sky.sky_horizon_color = Color("51497d")
+		city_sky.ground_bottom_color = Color("111829")
+		city_sky.ground_horizon_color = Color("393455")
+		city_environment.ambient_light_color = Color("879dd5")
+		city_environment.ambient_light_energy = 0.48
+		sun.light_color = Color("a8b9ff")
+		sun.light_energy = 0.52
+	else:
+		city_sky.sky_top_color = Color("68579b")
+		city_sky.sky_horizon_color = Color("ffb994")
+		city_sky.ground_bottom_color = Color("4b3a62")
+		city_sky.ground_horizon_color = Color("db9da5")
+		city_environment.ambient_light_color = Color("d2c2df")
+		city_environment.ambient_light_energy = 0.58
+		sun.light_color = Color("ffe4c1")
+		sun.light_energy = 1.15
+	world.set_neon_city(graphics.neon_city)
 
 func show_help() -> void:
 	if is_instance_valid(menu):
@@ -230,13 +266,13 @@ func show_help() -> void:
 	var instructions := Label.new()
 	instructions.text = """MOVE with the left stick. Drag empty space to look around.
 
-Hold WEB to attach to a rooftop and swing; release to let go. Press JUMP while swinging for a boosted release, or near a wall to leap off it.
+Hold WEB to swing and transfer to a new rooftop; release to let go. Move toward a wall while airborne to climb. Press JUMP near a wall to leap off it, or while swinging to release.
 
 Use HIT up close, or SHOT to web an enemy from a distance. TAP TALK near a person or objective to interact.
 
 Follow the arrow and beacon. In Story, complete objectives and protect the city. In Free Roam, answer emergency calls.
 
-Pause to change sound or mirror the controls. Your progress saves locally."""
+Pause to change sound, mirror the controls, or resize them. Scroll the menu to see every option. Your progress saves locally."""
 	instructions.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	instructions.add_theme_font_size_override("font_size", 22)
 	instructions.add_theme_color_override("font_color", Color("fff8df"))
@@ -328,6 +364,11 @@ func toggle_layout() -> void:
 		push_warning("Could not save the control layout setting")
 	show_menu(is_instance_valid(hero) and not hero.playing and hero.health > 0 and not mode.is_empty(), is_instance_valid(hero) and hero.health <= 0)
 
+func toggle_control_size() -> void:
+	if not controls.set_control_size((controls.control_size_index + 1) % controls.CONTROL_SCALES.size()):
+		push_warning("Could not save the control size setting")
+	show_menu(is_instance_valid(hero) and not hero.playing and hero.health > 0 and not mode.is_empty(), is_instance_valid(hero) and hero.health <= 0)
+
 func toggle_sound() -> void:
 	sound.toggle()
 	show_menu(is_instance_valid(hero) and not hero.playing and hero.health > 0 and not mode.is_empty(), is_instance_valid(hero) and hero.health <= 0)
@@ -335,9 +376,9 @@ func toggle_sound() -> void:
 func add_menu_button(box: VBoxContainer, text: String, callback: Callable) -> void:
 	var button := Button.new()
 	button.text = text
-	button.custom_minimum_size = Vector2(380, 54)
+	button.custom_minimum_size = Vector2(450, 54)
 	button.add_theme_font_override("font", ComicFont)
-	button.add_theme_font_size_override("font_size", 24)
+	button.add_theme_font_size_override("font_size", 29)
 	button.add_theme_color_override("font_color", Color("fff6db"))
 	button.add_theme_color_override("font_hover_color", Color("171429"))
 	button.add_theme_color_override("font_pressed_color", Color("171429"))
@@ -390,6 +431,8 @@ func start_mode(selected: String) -> void:
 	else:
 		show_message("Explore the city. Watch for emergency calls.")
 	save_game()
+	if mode == "Story":
+		start_story_cutscene()
 
 func begin_play() -> void:
 	if is_instance_valid(menu):
@@ -402,6 +445,8 @@ func begin_play() -> void:
 	hero.landing_timer = 0
 	hero.coyote_timer = 0
 	hero.jump_buffer = 0
+	hero.mantle_cooldown = 0
+	hero.climbing = false
 	hero.punch_flash.visible = false
 	hero.shot_line.visible = false
 	hero.punch_timer = 0
@@ -432,9 +477,9 @@ func _physics_process(_delta: float) -> void:
 	# next physics tick, once streamed collision bodies are registered.
 	if not pending_spawn_check:
 		return
-	pending_spawn_check = false
 	if not is_instance_valid(hero) or not hero.playing:
 		return
+	pending_spawn_check = false
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.28
 	capsule.height = 1.4
@@ -521,6 +566,85 @@ func advance_story() -> void:
 	checkpoint = hero.position
 	setup_story_stage()
 	save_game()
+	if stage in [3, 11, 13]:
+		start_story_cutscene()
+
+# A brief in-engine camera shot, not a pre-rendered video. Stage state is saved
+# before the shot, so skipping or suspending it cannot lose mission progress.
+func start_story_cutscene() -> void:
+	if not cutscenes_enabled or cinematic_time > 0.0:
+		return
+	controls.reset_input()
+	controls.active = false
+	hero.playing = false
+	if hero.animator:
+		hero.animator.speed_scale = 0.0
+	for npc in people:
+		if is_instance_valid(npc) and npc.anim:
+			npc.anim.speed_scale = 0.0
+	cinematic_time = 4.5
+	var mission: Dictionary = Missions.story_stage(stage)
+	cinematic_ui = CanvasLayer.new()
+	cinematic_ui.layer = 4
+	add_child(cinematic_ui)
+	var panel := PanelContainer.new()
+	panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	panel.offset_left = 20
+	panel.offset_right = -20
+	panel.offset_top = -135
+	panel.offset_bottom = -15
+	cinematic_ui.add_child(panel)
+	var row := HBoxContainer.new()
+	panel.add_child(row)
+	var dialogue := Label.new()
+	dialogue.text = str(mission.get("dialogue", mission.title))
+	dialogue.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dialogue.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dialogue.add_theme_font_size_override("font_size", 26)
+	row.add_child(dialogue)
+	var skip := Button.new()
+	skip.text = "SKIP"
+	skip.custom_minimum_size = Vector2(120, 70)
+	skip.add_theme_font_size_override("font_size", 26)
+	skip.pressed.connect(finish_story_cutscene)
+	row.add_child(skip)
+
+# Cut to the speaking opponent in the middle of boss scenes, then return to
+# the hero. Intro and finale scenes without an opponent stay on the hero.
+func story_cutscene_focus() -> Vector3:
+	if cinematic_time < 3.1 and cinematic_time > 0.9:
+		for actor in mission_enemies:
+			if is_instance_valid(actor) and not actor.is_queued_for_deletion():
+				return actor.global_position + Vector3.UP * 1.2
+	return hero.global_position + Vector3.UP * 1.2
+
+func update_story_cutscene(delta: float) -> void:
+	cinematic_time = maxf(0.0, cinematic_time - delta)
+	var target: Vector3 = story_cutscene_focus()
+	var angle: float = hero.yaw + (4.5 - cinematic_time) * 0.15
+	var wanted := target + Vector3(sin(angle) * 5.5, 2.3, cos(angle) * 5.5)
+	var hit: Dictionary = hero.get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(target, wanted, 1))
+	if not hit.is_empty():
+		wanted = hit.position + hit.normal * 0.3
+	hero.camera.global_position = wanted
+	hero.camera.look_at(target, Vector3.UP)
+	if cinematic_time <= 0.0:
+		finish_story_cutscene()
+
+func finish_story_cutscene() -> void:
+	if not is_instance_valid(cinematic_ui):
+		return
+	cinematic_time = 0.0
+	cinematic_ui.queue_free()
+	cinematic_ui = null
+	hero.playing = true
+	if hero.animator:
+		hero.animator.speed_scale = 1.0
+	for npc in people:
+		if is_instance_valid(npc) and npc.anim:
+			npc.anim.speed_scale = 1.0
+	controls.reset_input()
+	controls.active = true
 
 func enemies_alive() -> int:
 	var count := 0
@@ -618,6 +742,9 @@ func update_beacon() -> void:
 		beacon.position = target + Vector3.UP * 4.5
 
 func _process(delta: float) -> void:
+	if cinematic_time > 0.0:
+		update_story_cutscene(delta)
+		return
 	if not hero or not hero.playing:
 		return
 	chunk_timer -= delta
@@ -802,8 +929,11 @@ func retry_checkpoint() -> void:
 	save_game()
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_PAUSED and is_instance_valid(hero) and hero.playing:
-		pause_game()
+	if what == NOTIFICATION_APPLICATION_PAUSED and is_instance_valid(hero):
+		if cinematic_time > 0.0:
+			finish_story_cutscene()
+		if hero.playing:
+			pause_game()
 
 func vector_data(v: Vector3) -> Array:
 	return [v.x, v.y, v.z]

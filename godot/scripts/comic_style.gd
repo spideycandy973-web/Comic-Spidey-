@@ -2,7 +2,7 @@ extends RefCounted
 
 const INK_SHADER = preload("res://scripts/ink_outline.gdshader")
 
-# Keep imported textures and skinning intact; change only lighting and add an
+# Keep imported textures and skinning intact; use softer lighting and add an
 # inverted-hull ink pass. The pass is shared, while source materials are copied
 # so one character's clothing cannot mutate another's.
 static func apply_to_character(root: Node3D) -> void:
@@ -19,8 +19,9 @@ static func apply_to_character(root: Node3D) -> void:
 
 static func comic_material(original: BaseMaterial3D, ink: Material) -> BaseMaterial3D:
 	var mat := original.duplicate() as BaseMaterial3D
-	mat.diffuse_mode = BaseMaterial3D.DIFFUSE_TOON
-	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
-	mat.roughness = 1.0
+	mat.diffuse_mode = BaseMaterial3D.DIFFUSE_BURLEY
+	mat.specular_mode = BaseMaterial3D.SPECULAR_SCHLICK_GGX
+	mat.roughness = 0.78
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	mat.next_pass = ink
 	return mat

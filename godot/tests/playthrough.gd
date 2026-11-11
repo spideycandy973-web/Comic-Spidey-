@@ -19,6 +19,7 @@ func run_test() -> void:
 	root.add_child(scene)
 	await physics_frame
 	scene.save_enabled = false
+	scene.cutscenes_enabled = false
 	scene.start_mode("Story")
 	Engine.time_scale = 5.0
 	var previous_stage := -1

@@ -1,6 +1,8 @@
 extends CanvasLayer
 
 const ComicFont = preload("res://fonts/Bangers-Regular.ttf")
+const CONTROL_SCALES := [0.9, 1.0, 1.15]
+const CONTROL_SIZE_LABELS := ["Compact", "Large", "Extra large"]
 
 var movement := Vector2.ZERO
 var look_delta := Vector2.ZERO
@@ -23,6 +25,7 @@ var enemy_health := 0.0
 var enemy_max_health := 1.0
 var health := 100.0
 var mirrored := false
+var control_size_index := 1
 var movement_pointer := -1
 
 func _ready() -> void:
@@ -31,19 +34,27 @@ func _ready() -> void:
 		var stored = config.get_value("controls", "mirrored", false)
 		if stored is bool:
 			mirrored = stored
+		var size = config.get_value("controls", "size_index", 1)
+		if size is int and size >= 0 and size < CONTROL_SCALES.size():
+			control_size_index = size
 	surface = Control.new()
 	surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	surface.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	surface.draw.connect(draw_controls)
 	add_child(surface)
 
+func control_scale() -> float:
+	return CONTROL_SCALES[control_size_index]
+
 func stick_center() -> Vector2:
 	var s := get_viewport().get_visible_rect().size
-	return Vector2(s.x - 100 if mirrored else 100, s.y - 100)
+	var inset := 110.0 * control_scale()
+	return Vector2(s.x - inset if mirrored else inset, s.y - inset)
 
 func button_positions() -> Dictionary:
 	var s := get_viewport().get_visible_rect().size
-	var positions := {"menu": Vector2(s.x - 48, 50), "swing": Vector2(s.x - 82, s.y - 190), "shot": Vector2(s.x - 255, s.y - 85), "attack": Vector2(s.x - 165, s.y - 85), "jump": Vector2(s.x - 72, s.y - 85), "talk": Vector2(s.x - 165, s.y - 190)}
+	var k := control_scale()
+	var positions := {"menu": Vector2(s.x - 48 * k, 50 * k), "swing": Vector2(s.x - 68 * k, s.y - 205 * k), "shot": Vector2(s.x - 285 * k, s.y - 75 * k), "attack": Vector2(s.x - 177 * k, s.y - 75 * k), "jump": Vector2(s.x - 68 * k, s.y - 75 * k), "talk": Vector2(s.x - 177 * k, s.y - 205 * k)}
 	if mirrored:
 		for name in positions:
 			var pos: Vector2 = positions[name]
@@ -67,6 +78,14 @@ func set_mirrored(value: bool) -> bool:
 	config.set_value("controls", "mirrored", mirrored)
 	return config.save("user://settings.cfg") == OK
 
+func set_control_size(value: int) -> bool:
+	control_size_index = clampi(value, 0, CONTROL_SCALES.size() - 1)
+	reset_input()
+	var config := ConfigFile.new()
+	config.load("user://settings.cfg")
+	config.set_value("controls", "size_index", control_size_index)
+	return config.save("user://settings.cfg") == OK
+
 func _input(event: InputEvent) -> void:
 	if not active:
 		return
@@ -83,7 +102,7 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			var kind := "look"
-			if event.position.distance_to(stick_center()) < 100:
+			if event.position.distance_to(stick_center()) < 110.0 * control_scale():
 				kind = "ignored"
 				if movement_pointer == -1:
 					movement_pointer = event.index
@@ -91,7 +110,7 @@ func _input(event: InputEvent) -> void:
 					set_movement(event.position)
 			else:
 				for name in button_positions():
-					if event.position.distance_to(button_positions()[name]) < 42:
+					if event.position.distance_to(button_positions()[name]) < (46.0 if name == "menu" else 52.0) * control_scale():
 						kind = name
 						buttons_down[name] = true
 						pressed_once[name] = true
@@ -113,7 +132,10 @@ func _input(event: InputEvent) -> void:
 			look_delta += event.relative
 
 func set_movement(pos: Vector2) -> void:
-	movement = ((pos - stick_center()) / 70.0).limit_length(1.0)
+	var raw := ((pos - stick_center()) / (70.0 * control_scale())).limit_length(1.0)
+	# Suppress tiny touch jitter, while retaining analog walking speed.
+	var magnitude := raw.length()
+	movement = Vector2.ZERO if magnitude <= 0.1 else raw.normalized() * ((magnitude - 0.1) / 0.9)
 
 func consume(name: String) -> bool:
 	var value: bool = pressed_once.get(name, false)
@@ -173,17 +195,18 @@ func draw_controls() -> void:
 	var s := get_viewport().get_visible_rect().size
 	var center := stick_center()
 	draw_minimap(s)
-	surface.draw_circle(center, 72, Color(0.06, 0.05, 0.10, 0.8))
-	surface.draw_circle(center, 67, Color(0.12, 0.34, 0.48, 0.8))
-	surface.draw_circle(center + movement * 48, 29, Color("171429"))
-	surface.draw_circle(center + movement * 48, 24, Color("ffe15d"))
+	var k := control_scale()
+	surface.draw_circle(center, 85 * k, Color(0.06, 0.05, 0.10, 0.8))
+	surface.draw_circle(center, 80 * k, Color(0.12, 0.34, 0.48, 0.8))
+	surface.draw_circle(center + movement * 52 * k, 33 * k, Color("171429"))
+	surface.draw_circle(center + movement * 52 * k, 28 * k, Color("ffe15d"))
 	var labels := {"menu": "II", "swing": "WEB", "shot": "SHOT", "attack": "HIT", "jump": "JUMP", "talk": "TALK"}
 	for name in button_positions():
 		var p: Vector2 = button_positions()[name]
 		var color := Color("e14c49") if name == "attack" else Color("266d89")
-		surface.draw_circle(p, 40, Color("171429"))
-		surface.draw_circle(p, 35, color)
-		surface.draw_string(ComicFont, p + Vector2(-30, 7), labels[name], HORIZONTAL_ALIGNMENT_CENTER, 60, 22, Color("fff8e8"))
+		surface.draw_circle(p, (51 if name != "menu" else 44) * k, Color("171429"))
+		surface.draw_circle(p, (46 if name != "menu" else 39) * k, color)
+		surface.draw_string(ComicFont, p + Vector2(-45, 9) * k, labels[name], HORIZONTAL_ALIGNMENT_CENTER, 90 * k, roundi(27 * k), Color("fff8e8"))
 	if target_direction.length_squared() > 0.01:
 		var compass_center := Vector2(s.x * 0.5, 55)
 		var direction := target_direction.normalized()

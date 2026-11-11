@@ -34,8 +34,44 @@ func run_test() -> void:
 	await process_frame
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
+	var sunset: Image = image.duplicate()
 	image.resize(480, 270)
 	image.save_jpg("/tmp/comic-game.jpg", 0.4)
+	# The selectable neon mood must actually change the rendered city, and
+	# streamed-in blocks must inherit the selected mood.
+	scene.graphics.neon_city = true
+	scene.apply_city_mood()
+	await process_frame
+	await RenderingServer.frame_post_draw
+	var night := root.get_texture().get_image()
+	var mood_changed := 0
+	for x in range(0, night.get_width(), 8):
+		for y in range(0, night.get_height(), 8):
+			var a: Color = sunset.get_pixel(x, y)
+			var b := night.get_pixel(x, y)
+			if absf(a.r - b.r) + absf(a.g - b.g) + absf(a.b - b.b) > 0.2:
+				mood_changed += 1
+	print("City mood rendered pixel changes: ", mood_changed)
+	if mood_changed < 100:
+		push_error("TEST FAILED: neon mood does not visibly change the city")
+		quit(1)
+		return
+	scene.world.update_chunks(Vector3(440, 0, 440))
+	var has_neon := false
+	# The streamed test block can be residential or industrial; use a nearby
+	# Midtown block to verify geometry created after the toggle.
+	scene.world.update_chunks(Vector3(132, 0, 132))
+	for chunk in scene.world.chunks.values():
+		for child in chunk.get_children():
+			if child.name == "NeonCyan" or child.name == "NeonPink":
+				has_neon = has_neon or child.visible
+	if not has_neon:
+		push_error("TEST FAILED: newly streamed blocks did not inherit neon mood")
+		quit(1)
+		return
+	scene.graphics.neon_city = false
+	scene.apply_city_mood()
+	scene.world.update_chunks(Vector3.ZERO)
 	# Verify that an interaction objective is actually rendered, not merely
 	# present in the scene tree. Compare the same view with its prop hidden.
 	scene.mode = "Story"

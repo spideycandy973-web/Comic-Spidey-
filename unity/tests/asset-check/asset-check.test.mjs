@@ -51,3 +51,11 @@ test('supplied street light OBJ and base-colour PNG are structurally present', (
   assert.equal((obj.match(/^f /gm) || []).length, 1082);
   assert.equal(readFileSync(city('street-light.png')).subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
 });
+
+test('prototype comic shader keeps the textured material and quantized lighting', () => {
+  const shader = readFileSync(asset('HeroLit.shader'), 'utf8');
+  assert.match(shader, /#pragma surface surf Comic/);
+  assert.match(shader, /LightingComic/);
+  assert.match(shader, /tex2D\(_MainTex/);
+  assert.match(shader, /dotPattern/);
+});

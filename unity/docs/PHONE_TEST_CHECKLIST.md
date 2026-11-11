@@ -38,6 +38,8 @@ Add what happened and a screenshot or screen recording if possible.
 - [ ] Open Settings, change quality, FPS target, shadows and render scale; restart
       the app and check whether the chosen settings persist and take effect.
 - [ ] Hold web near a building, check it visibly attaches to a surface and releases.
+- [ ] Check the hero and city textures remain visible with the new comic shader;
+      check dots and lighting do not shimmer, obscure details or hurt performance.
 
 These are source changes awaiting a Unity build; don't mark them as working
 until actually tested on the phone. This is not the full robbery mission.
@@ -78,8 +80,8 @@ until actually tested on the phone. This is not the full robbery mission.
 - Later changes to landscape orientation, control sizing, street markings,
   window textures, experimental swing momentum and a basic placeholder enemy
   encounter, converted supplied street lights, experimental climb/web changes
-  graphics settings and test-encounter checkpoint are **not yet Unity-built or
-  phone-tested**. They are not the final
+  graphics settings, test-encounter checkpoint and experimental comic shader
+  are **not yet Unity-built or phone-tested**. They are not the final
   city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the
   requested campaign. Full combat, full Story and most checklist items are absent.

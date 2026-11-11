@@ -39,8 +39,10 @@ system and has not been verified in Unity or on a device.
 The next revision requests landscape orientation on mobile, enlarges text and
 touch targets, and adds temporary road markings and window textures. A supplied
 neighborhood street-light mesh and base-colour texture have been converted to
-OBJ/PNG and placed in the test world. This conversion, the approximate pole
-collision and the other changes are unverified in Unity and on the phone. They
+OBJ/PNG and placed in the test world. The prototype material now uses stepped
+lighting and a subtle halftone pattern as a first comic-style experiment, not
+the final requested visual style. This shader, the conversion, the approximate
+pole collision and the other changes are unverified in Unity and on the phone. They
 do not replace the requested full city or art direction. A new prototype
 settings panel offers quality, frame-rate targets (30/60/120), shadow toggle and
 render scale and stores the choices locally. Actual frame rate is device-limited;

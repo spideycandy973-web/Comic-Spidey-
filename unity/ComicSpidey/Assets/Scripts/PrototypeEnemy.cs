@@ -13,7 +13,7 @@ namespace ComicSpidey
         private float nextAttack;
         private float verticalSpeed;
         private Renderer body;
-        private float hitUntil;
+        private float hitUntil, stunnedUntil;
         private Material normalMaterial;
         private Material hitMaterial;
 
@@ -42,7 +42,7 @@ namespace ComicSpidey
             Vector3 flat = new Vector3(offset.x, 0, offset.z);
             Vector3 motion = Vector3.zero;
             // Only chase nearby targets and don't pursue a player high above us.
-            if (flat.sqrMagnitude < 16f * 16f && Mathf.Abs(offset.y) < 4f)
+            if (Time.time >= stunnedUntil && flat.sqrMagnitude < 16f * 16f && Mathf.Abs(offset.y) < 4f)
             {
                 if (flat.sqrMagnitude > 1.8f * 1.8f)
                     motion = flat.normalized * 3f;
@@ -61,10 +61,12 @@ namespace ComicSpidey
             if ((collision & CollisionFlags.Below) != 0 && verticalSpeed < 0) verticalSpeed = -2f;
         }
 
-        public void ReceiveHit()
+        public void ReceiveHit(int damage, float stunSeconds)
         {
-            if (!health.Damage(1)) return;
-            hitUntil = Time.time + 0.2f;
+            if (!health.Damage(damage)) return;
+            stunnedUntil = Mathf.Max(stunnedUntil, Time.time + Mathf.Max(0f, stunSeconds));
+            nextAttack = Mathf.Max(nextAttack, stunnedUntil + 0.35f);
+            hitUntil = Mathf.Max(Time.time + 0.2f, stunnedUntil);
             if (!health.IsDefeated) return;
             // Report once, then hide immediately even though Destroy is delayed.
             gameObject.SetActive(false);

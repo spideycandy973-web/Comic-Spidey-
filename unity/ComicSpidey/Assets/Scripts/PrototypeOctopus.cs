@@ -78,9 +78,9 @@ namespace ComicSpidey
             warning.transform.localScale = new Vector3(SlamRadius * 2, 0.025f, SlamRadius * 2);
         }
 
-        public void ReceiveHit()
+        public void ReceiveHit(int damage)
         {
-            if (!rules.TryHit()) return;
+            if (!rules.TryHit(damage)) return;
             if (rules.State == OctopusState.Defeated) warning.SetActive(false);
         }
 

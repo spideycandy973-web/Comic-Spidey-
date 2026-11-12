@@ -112,6 +112,28 @@ static class Program
         Check(fight.Health == 0 && fight.Phase == 4 && fight.State == OctopusState.Defeated && !fight.TryHit() && !fight.Tick(100, true), "Boss defeat is terminal");
         fight.Reset(100);
         Check(fight.Health == 12 && fight.Phase == 1 && fight.State == OctopusState.Waiting && !fight.Tick(100, true), "Boss retry resets health and delay");
-        Console.WriteLine("Story, swing, health, graphics, checkpoint, dodge and boss test rules passed.");
+        var combo = new CombatCombo();
+        Check(combo.TryAttack(1, false, true, out int damage, out double stun) && damage == 1 && stun == 0 && combo.Chain == 1, "First light hit begins a chain");
+        Check(!combo.TryAttack(1.1, false, true, out damage, out stun) && combo.Chain == 1, "Cooldown rejects fast input without changing chain");
+        Check(combo.TryAttack(1.4, false, true, out damage, out stun) && damage == 1 && combo.Chain == 2, "Second light hit");
+        Check(combo.TryAttack(1.8, false, true, out damage, out stun) && damage == 2 && stun == 0.6 && combo.Chain == 0, "Third light hit is a stun finisher");
+        Check(combo.TryAttack(2.2, false, true, out damage, out stun) && combo.Chain == 1, "Next chain starts after finisher");
+        Check(combo.TryAttack(2.6, false, false, out damage, out stun) && damage == 0 && combo.Chain == 0, "Miss resets chain and consumes cooldown");
+        Check(!combo.TryAttack(2.7, true, true, out damage, out stun), "Miss cooldown blocks immediate follow-up");
+        Check(combo.TryAttack(3.0, true, true, out damage, out stun) && damage == 2 && stun == 1.1 && combo.Chain == 0, "Heavy attack damages and stuns");
+        Check(!combo.TryAttack(3.5, false, true, out damage, out stun), "Heavy attack has longer cooldown");
+        Check(combo.TryAttack(3.8, false, true, out damage, out stun) && combo.Chain == 1, "Light hit after heavy");
+        Check(combo.TryAttack(5.2, false, true, out damage, out stun) && combo.Chain == 1, "Expired chain restarts");
+        combo.CancelChain();
+        Check(combo.Chain == 0 && !combo.TryAttack(5.3, false, true, out damage, out stun), "Cancel chain preserves cooldown");
+        combo.Reset();
+        Check(combo.TryAttack(5.3, false, true, out damage, out stun), "Reset clears cooldown");
+        var heavyBoss = new OctopusFightRules();
+        heavyBoss.Tick(1, true);
+        heavyBoss.Tick(3, true);
+        Check(!heavyBoss.TryHit(0) && heavyBoss.Health == 12, "Boss rejects zero damage");
+        Check(heavyBoss.TryHit(2) && heavyBoss.Health == 10, "Boss takes heavy damage in recovery");
+        Check(heavyBoss.TryHit(50) && heavyBoss.Health == 0 && heavyBoss.State == OctopusState.Defeated, "Boss damage clamps to zero");
+        Console.WriteLine("Story, swing, health, graphics, checkpoint, dodge, boss and combo rules passed.");
     }
 }

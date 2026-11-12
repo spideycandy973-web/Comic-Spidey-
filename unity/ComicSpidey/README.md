@@ -22,7 +22,10 @@ the capsule remains visible. Build #3 showed the textured red-and-blue hero mode
 requested Peter-led campaign and Miles as a later character are not implemented. The prototype implements basic camera-relative
 movement, jumping, multitouch joystick/look areas and an experimental hold-to-web
 tether. Desktop controls are WASD, Space, right-mouse drag, E (web), F (attack) and
-Left Shift (dodge). A prototype ground dodge has a cooldown and a short damage
+Left Shift (dodge); tap F for light attacks or hold and release for a heavy.
+The prototype fight has light chains, a heavier stun attack and enemy hit stun;
+the attack has no combat animation and is not Unity/device-tested. A prototype
+ground dodge has a cooldown and a short damage
 protection window; it currently has no dodge animation and is not Unity-tested.
 Source now includes experimental wall climbing and wall jumping, plus building
 surface raycasts for web attachment. These traversal changes are not yet built

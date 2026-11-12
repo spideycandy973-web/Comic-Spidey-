@@ -15,14 +15,17 @@ namespace ComicSpidey
         private float ropeLength;
         private float yaw = 180f;
         private float pitch = 18f;
-        private int joystickFinger = -1, lookFinger = -1, webFinger = -1;
+        private int joystickFinger = -1, lookFinger = -1, webFinger = -1, attackFinger = -1;
+        private float attackPressedAt, keyboardAttackPressedAt;
+        private bool keyboardAttackHeld;
         private Vector2 joystickOrigin, moveInput;
-        private bool jumpRequested, attackRequested, dodgeRequested, encounterSpawned;
+        private bool jumpRequested, attackRequested, heavyAttackRequested, dodgeRequested, encounterSpawned;
         private readonly DodgeTiming dodge = new DodgeTiming();
+        private readonly CombatCombo combo = new CombatCombo();
         private Vector3 dodgeDirection;
         private readonly CombatHealth health = new CombatHealth(6);
         private readonly List<PrototypeEnemy> enemies = new List<PrototypeEnemy>();
-        private float nextAttack, invulnerableUntil, respawnNoticeUntil;
+        private float invulnerableUntil, respawnNoticeUntil;
         private Material enemyMaterial, enemyHitMaterial;
         private bool trackingMouse;
         private Vector3 lastMouse;
@@ -154,8 +157,9 @@ namespace ComicSpidey
                 SaveTestCheckpoint();
                 SpawnEncounter();
             }
-            if (attackRequested) TryAttack();
+            if (attackRequested) TryAttack(heavyAttackRequested);
             attackRequested = false;
+            heavyAttackRequested = false;
             if (webAttached)
             {
                 Vector3 rope = transform.position - webPoint;
@@ -194,7 +198,13 @@ namespace ComicSpidey
                 moveInput = new Vector2((Input.GetKey(KeyCode.D) ? 1 : 0) - (Input.GetKey(KeyCode.A) ? 1 : 0),
                     (Input.GetKey(KeyCode.W) ? 1 : 0) - (Input.GetKey(KeyCode.S) ? 1 : 0));
                 if (Input.GetKeyDown(KeyCode.Space)) jumpRequested = true;
-                if (Input.GetKeyDown(KeyCode.F)) attackRequested = true;
+                if (Input.GetKeyDown(KeyCode.F)) { keyboardAttackHeld = true; keyboardAttackPressedAt = Time.time; }
+                if (keyboardAttackHeld && Input.GetKeyUp(KeyCode.F))
+                {
+                    attackRequested = true;
+                    heavyAttackRequested = Time.time - keyboardAttackPressedAt >= CombatCombo.HeavyHoldSeconds;
+                    keyboardAttackHeld = false;
+                }
                 if (Input.GetKeyDown(KeyCode.LeftShift)) dodgeRequested = true;
                 if (Input.GetMouseButton(1))
                 {
@@ -221,7 +231,10 @@ namespace ComicSpidey
                     if (JumpRect.Contains(p)) jumpRequested = true;
                     else if (DodgeRect.Contains(p)) dodgeRequested = true;
                     else if (WebRect.Contains(p) && webFinger == -1) { webFinger = touch.fingerId; AttachWeb(); }
-                    else if (AttackRect.Contains(p)) attackRequested = true;
+                    else if (AttackRect.Contains(p))
+                    {
+                        if (attackFinger == -1) { attackFinger = touch.fingerId; attackPressedAt = Time.time; }
+                    }
                     else if (p.x < Screen.width * 0.45f && joystickFinger == -1) { joystickFinger = touch.fingerId; joystickOrigin = p; moveInput = Vector2.zero; }
                     else if (lookFinger == -1) lookFinger = touch.fingerId;
                 }
@@ -237,6 +250,15 @@ namespace ComicSpidey
                     if (touch.fingerId == joystickFinger) { joystickFinger = -1; moveInput = Vector2.zero; }
                     if (touch.fingerId == lookFinger) lookFinger = -1;
                     if (touch.fingerId == webFinger) { webFinger = -1; webAttached = false; }
+                    if (touch.fingerId == attackFinger)
+                    {
+                        if (touch.phase == TouchPhase.Ended && AttackRect.Contains(p))
+                        {
+                            attackRequested = true;
+                            heavyAttackRequested = Time.time - attackPressedAt >= CombatCombo.HeavyHoldSeconds;
+                        }
+                        attackFinger = -1;
+                    }
                 }
             }
         }
@@ -262,27 +284,41 @@ namespace ComicSpidey
             }
         }
 
-        private void TryAttack()
+        private void TryAttack(bool heavy)
         {
-            if (Time.time < nextAttack || dodge.IsActive(Time.time)) return;
+            if (dodge.IsActive(Time.time) || (!bossMode && (!storyMode || story.Stage != 1))) return;
             if (bossMode)
             {
-                nextAttack = Time.time + 0.45f;
-                if (boss != null && (boss.transform.position - transform.position).sqrMagnitude < 3f * 3f)
-                    boss.ReceiveHit();
+                bool connected = boss != null && boss.Rules.State == OctopusState.Recovery &&
+                    CanReachAttack(boss.transform, 3f);
+                if (combo.TryAttack(Time.time, heavy, connected, out int damage, out _) && connected)
+                    boss.ReceiveHit(damage);
                 return;
             }
-            if (!storyMode || story.Stage != 1) return;
-            nextAttack = Time.time + 0.45f;
             PrototypeEnemy target = null;
             float bestSquared = 2.8f * 2.8f;
             foreach (var enemy in enemies)
             {
                 if (enemy == null || !enemy.Alive) continue;
                 float distanceSquared = (enemy.transform.position - transform.position).sqrMagnitude;
-                if (distanceSquared < bestSquared) { bestSquared = distanceSquared; target = enemy; }
+                if (distanceSquared < bestSquared && CanReachAttack(enemy.transform, 2.8f))
+                { bestSquared = distanceSquared; target = enemy; }
             }
-            if (target != null) target.ReceiveHit();
+            if (combo.TryAttack(Time.time, heavy, target != null, out int hitDamage, out double stun) && target != null)
+                target.ReceiveHit(hitDamage, (float)stun);
+        }
+
+        // A nearby actor behind a wall or vehicle cannot be hit through it.
+        private bool CanReachAttack(Transform target, float range)
+        {
+            Vector3 origin = transform.position + Vector3.up * 0.25f;
+            Vector3 destination = target.position + Vector3.up * 0.25f;
+            Vector3 direction = destination - origin;
+            float distance = direction.magnitude;
+            if (distance < 0.001f || distance >= range) return false;
+            if (!Physics.Raycast(origin, direction / distance, out RaycastHit hit, distance,
+                ~0, QueryTriggerInteraction.Ignore)) return false;
+            return hit.transform == target || hit.transform.IsChildOf(target);
         }
 
         public void EnemyDefeated(string enemyId)
@@ -342,6 +378,7 @@ namespace ComicSpidey
             webLine.enabled = false;
             invulnerableUntil = 0f;
             dodge.Reset();
+            combo.Reset();
             PlayerPrefs.DeleteKey(CheckpointKey);
             PlayerPrefs.Save();
         }
@@ -359,6 +396,7 @@ namespace ComicSpidey
             velocity = Vector3.zero;
             webAttached = false;
             dodge.Reset();
+            combo.Reset();
             health.Restore();
             if (bossMode && boss != null) boss.ResetFight();
             invulnerableUntil = Time.time + 2f;
@@ -415,13 +453,16 @@ namespace ComicSpidey
 
         private void ResetInput()
         {
-            joystickFinger = lookFinger = webFinger = -1;
+            joystickFinger = lookFinger = webFinger = attackFinger = -1;
             moveInput = Vector2.zero;
             webAttached = false;
             jumpRequested = false;
             attackRequested = false;
+            heavyAttackRequested = false;
+            keyboardAttackHeld = false;
             dodgeRequested = false;
             dodge.Cancel();
+            combo.CancelChain();
             trackingMouse = false;
         }
 
@@ -450,7 +491,7 @@ namespace ComicSpidey
             GUI.Label(new Rect(ButtonMargin, unit * 0.13f, Screen.width * 0.55f, unit * 0.1f), status, label);
             GUI.Box(new Rect(WebRect.x, Screen.height - WebRect.yMax, WebRect.width, WebRect.height), "HOLD\nWEB", panel);
             GUI.Box(new Rect(JumpRect.x, Screen.height - JumpRect.yMax, JumpRect.width, JumpRect.height), "JUMP", panel);
-            GUI.Box(new Rect(AttackRect.x, Screen.height - AttackRect.yMax, AttackRect.width, AttackRect.height), "ATTACK", panel);
+            GUI.Box(new Rect(AttackRect.x, Screen.height - AttackRect.yMax, AttackRect.width, AttackRect.height), "ATTACK\nTAP/HOLD", panel);
             GUI.Box(new Rect(DodgeRect.x, Screen.height - DodgeRect.yMax, DodgeRect.width, DodgeRect.height), "DODGE", panel);
             if (joystickFinger == -1)
                 GUI.Label(new Rect(ButtonMargin, Screen.height - unit * 0.14f, Screen.width * 0.4f, unit * 0.1f), "Drag left to move", label);

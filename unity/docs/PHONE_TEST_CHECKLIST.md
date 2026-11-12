@@ -40,6 +40,10 @@ Add what happened and a screenshot or screen recording if possible.
       windows and walls; check their approximate collision, rooftop/web anchors,
       and performance. The other blocks remain placeholders.
 - [ ] Follow the gold marker and two placeholder attackers appear.
+- [ ] Tap ATTACK for light hits; chain three hits, or hold and release ATTACK
+      for a heavy hit that briefly stuns an attacker. Release outside the button
+      or lose focus to cancel. Try misses, cooldowns and multitouch with movement.
+      No combat animations yet; all new input and hit/stun behavior is untested.
 - [ ] Attack button damages a nearby attacker; they pursue and damage the player.
 - [ ] Dodge moves in the chosen direction on the ground, briefly avoids damage,
       cannot be spammed, and does not go through walls. No dodge animation yet.
@@ -103,7 +107,7 @@ until actually tested on the phone. This is not the full robbery mission.
   graphics settings, test-encounter checkpoint, experimental comic shader and
   converted pedestrian patrols, supplied road batches, test mode selection and
   prototype dodge, static vehicle display, supplied building previews and
-  separate Octopus test fight are
+  separate Octopus test fight and experimental combat combos are
   **not yet Unity-built or phone-tested**. They are not the final
   city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the

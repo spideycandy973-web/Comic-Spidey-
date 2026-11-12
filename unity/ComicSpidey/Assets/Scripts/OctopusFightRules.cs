@@ -40,10 +40,10 @@ namespace ComicSpidey
             return false;
         }
 
-        public bool TryHit()
+        public bool TryHit(int damage = 1)
         {
-            if (State != OctopusState.Recovery || Health <= 0) return false;
-            Health--;
+            if (State != OctopusState.Recovery || Health <= 0 || damage <= 0) return false;
+            Health = Math.Max(0, Health - damage);
             if (Health == 0) State = OctopusState.Defeated;
             return true;
         }

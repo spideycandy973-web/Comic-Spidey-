@@ -31,7 +31,7 @@ or physically tested, and climbing does not yet have a rooftop mantle or its
 own animation. The tether is not yet a polished or physically validated
 swinging mechanic. The city remains
 primitive geometry; there is no complete Story, combat system, NPC population,
-vehicle, final graphics menu, save migration or final UI yet. Source now creates
+traffic or vehicle AI, final graphics menu, save migration or final UI yet. Source now creates
 four experimental pedestrian patrols using converted Citizen Maker character
 FBXs (with capsule fallback). Blender re-import verified rigs and animation in
 the exports. Three.js FBXLoader 0.160.1 rejects an empty eye animation track;
@@ -66,6 +66,10 @@ repeatable conversion tool are `godot/assets/city/street-light.glb` and
 `unity/tools/convert_neighborhood_road.py` reproduces the road conversion from
 `source/Untitled.glb` inside the user's neighborhood archive. Road appearance,
 orientation, collision and performance still need Unity and phone tests.
+The supplied civil-service FBX and base-colour/decal/optics maps are now used
+as ten static parked-vehicle previews. They are not traffic or emergencies. The
+Unity FBX import, texture slots, scale, alignment and collision are unverified;
+the original pack's normal, metalness and opacity maps are not yet used.
 
 ## Next build and testing steps
 

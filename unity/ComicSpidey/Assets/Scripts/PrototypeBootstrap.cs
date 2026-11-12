@@ -68,6 +68,7 @@ namespace ComicSpidey
             AddSuppliedRoads();
             AddSuppliedStreetLights();
             AddTestPedestrians();
+            PrototypeVehicleDisplay.Place();
 
             // Temporary test objective and highly visible beacon; not campaign mission 1.
             var marker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);

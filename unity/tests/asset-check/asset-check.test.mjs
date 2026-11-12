@@ -89,3 +89,21 @@ test('neighborhood road conversion contains expected mesh and JPEG', () => {
   assert.equal((obj.match(/^f /gm) || []).length, 72);
   assert.equal(readFileSync(road('road_strip.jpg')).subarray(0, 3).toString('hex'), 'ffd8ff');
 });
+
+// Validates that the supplied fleet has the meshes and colour maps we select.
+// It does not test Unity's importer, appearance, collisions, or performance.
+test('supplied vehicle FBX contains all ten test fleet meshes and colour textures', () => {
+  const vehicle = name => new URL(`../../ComicSpidey/Assets/Resources/Vehicles/${name}`, import.meta.url);
+  const bytes = readFileSync(vehicle('fleet.fbx'));
+  const scene = new FBXLoader().parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+  const expected = ['ambulance', 'citybus', 'fire_truck', 'garbage_truck', 'police_sedan', 'rdservtruck', 'school_bus', 'taxi', 'towtruck', 'postvan'];
+  const meshes = new Map();
+  scene.traverse(node => { if (node.isMesh) meshes.set(node.name, node); });
+  for (const name of expected) {
+    assert.ok(meshes.has(name), `${name} is in the FBX`);
+    assert.ok(meshes.get(name).geometry.attributes.position.count > 1000, `${name} has geometry`);
+  }
+  for (const name of ['ambulance', 'citybus', 'firetruck', 'garbagetruck', 'police', 'servicetruck', 'schoolbus', 'taxi', 'towtruck', 'postvan']) {
+    assert.equal(readFileSync(vehicle(`${name}_albedo.png`)).subarray(0, 8).toString('hex'), '89504e470d0a1a0a', `${name} texture`);
+  }
+});

@@ -49,6 +49,9 @@ Add what happened and a screenshot or screen recording if possible.
 - [ ] Hold web near a building, check it visibly attaches to a surface and releases.
 - [ ] Check four pedestrians appear, retain colours, walk without foot sliding,
       avoid walls and reverse if blocked. Their Unity import is unverified.
+- [ ] Find the ten parked test vehicles (police, taxi, ambulance, fire truck,
+      buses, garbage, service and tow trucks, post van); check size, colour,
+      placement, collisions and phone performance. They do not drive yet.
 - [ ] Check the hero and city textures remain visible with the new comic shader;
       check dots and lighting do not shimmer, obscure details or hurt performance.
 
@@ -93,7 +96,7 @@ until actually tested on the phone. This is not the full robbery mission.
   encounter, converted supplied street lights, experimental climb/web changes
   graphics settings, test-encounter checkpoint, experimental comic shader and
   converted pedestrian patrols, supplied road batches, test mode selection and
-  prototype dodge are **not yet Unity-built or phone-tested**. They are not the final
+  prototype dodge and the static vehicle display are **not yet Unity-built or phone-tested**. They are not the final
   city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the
   requested campaign. Full combat, full Story and most checklist items are absent.

@@ -41,3 +41,10 @@ black-and-red model.
   license chain have not been independently verified. The converted mesh is
   batched in a temporary layout, not the supplied full city, and is untested
   in Unity. Reproduce with `unity/tools/convert_neighborhood_road.py`.
+
+- **Unity vehicle prototype:** `unity/ComicSpidey/Assets/Resources/Vehicles/`
+  contains the user-supplied civil-service pack's FBX scene and selected
+  base-colour, decal, and optics maps. Ten models are arranged as static parked
+  previews; they are not driving traffic or emergency AI. The user confirmed
+  redistribution permission, but provenance and licensing have not been
+  independently verified. Unity import, materials and layout are untested.

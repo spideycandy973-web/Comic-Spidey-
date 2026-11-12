@@ -38,7 +38,8 @@ Add what happened and a screenshot or screen recording if possible.
       story checkpoint and graphics options remain unchanged.
 - [ ] Select Story Test; the test objective and encounter work.
 - [ ] Relaunch and select Free Roam Test; after about 10 seconds, a crime alert
-      appears. Reach the gold marker, defeat two attackers with tap/hold combat,
+      appears. Check the relative direction and distance to the gold marker;
+      reach it and defeat two attackers with tap/hold combat,
       and check the stopped count. Wait for another alert. Ignore an alert to
       check expiry; let attackers defeat the player to check cleanup/retry.
       Close/reopen and check that the stopped count persists; an unfinished crime

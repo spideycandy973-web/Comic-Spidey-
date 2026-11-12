@@ -42,6 +42,7 @@ namespace ComicSpidey
         private StoryProgress story = new StoryProgress();
         private PrototypeCheckpoint checkpoint = new PrototypeCheckpoint();
         private const string CheckpointKey = "comicspidey.prototype.test-encounter.v1";
+        public Transform CameraView => cameraTransform;
 
         public void Initialize(Transform cameraView, List<Transform> webAnchors)
         {

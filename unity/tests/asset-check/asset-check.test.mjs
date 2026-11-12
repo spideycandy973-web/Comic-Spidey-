@@ -125,3 +125,37 @@ test('converted static Doctor Octopus parts preserve source geometry and texture
     assert.equal(readFileSync(file('png')).subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
   }
 });
+
+test('neighborhood building parts contain valid indexed geometry and colour textures', () => {
+  const building = name => new URL(`../../ComicSpidey/Assets/Resources/City/Building/${name}`, import.meta.url);
+  const expected = [ ['windows_a', 24047, 13096], ['windows_b', 16895, 10120],
+    ['wall_lower', 240, 120], ['wall_upper', 1296, 648] ];
+  for (const [name, vertexCount, faceCount] of expected) {
+    const lines = readFileSync(building(`${name}.obj`), 'utf8').split('\n');
+    let positions = 0, normals = 0, uvs = 0, faces = 0;
+    for (const line of lines) {
+      const values = line.trim().split(/\s+/);
+      if (['v', 'vn', 'vt'].includes(values[0])) {
+        const expectedLength = values[0] === 'vt' ? 3 : 4;
+        assert.equal(values.length, expectedLength, `${name} ${values[0]} width`);
+        assert.ok(values.slice(1).every(v => Number.isFinite(Number(v))), `${name} finite ${values[0]}`);
+        if (values[0] === 'v') positions++;
+        else if (values[0] === 'vn') normals++;
+        else uvs++;
+      } else if (values[0] === 'f') {
+        assert.equal(values.length, 4, `${name} triangular faces`);
+        for (const corner of values.slice(1)) {
+          const indices = corner.split('/').map(Number);
+          assert.equal(indices.length, 3);
+          assert.ok(indices.every(i => Number.isInteger(i) && i >= 1 && i <= vertexCount), `${name} valid face index`);
+        }
+        faces++;
+      }
+    }
+    assert.deepEqual([positions, normals, uvs, faces], [vertexCount, vertexCount, vertexCount, faceCount]);
+    // Even a fully expanded triangle-list importer can use 16-bit indices.
+    assert.ok(faceCount * 3 < 65536);
+  }
+  for (const name of ['windows', 'wall_lower', 'wall_upper'])
+    assert.equal(readFileSync(building(`${name}.jpg`)).subarray(0, 3).toString('hex'), 'ffd8ff');
+});

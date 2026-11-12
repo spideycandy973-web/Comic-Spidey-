@@ -36,6 +36,9 @@ Add what happened and a screenshot or screen recording if possible.
 - [ ] Return to Story Test on next launch; its checkpoint is unchanged by Free Roam.
 - [ ] Check the supplied road strips appear with correct texture and orientation;
       check streets, intersections and player contact for flicker or clipping.
+- [ ] Check four supplied-building previews are visible with correctly aligned
+      windows and walls; check their approximate collision, rooftop/web anchors,
+      and performance. The other blocks remain placeholders.
 - [ ] Follow the gold marker and two placeholder attackers appear.
 - [ ] Attack button damages a nearby attacker; they pursue and damage the player.
 - [ ] Dodge moves in the chosen direction on the ground, briefly avoids damage,
@@ -99,7 +102,8 @@ until actually tested on the phone. This is not the full robbery mission.
   encounter, converted supplied street lights, experimental climb/web changes
   graphics settings, test-encounter checkpoint, experimental comic shader and
   converted pedestrian patrols, supplied road batches, test mode selection and
-  prototype dodge, static vehicle display and separate Octopus test fight are
+  prototype dodge, static vehicle display, supplied building previews and
+  separate Octopus test fight are
   **not yet Unity-built or phone-tested**. They are not the final
   city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the

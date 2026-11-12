@@ -49,11 +49,16 @@ namespace ComicSpidey
             }
 
             var anchors = new List<Transform>();
+            var suppliedBuildings = new PrototypeSuppliedBuildings();
+            bool suppliedBuildingReady = suppliedBuildings.Prepare();
             for (int x = -2; x <= 2; x++)
             for (int z = -2; z <= 2; z++)
             {
                 // Keep a clear central intersection for spawning and input testing.
                 float height = 10 + ((Mathf.Abs(x * 13 + z * 7) % 4) * 5);
+                var center = new Vector3(x * 40 + 18, 0, z * 40 + 18);
+                if (suppliedBuildingReady && Mathf.Abs(x) == 1 && Mathf.Abs(z) == 1 &&
+                    suppliedBuildings.TryCreate(center, anchors)) continue;
                 var building = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 building.name = "TestBuilding";
                 building.AddComponent<ClimbableSurface>();

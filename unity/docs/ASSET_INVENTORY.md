@@ -11,7 +11,7 @@ assets before public distribution.
 | Supplied file | Unity status |
 | --- | --- |
 | `spiderman.zip` | Hero model/texture, stand, run, hanging, jump-up, jump-down and landing FBXs in use; remaining strafe and swing clips not integrated. |
-| `neighbourhood-city-modular-lowpoly.zip` | Only road strip and streetlight extracted and placed; full city not imported. |
+| `neighbourhood-city-modular-lowpoly.zip` | Road strip, streetlight and one building's windows/walls extracted and placed in a test layout; full city and other building detail not imported. Unity/device testing pending. |
 | `generic-civil-service-vehicles-pack.zip` | Ten vehicle meshes and selected colour/decal maps in a static parked display; no traffic AI, original glass/normal/metal materials or Unity verification. |
 | `doctor_octopus_spider-man_2_ps2.glb` | Three static parts and textures converted for a separate experimental Unity boss test. Source has no rig; boss animation, full story boss gameplay and Unity testing still needed. |
 | `spider-man_comic.glb` | Not imported in Unity; format, rig and use must be checked. |

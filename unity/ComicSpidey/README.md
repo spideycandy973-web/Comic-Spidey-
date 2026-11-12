@@ -51,6 +51,13 @@ touch targets, and adds temporary road markings and window textures. A supplied
 neighborhood street-light mesh and base-colour texture have been converted to
 OBJ/PNG and placed in the test world. A straight road mesh and colour atlas
 from the same pack are converted to OBJ/JPEG and batched into test streets.
+Four test blocks now use an extracted neighborhood building's window and wall
+meshes with shared textures and approximate box collision; the rest remain
+placeholder cubes. Plants, AC units, other material maps and the original city
+layout are omitted. Import, appearance, web attachment, collision and mobile
+performance have not been verified in Unity. Run
+`unity/tools/convert_neighborhood_building.py /path/to/Untitled.glb` to
+reproduce the building conversion.
 The prototype material now uses stepped
 lighting and a subtle halftone pattern as a first comic-style experiment, not
 the final requested visual style. This shader, the conversion, the approximate

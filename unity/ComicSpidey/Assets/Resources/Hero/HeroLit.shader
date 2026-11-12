@@ -2,11 +2,17 @@
 // handles supplied textures and simple city materials; art direction is WIP.
 Shader "ComicSpidey/HeroLit"
 {
-    Properties { _MainTex ("Texture", 2D) = "white" {} _Color ("Tint", Color) = (1,1,1,1) }
+    Properties
+    {
+        _MainTex ("Texture", 2D) = "white" {}
+        _Color ("Tint", Color) = (1,1,1,1)
+        [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull", Float) = 2
+    }
     SubShader
     {
         Tags { "RenderType"="Opaque" }
         LOD 150
+        Cull [_Cull]
         CGPROGRAM
         #pragma surface surf Comic
         sampler2D _MainTex;

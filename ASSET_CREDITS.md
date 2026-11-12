@@ -54,3 +54,11 @@ black-and-red model.
   from the attributed Doctor Octopus GLB above. `unity/tools/convert_doctor_octopus.py`
   reproduces this conversion. The source has no rig or animation; its separate
   prototype boss test and Unity/device import have not been verified.
+
+- **Unity neighborhood building test:** four instances of one building's
+  extracted wall/window meshes and base-colour textures from the supplied
+  neighborhood GLB. Other building details and the original layout are not
+  included. The user confirmed redistribution permission; rights provenance
+  is not independently verified. Reproduce with
+  `unity/tools/convert_neighborhood_building.py`. Appearance, approximate
+  collisions and Android performance remain untested in Unity.

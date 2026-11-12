@@ -19,6 +19,7 @@
     <Compile Include="../../ComicSpidey/Assets/Scripts/EnemyAttackTiming.cs" Link="EnemyAttackTiming.cs" />
     <Compile Include="../../ComicSpidey/Assets/Scripts/CollectibleProgress.cs" Link="CollectibleProgress.cs" />
     <Compile Include="../../ComicSpidey/Assets/Scripts/CompassMath.cs" Link="CompassMath.cs" />
+    <Compile Include="../../ComicSpidey/Assets/Scripts/MantleMath.cs" Link="MantleMath.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 </Project>

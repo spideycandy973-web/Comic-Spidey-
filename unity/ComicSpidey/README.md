@@ -44,10 +44,11 @@ Unity/device-tested. A prototype
 ground dodge has a cooldown and a short damage
 protection window; it currently has no dodge animation and is not Unity-tested.
 Source now includes experimental wall climbing and wall jumping, plus building
-surface raycasts for web attachment. These traversal changes are not yet built
-or physically tested, and climbing does not yet have a rooftop mantle or its
-own animation. The tether is not yet a polished or physically validated
-swinging mechanic. The city remains
+surface raycasts for web attachment. A collision-checked rooftop mantle has
+been added for nearby ledges, and jumping while tethered releases with a limited
+upward boost. A failed web attempt briefly shows a message. These are experimental
+and untested in Unity or on a phone; the mantle has no dedicated animation.
+The tether is not yet a polished or physically validated swinging mechanic. The city remains
 primitive geometry; there is no complete Story, combat system, NPC population,
 traffic or vehicle AI, final graphics menu, save migration or final UI yet. Source now creates
 four experimental pedestrian patrols using converted Citizen Maker character

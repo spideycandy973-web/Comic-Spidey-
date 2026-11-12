@@ -6,6 +6,13 @@ namespace ComicSpidey
     // outward radial speed keeps tangential and inward momentum intact.
     public static class SwingMath
     {
+        // Preserve existing upward momentum while giving a bounded release boost.
+        public static float ReleaseVerticalSpeed(float verticalSpeed)
+        {
+            const float boost = 3.2f, cap = 12f;
+            return Math.Max(verticalSpeed, Math.Min(Math.Max(verticalSpeed, 0f) + boost, cap));
+        }
+
         public static void LimitOutwardVelocity(float rx, float ry, float rz,
             float vx, float vy, float vz, out float resultX, out float resultY, out float resultZ)
         {

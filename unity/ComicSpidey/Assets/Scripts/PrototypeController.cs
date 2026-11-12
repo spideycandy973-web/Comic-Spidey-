@@ -37,8 +37,9 @@ namespace ComicSpidey
         private PrototypeOctopus boss;
         private PrototypeCrime crime;
         private PrototypeCollectibles collectibles;
-        private float climbBlockedUntil;
-        private bool climbing;
+        private float climbBlockedUntil, webNoticeUntil, mantleBlockedTime, mantleStarted, nextMantleProbeAt;
+        private bool climbing, mantling, mantleMovingForward;
+        private Vector3 mantleLiftTarget, mantleForwardTarget, mantleInward;
         private StoryProgress story = new StoryProgress();
         private PrototypeCheckpoint checkpoint = new PrototypeCheckpoint();
         private const string CheckpointKey = "comicspidey.prototype.test-encounter.v1";
@@ -102,6 +103,21 @@ namespace ComicSpidey
                 return;
             }
             HandleInput();
+            if (mantling)
+            {
+                UpdateMantle();
+                jumpRequested = attackRequested = heavyAttackRequested = dodgeRequested = false;
+                return;
+            }
+            if (jumpRequested && webAttached)
+            {
+                // A web-jump releases the tether but preserves its horizontal momentum.
+                webAttached = false;
+                webLine.enabled = false;
+                velocity.y = SwingMath.ReleaseVerticalSpeed(velocity.y);
+                climbBlockedUntil = Time.time + 0.25f;
+                jumpRequested = false;
+            }
             var heading = Quaternion.Euler(0, yaw, 0);
             var desired = heading * new Vector3(moveInput.x, 0, moveInput.y);
             if (desired.sqrMagnitude > 1) desired.Normalize();
@@ -126,6 +142,12 @@ namespace ComicSpidey
                     velocity = wall.normal * 6f + Vector3.up * 7f;
                     climbing = false;
                     climbBlockedUntil = Time.time + 0.4f;
+                }
+                else if (TryStartMantle(wall))
+                {
+                    UpdateMantle();
+                    jumpRequested = attackRequested = heavyAttackRequested = dodgeRequested = false;
+                    return;
                 }
                 else velocity = Vector3.up * 4f - wall.normal * 0.6f;
             }
@@ -186,6 +208,88 @@ namespace ComicSpidey
             if (heroVisual != null) heroVisual.UpdateMotion(motor.isGrounded, webAttached, velocity);
             if (desired.sqrMagnitude > 0.01f)
                 transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(desired), 12f * Time.deltaTime);
+        }
+
+        private bool TryStartMantle(RaycastHit wall)
+        {
+            if (Time.time < nextMantleProbeAt) return false;
+            nextMantleProbeAt = Time.time + 0.08f;
+            // Probe a point beyond the wall, then look down for a tagged rooftop.
+            // Only a nearby lip is eligible; higher roofs remain ordinary climb.
+            float halfHeight = motor.height * 0.5f;
+            Vector3 inward = -wall.normal;
+            inward.y = 0;
+            if (inward.sqrMagnitude < 0.5f) return false;
+            inward.Normalize();
+            Vector3 probe = transform.position + Vector3.up * (halfHeight + MantleMath.MaximumRise + 0.5f) +
+                inward * (motor.radius + 0.3f);
+            if (!Physics.Raycast(probe, Vector3.down, out RaycastHit top,
+                halfHeight * 2f + MantleMath.MaximumRise + 1f, ~0, QueryTriggerInteraction.Ignore) ||
+                top.collider != wall.collider || top.normal.y < 0.75f) return false;
+            float feetY = transform.position.y + motor.center.y - halfHeight;
+            if (!MantleMath.TryLift(feetY, top.point.y, out float lift)) return false;
+            Vector3 liftTarget = transform.position + Vector3.up * lift;
+            Vector3 forwardTarget = new Vector3(top.point.x, liftTarget.y, top.point.z);
+            if (!CapsuleClearAt(liftTarget) || !CapsuleClearAt(forwardTarget)) return false;
+            mantleLiftTarget = liftTarget;
+            mantleForwardTarget = forwardTarget;
+            mantleInward = inward;
+            mantleMovingForward = false;
+            mantleBlockedTime = 0;
+            mantleStarted = Time.time;
+            mantling = true;
+            climbing = false;
+            velocity = Vector3.zero;
+            return true;
+        }
+
+        private bool CapsuleClearAt(Vector3 position)
+        {
+            float radius = Mathf.Max(0.05f, motor.radius - motor.skinWidth - 0.02f);
+            float straightHalf = Mathf.Max(0, motor.height * 0.5f - radius);
+            Vector3 center = position + motor.center;
+            var hits = Physics.OverlapCapsule(center + Vector3.up * straightHalf, center - Vector3.up * straightHalf,
+                radius, ~0, QueryTriggerInteraction.Ignore);
+            foreach (var collider in hits)
+                if (collider != null && collider != motor && !collider.transform.IsChildOf(transform)) return false;
+            return true;
+        }
+
+        private void UpdateMantle()
+        {
+            if (jumpRequested)
+            {
+                CancelMantle();
+                velocity = -mantleInward * 4f + Vector3.up * 5f;
+                climbBlockedUntil = Time.time + 0.4f;
+                return;
+            }
+            Vector3 target = mantleMovingForward ? mantleForwardTarget : mantleLiftTarget;
+            Vector3 delta = target - transform.position;
+            if (delta.magnitude < 0.05f)
+            {
+                if (!mantleMovingForward) { mantleMovingForward = true; mantleBlockedTime = 0; return; }
+                CancelMantle();
+                motor.Move(Vector3.down * 0.15f);
+                climbBlockedUntil = Time.time + 0.2f;
+                return;
+            }
+            Vector3 step = Vector3.ClampMagnitude(delta, 5f * Time.deltaTime);
+            Vector3 before = transform.position;
+            motor.Move(step);
+            if ((transform.position - before).magnitude < step.magnitude * 0.1f) mantleBlockedTime += Time.deltaTime;
+            else mantleBlockedTime = 0;
+            // Never teleport through blockers, and abandon a jammed mantle.
+            if (mantleBlockedTime > 0.3f || Time.time - mantleStarted > 2f) CancelMantle();
+            if (heroVisual != null) heroVisual.UpdateMotion(false, false, step / Mathf.Max(Time.deltaTime, 0.001f));
+        }
+
+        private void CancelMantle()
+        {
+            mantling = false;
+            mantleMovingForward = false;
+            mantleBlockedTime = 0;
+            velocity = Vector3.zero;
         }
 
         private void LateUpdate()
@@ -449,6 +553,7 @@ namespace ComicSpidey
             motor.enabled = true;
             velocity = Vector3.zero;
             webAttached = false;
+            if (mantling) CancelMantle();
             dodge.Reset();
             combo.Reset();
             health.Restore();
@@ -475,7 +580,7 @@ namespace ComicSpidey
 
         private void AttachWeb()
         {
-            if (dodge.IsActive(Time.time)) return;
+            if (dodge.IsActive(Time.time) || mantling) return;
             // Try nearby building rooftops, but attach only where an unobstructed
             // ray actually hits a tagged building. Do not tether to empty sky.
             webAttached = false;
@@ -500,6 +605,7 @@ namespace ComicSpidey
                 webAttached = true;
             }
             if (webAttached) ropeLength = Vector3.Distance(transform.position, webPoint);
+            else webNoticeUntil = Time.time + 1.2f;
         }
 
         private void OnApplicationFocus(bool focus)
@@ -519,6 +625,7 @@ namespace ComicSpidey
             dodgeRequested = false;
             dodge.Cancel();
             combo.CancelChain();
+            if (mantling) CancelMantle();
             trackingMouse = false;
         }
 
@@ -543,6 +650,8 @@ namespace ComicSpidey
             }
             if (Time.time < respawnNoticeUntil) status += "   RETRY";
             if (climbing) status += "   CLIMB";
+            if (mantling) status += "   MANTLE";
+            if (!webAttached && Time.time < webNoticeUntil) status += "   NO WEB SURFACE";
             if (dodge.IsActive(Time.time)) status += "   DODGE";
             GUI.Label(new Rect(ButtonMargin, unit * 0.13f, Screen.width * 0.55f, unit * 0.1f), status, label);
             if (collectibles != null)

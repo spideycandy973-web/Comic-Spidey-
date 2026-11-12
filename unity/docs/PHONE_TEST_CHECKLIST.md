@@ -22,7 +22,13 @@ Add what happened and a screenshot or screen recording if possible.
 - [ ] Left drag moves; right drag turns the camera; both work at the same time.
 - [ ] Run, stop, turn, jump and land without getting stuck or falling through.
 - [ ] Web attaches to a visible building, swings with momentum and releases cleanly.
+- [ ] Tap jump while tethered: the web releases, horizontal momentum continues,
+      and there is an upward boost. Trying to web empty sky should show a notice.
 - [ ] Swing continuously between buildings; no web through walls or ground.
+- [ ] Climb a tagged wall while holding toward it; the experimental mantle should
+      climb onto a nearby roof without clipping. Test wall-jump/cancel, a low
+      ceiling and a blocked roof. Wall-running and dedicated mantle animation are
+      not implemented; mantle clearance and controls are untested in Unity.
 - [ ] Climb walls, wall-run and transition to rooftops.
 - [ ] Air tricks and appropriate jumping, falling, landing and swinging animations.
       (Jump/fall/landing clips were added to source but have not been phone-tested.)
@@ -127,7 +133,7 @@ until actually tested on the phone. This is not the full robbery mission.
   prototype dodge, static vehicle display, supplied building previews and
   separate Octopus test fight, experimental combat combos, free-roam crime
   encounters, saved test count, placeholder collectible tokens and prototype
-  day/night lighting are
+  day/night lighting, rooftop mantle and web-jump changes are
   **not yet Unity-built or phone-tested**. They are not the final
   city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the

@@ -214,6 +214,15 @@ static class Program
         Check(CompassMath.Direction(1, 0, 0, 0, 10) == "left", "Compass follows camera rotation");
         Check(CompassMath.Direction(0, 0, 1, 0, 0) == "right", "Compass handles vertical camera");
         Check(CompassMath.Direction(0, 1, 0, 5, 0) == "above" && CompassMath.Direction(0, 1, 0, -5, 0) == "below", "Compass vertical guidance");
-        Console.WriteLine("Story, swing, health, graphics, checkpoints, combat, crime, day-clock, collectible and compass rules passed.");
+        Check(MantleMath.TryLift(10, 11, out float lift) && Math.Abs(lift - 1.12f) < 0.0001f, "Mantle includes foot clearance");
+        Check(MantleMath.TryLift(10, 10, out lift) && Math.Abs(lift - 0.12f) < 0.0001f, "Mantle supports a level roof edge");
+        Check(MantleMath.TryLift(0, 2.1f, out _), "Mantle accepts maximum rise");
+        Check(!MantleMath.TryLift(10, 12.2f, out _) && !MantleMath.TryLift(10, 9.9f, out _), "Mantle rejects distant roofs");
+        Check(!MantleMath.TryLift(float.NaN, 1, out _) && !MantleMath.TryLift(1, float.PositiveInfinity, out _), "Mantle rejects invalid heights");
+        Check(Math.Abs(SwingMath.ReleaseVerticalSpeed(-10) - 3.2f) < 0.0001f, "Web jump boosts falling player");
+        Check(Math.Abs(SwingMath.ReleaseVerticalSpeed(4) - 7.2f) < 0.0001f, "Web jump retains upward momentum");
+        Check(Math.Abs(SwingMath.ReleaseVerticalSpeed(11) - 12f) < 0.0001f, "Web jump boost is capped");
+        Check(Math.Abs(SwingMath.ReleaseVerticalSpeed(15) - 15f) < 0.0001f, "Web jump does not reduce existing upward speed");
+        Console.WriteLine("Story, swing, health, graphics, checkpoints, combat, crime, day-clock, collectible, compass and mantle rules passed.");
     }
 }

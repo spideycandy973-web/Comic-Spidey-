@@ -36,7 +36,14 @@ the capsule remains visible. Build #3 showed the textured red-and-blue hero mode
 requested Peter-led campaign and Miles as a later character are not implemented. The prototype implements basic camera-relative
 movement, jumping, multitouch joystick/look areas and an experimental hold-to-web
 tether. Desktop controls are WASD, Space, right-mouse drag, E (web), F (attack) and
-Left Shift (dodge); tap F for light attacks or hold and release for a heavy.
+Left Shift (dodge), and Q (web shot); tap F for light attacks or hold and release for a heavy.
+In Story Test and active Free Roam crimes, a separate WEB SHOT button fires a
+short-range, camera-facing assisted web shot against unobstructed attackers. It
+interrupts attacks and briefly immobilizes without damage; three charges recharge
+over time and reset on player retry. It is a hitscan test effect, not a final
+projectile, animation, upgrade or boss mechanic. Crime alerts show a countdown,
+and the test story marker hides after reaching it and gives directional guidance.
+All of this remains unbuilt and untested in Unity and on phones.
 The prototype fight has light chains, a heavier stun attack and enemy hit stun;
 placeholder enemies briefly flash orange before melee strikes and cannot attack
 through obstacles. These attacks have no combat animation and are not

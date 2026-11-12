@@ -14,15 +14,16 @@ namespace ComicSpidey
         private readonly EnemyAttackTiming attack = new EnemyAttackTiming();
         private float verticalSpeed;
         private Renderer body;
-        private float hitUntil, stunnedUntil;
+        private float hitUntil, stunnedUntil, webbedUntil;
         private Material normalMaterial;
         private Material hitMaterial;
         private Material warningMaterial;
+        private Material webMaterial;
 
         public bool Alive => !health.IsDefeated;
 
         public void Initialize(PrototypeController target, string id, Material normal, Material hit,
-            Material warning, System.Action<string> defeated = null)
+            Material warning, Material web, System.Action<string> defeated = null)
         {
             player = target;
             enemyId = id;
@@ -31,6 +32,7 @@ namespace ComicSpidey
             normalMaterial = normal;
             hitMaterial = hit;
             warningMaterial = warning;
+            webMaterial = web;
             var visual = GameObject.CreatePrimitive(PrimitiveType.Capsule);
             visual.name = "TemporaryEnemyVisual";
             Destroy(visual.GetComponent<Collider>());
@@ -63,7 +65,7 @@ namespace ComicSpidey
             }
             else if (Time.time >= stunnedUntil)
                 attack.Tick(Time.time, false); // Finish missed wind-ups even if the player fled.
-            body.sharedMaterial = Time.time < hitUntil ? hitMaterial : attack.WindingUp ? warningMaterial : normalMaterial;
+            body.sharedMaterial = Time.time < webbedUntil ? webMaterial : Time.time < hitUntil ? hitMaterial : attack.WindingUp ? warningMaterial : normalMaterial;
             if (motor.isGrounded && verticalSpeed < 0) verticalSpeed = -2f;
             verticalSpeed -= 20f * Time.deltaTime;
             motion.y = verticalSpeed;
@@ -79,6 +81,15 @@ namespace ComicSpidey
             if (!Physics.Raycast(transform.position + Vector3.up * 0.25f, direction / distance,
                 out RaycastHit hit, distance, ~0, QueryTriggerInteraction.Ignore)) return false;
             return hit.transform == player.transform || hit.transform.IsChildOf(player.transform);
+        }
+
+        // A web shot interrupts a wind-up and immobilizes but does not deal damage.
+        public void ReceiveWeb()
+        {
+            if (!Alive) return;
+            webbedUntil = Time.time + (float)WebShooter.StunSeconds;
+            stunnedUntil = Mathf.Max(stunnedUntil, webbedUntil);
+            attack.Interrupt(stunnedUntil + 0.35f);
         }
 
         public void ReceiveHit(int damage, float stunSeconds)

@@ -26,13 +26,18 @@ namespace ComicSpidey
         private readonly CombatHealth health = new CombatHealth(6);
         private readonly List<PrototypeEnemy> enemies = new List<PrototypeEnemy>();
         private float invulnerableUntil, respawnNoticeUntil;
-        private Material enemyMaterial, enemyHitMaterial, enemyWarningMaterial;
+        private Material enemyMaterial, enemyHitMaterial, enemyWarningMaterial, enemyWebMaterial;
         private bool trackingMouse;
         private Vector3 lastMouse;
-        private LineRenderer webLine;
+        private LineRenderer webLine, webShotLine;
+        private readonly WebShooter webShooter = new WebShooter();
+        private bool webShotRequested;
+        private float webShotVisibleUntil, webShotNoticeUntil;
+        private string webShotNotice = "";
         private HeroVisual heroVisual;
         private PrototypeSettings settings;
         private PrototypeModeMenu modeMenu;
+        private GameObject testMarker;
         private bool storyMode, bossMode;
         private PrototypeOctopus boss;
         private PrototypeCrime crime;
@@ -58,15 +63,28 @@ namespace ComicSpidey
             webLine.startWidth = webLine.endWidth = 0.04f;
             webLine.positionCount = 2;
             webLine.enabled = false;
+            webShotLine = gameObject.AddComponent<LineRenderer>();
+            webShotLine.material = new Material(Resources.Load<Shader>("Hero/HeroLit"));
+            webShotLine.material.color = Color.cyan;
+            webShotLine.startColor = webShotLine.endColor = Color.cyan;
+            webShotLine.startWidth = webShotLine.endWidth = 0.06f;
+            webShotLine.positionCount = 2;
+            webShotLine.enabled = false;
         }
 
         public void InitializeModeMenu(PrototypeModeMenu menu) { modeMenu = menu; }
+        public void SetTestMarker(GameObject marker) { testMarker = marker; RefreshTestMarker(); }
+        private void RefreshTestMarker()
+        {
+            if (testMarker != null) testMarker.SetActive(storyMode && story.Stage == 0);
+        }
 
         public void StartMode(int mode)
         {
             storyMode = mode == 0;
             bossMode = mode == 2;
             if (storyMode) LoadTestCheckpoint();
+            RefreshTestMarker();
             if (mode == 1)
             {
                 crime = gameObject.AddComponent<PrototypeCrime>();
@@ -92,6 +110,7 @@ namespace ComicSpidey
         private Rect JumpRect => new Rect(Screen.width - ButtonMargin - ButtonSize, ButtonMargin, ButtonSize, ButtonSize);
         private Rect WebRect => new Rect(JumpRect.x, JumpRect.yMax + ButtonMargin, ButtonSize, ButtonSize);
         private Rect AttackRect => new Rect(JumpRect.x, WebRect.yMax + ButtonMargin, ButtonSize, ButtonSize);
+        private Rect WebShotRect => new Rect(JumpRect.x - ButtonSize - ButtonMargin, WebRect.y, ButtonSize, ButtonSize);
         private Rect DodgeRect => new Rect(JumpRect.x - ButtonSize - ButtonMargin, JumpRect.y, ButtonSize, ButtonSize);
 
         private void Update()
@@ -102,11 +121,13 @@ namespace ComicSpidey
                 ResetInput();
                 return;
             }
+            webShooter.Advance(Time.deltaTime);
+            if (webShotLine.enabled && Time.time >= webShotVisibleUntil) webShotLine.enabled = false;
             HandleInput();
             if (mantling)
             {
                 UpdateMantle();
-                jumpRequested = attackRequested = heavyAttackRequested = dodgeRequested = false;
+                jumpRequested = attackRequested = heavyAttackRequested = dodgeRequested = webShotRequested = false;
                 return;
             }
             if (jumpRequested && webAttached)
@@ -146,7 +167,7 @@ namespace ComicSpidey
                 else if (TryStartMantle(wall))
                 {
                     UpdateMantle();
-                    jumpRequested = attackRequested = heavyAttackRequested = dodgeRequested = false;
+                    jumpRequested = attackRequested = heavyAttackRequested = dodgeRequested = webShotRequested = false;
                     return;
                 }
                 else velocity = Vector3.up * 4f - wall.normal * 0.6f;
@@ -185,10 +206,13 @@ namespace ComicSpidey
             // objectives are outside this small test world and are not the campaign.
             if (storyMode && story.Stage == 0 && story.Visit(transform.position.x, transform.position.y - 1f, transform.position.z))
             {
+                RefreshTestMarker();
                 checkpoint.StartEncounter();
                 SaveTestCheckpoint();
                 SpawnEncounter();
             }
+            if (webShotRequested) TryWebShot();
+            webShotRequested = false;
             if (attackRequested) TryAttack(heavyAttackRequested);
             attackRequested = false;
             heavyAttackRequested = false;
@@ -320,6 +344,7 @@ namespace ComicSpidey
                     keyboardAttackHeld = false;
                 }
                 if (Input.GetKeyDown(KeyCode.LeftShift)) dodgeRequested = true;
+                if (Input.GetKeyDown(KeyCode.Q)) webShotRequested = true;
                 if (Input.GetMouseButton(1))
                 {
                     Vector3 mouse = Input.mousePosition;
@@ -344,6 +369,7 @@ namespace ComicSpidey
                     if (settings != null && settings.BlocksTouch(p)) continue;
                     if (JumpRect.Contains(p)) jumpRequested = true;
                     else if (DodgeRect.Contains(p)) dodgeRequested = true;
+                    else if (!bossMode && WebShotRect.Contains(p)) webShotRequested = true;
                     else if (WebRect.Contains(p) && webFinger == -1) { webFinger = touch.fingerId; AttachWeb(); }
                     else if (AttackRect.Contains(p))
                     {
@@ -379,11 +405,12 @@ namespace ComicSpidey
 
         private void EnsureEnemyMaterials()
         {
-            if (enemyMaterial != null && enemyHitMaterial != null && enemyWarningMaterial != null) return;
+            if (enemyMaterial != null && enemyHitMaterial != null && enemyWarningMaterial != null && enemyWebMaterial != null) return;
             Shader shader = Resources.Load<Shader>("Hero/HeroLit");
             enemyMaterial = new Material(shader) { color = new Color(0.44f, 0.12f, 0.22f) };
             enemyHitMaterial = new Material(shader) { color = new Color(1f, 0.8f, 0.25f) };
             enemyWarningMaterial = new Material(shader) { color = new Color(1f, 0.25f, 0.05f) };
+            enemyWebMaterial = new Material(shader) { color = new Color(0.25f, 0.85f, 1f) };
         }
 
         private PrototypeEnemy CreateEnemy(string id, Vector3 position, System.Action<string> onDefeated = null)
@@ -396,7 +423,7 @@ namespace ComicSpidey
             enemyMotor.height = 2f;
             enemyMotor.radius = 0.45f;
             var actor = enemy.AddComponent<PrototypeEnemy>();
-            actor.Initialize(this, id, enemyMaterial, enemyHitMaterial, enemyWarningMaterial, onDefeated);
+            actor.Initialize(this, id, enemyMaterial, enemyHitMaterial, enemyWarningMaterial, enemyWebMaterial, onDefeated);
             enemies.Add(actor);
             return actor;
         }
@@ -423,6 +450,42 @@ namespace ComicSpidey
             enemies.Remove(actor);
             actor.gameObject.SetActive(false);
             Destroy(actor.gameObject);
+        }
+
+        // Camera-facing target assistance only chooses visible active enemies.
+        // No projectile, boss effects, persistent upgrades or damage in this test.
+        private void TryWebShot()
+        {
+            bool activeCrime = crime != null && crime.EncounterActive;
+            if (dodge.IsActive(Time.time) || (!activeCrime && (!storyMode || story.Stage != 1))) return;
+            if (!webShooter.TryFire(Time.time))
+            {
+                webShotNotice = webShooter.Charges == 0 ? "WEB RECHARGING" : "WEB COOLDOWN";
+                webShotNoticeUntil = Time.time + 0.8f;
+                return;
+            }
+            Vector3 origin = transform.position + Vector3.up * 0.25f;
+            Vector3 view = Quaternion.Euler(0, yaw, 0) * Vector3.forward;
+            PrototypeEnemy target = null;
+            float best = float.MaxValue;
+            foreach (var enemy in enemies)
+            {
+                if (enemy == null || !enemy.Alive) continue;
+                Vector3 offset = enemy.transform.position - transform.position;
+                if (!WebAimMath.TryScore(view.x, view.z, offset.x, offset.y, offset.z, out float score) ||
+                    !CanReachAttack(enemy.transform, WebAimMath.Range)) continue;
+                if (score < best) { best = score; target = enemy; }
+            }
+            Vector3 end = target != null ? target.transform.position + Vector3.up * 0.25f : origin + view * 5f;
+            // A missed beam should stop at a wall, too; it is feedback, not a projectile.
+            if (target == null && Physics.Raycast(origin, view, out RaycastHit hit, 5f, ~0, QueryTriggerInteraction.Ignore)) end = hit.point;
+            webShotLine.SetPosition(0, origin);
+            webShotLine.SetPosition(1, end);
+            webShotLine.enabled = true;
+            webShotVisibleUntil = Time.time + 0.12f;
+            webShotNotice = target != null ? "WEBBED" : "WEB MISSED";
+            webShotNoticeUntil = Time.time + 0.8f;
+            if (target != null) target.ReceiveWeb();
         }
 
         private void TryAttack(bool heavy)
@@ -507,10 +570,12 @@ namespace ComicSpidey
             if (enemyMaterial != null) Destroy(enemyMaterial);
             if (enemyHitMaterial != null) Destroy(enemyHitMaterial);
             if (enemyWarningMaterial != null) Destroy(enemyWarningMaterial);
-            enemyMaterial = enemyHitMaterial = enemyWarningMaterial = null;
+            if (enemyWebMaterial != null) Destroy(enemyWebMaterial);
+            enemyMaterial = enemyHitMaterial = enemyWarningMaterial = enemyWebMaterial = null;
             encounterSpawned = false;
             checkpoint = new PrototypeCheckpoint();
             story = new StoryProgress();
+            RefreshTestMarker();
             health.Restore();
             motor.enabled = false;
             transform.position = new Vector3(0, 1, 0);
@@ -523,6 +588,7 @@ namespace ComicSpidey
             invulnerableUntil = 0f;
             dodge.Reset();
             combo.Reset();
+            webShooter.Reset();
             PlayerPrefs.DeleteKey(CheckpointKey);
             PlayerPrefs.Save();
         }
@@ -556,6 +622,8 @@ namespace ComicSpidey
             if (mantling) CancelMantle();
             dodge.Reset();
             combo.Reset();
+            webShooter.Reset();
+            if (webShotLine != null) webShotLine.enabled = false;
             health.Restore();
             if (bossMode && boss != null) boss.ResetFight();
             if (crime != null) crime.PlayerDefeated();
@@ -568,7 +636,9 @@ namespace ComicSpidey
             if (enemyMaterial != null) Destroy(enemyMaterial);
             if (enemyHitMaterial != null) Destroy(enemyHitMaterial);
             if (enemyWarningMaterial != null) Destroy(enemyWarningMaterial);
+            if (enemyWebMaterial != null) Destroy(enemyWebMaterial);
             if (webLine != null && webLine.material != null) Destroy(webLine.material);
+            if (webShotLine != null && webShotLine.material != null) Destroy(webShotLine.material);
         }
 
         private void LimitOutwardVelocity(Vector3 rope)
@@ -623,6 +693,9 @@ namespace ComicSpidey
             heavyAttackRequested = false;
             keyboardAttackHeld = false;
             dodgeRequested = false;
+            webShotRequested = false;
+            if (webShotLine != null) webShotLine.enabled = false;
+            if (webLine != null) webLine.enabled = false;
             dodge.Cancel();
             combo.CancelChain();
             if (mantling) CancelMantle();
@@ -637,6 +710,13 @@ namespace ComicSpidey
             var panel = new GUIStyle(GUI.skin.box) { fontSize = font, alignment = TextAnchor.MiddleCenter, wordWrap = true };
             var label = new GUIStyle(GUI.skin.label) { fontSize = font, wordWrap = true };
             string objective = bossMode ? "Doctor Octopus — test fight" : crime != null ? crime.Status : !storyMode ? "Free roam — test city" : story.Stage >= 2 ? "Test encounter complete" : story.Current.Title;
+            if (storyMode && story.Stage == 0)
+            {
+                Vector3 offset = new Vector3(story.Current.X, 0, story.Current.Z) - transform.position;
+                Transform view = cameraTransform != null ? cameraTransform : transform;
+                objective += " — " + CompassMath.Direction(view.forward.x, view.forward.z, offset.x, offset.y, offset.z) +
+                    " " + Mathf.RoundToInt(offset.magnitude) + "m";
+            }
             GUI.Box(new Rect(ButtonMargin, ButtonMargin, Screen.width * 0.45f, unit * 0.09f), "PROTOTYPE - " + objective, panel);
             string status = "Health " + health.Current + "/" + health.Maximum;
             if (storyMode && story.Stage == 1) status += "   Attackers " + story.DefeatedCount + "/2";
@@ -648,6 +728,8 @@ namespace ComicSpidey
                     fight.State == OctopusState.Recovery ? "  ATTACK!" :
                     fight.State == OctopusState.Defeated ? "  TEST COMPLETE" : "";
             }
+            if (!bossMode) status += "   WEB " + webShooter.Charges + "/" + WebShooter.Capacity;
+            if (Time.time < webShotNoticeUntil) status += "   " + webShotNotice;
             if (Time.time < respawnNoticeUntil) status += "   RETRY";
             if (climbing) status += "   CLIMB";
             if (mantling) status += "   MANTLE";
@@ -660,6 +742,7 @@ namespace ComicSpidey
             GUI.Box(new Rect(JumpRect.x, Screen.height - JumpRect.yMax, JumpRect.width, JumpRect.height), "JUMP", panel);
             GUI.Box(new Rect(AttackRect.x, Screen.height - AttackRect.yMax, AttackRect.width, AttackRect.height), "ATTACK\nTAP/HOLD", panel);
             GUI.Box(new Rect(DodgeRect.x, Screen.height - DodgeRect.yMax, DodgeRect.width, DodgeRect.height), "DODGE", panel);
+            if (!bossMode) GUI.Box(new Rect(WebShotRect.x, Screen.height - WebShotRect.yMax, WebShotRect.width, WebShotRect.height), "WEB\nSHOT", panel);
             if (joystickFinger == -1)
                 GUI.Label(new Rect(ButtonMargin, Screen.height - unit * 0.14f, Screen.width * 0.4f, unit * 0.1f), "Drag left to move", label);
         }

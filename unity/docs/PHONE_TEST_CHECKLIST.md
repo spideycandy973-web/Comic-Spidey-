@@ -64,6 +64,14 @@ Add what happened and a screenshot or screen recording if possible.
       for a heavy hit that briefly stuns an attacker. Release outside the button
       or lose focus to cancel. Try misses, cooldowns and multitouch with movement.
       No combat animations yet; all new input and hit/stun behavior is untested.
+- [ ] In Story Test and an active crime, aim the camera toward an attacker and tap
+      WEB SHOT. Check the cyan hit indication, interrupted wind-up, temporary
+      stun and return to movement. Test obstacles, targets behind the camera,
+      misses, the three-charge limit, recharge, pause and retry. The boss is not
+      affected. This test effect is not a final projectile or animation.
+- [ ] Check crime alert and active-encounter countdowns, and verify the Story Test
+      waypoint direction and that its marker hides after arriving or restoring a
+      later checkpoint, then reappears after resetting test progress.
 - [ ] Attackers flash orange before striking; dodge during the warning and check
       they cannot hit the player through a wall. A hit should interrupt them.
 - [ ] Attack button damages a nearby attacker; they pursue and damage the player.
@@ -133,7 +141,7 @@ until actually tested on the phone. This is not the full robbery mission.
   prototype dodge, static vehicle display, supplied building previews and
   separate Octopus test fight, experimental combat combos, free-roam crime
   encounters, saved test count, placeholder collectible tokens and prototype
-  day/night lighting, rooftop mantle and web-jump changes are
+  day/night lighting, rooftop mantle, web-jump and web-shot changes are
   **not yet Unity-built or phone-tested**. They are not the final
   city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the

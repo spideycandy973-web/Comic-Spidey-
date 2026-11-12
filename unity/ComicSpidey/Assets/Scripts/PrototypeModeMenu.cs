@@ -16,6 +16,7 @@ namespace ComicSpidey
             controller = player;
             settings = graphics;
             marker = objectiveMarker;
+            if (controller != null) controller.SetTestMarker(marker);
             IsChoosing = true;
             previousTimeScale = Time.timeScale;
             Time.timeScale = 0f;
@@ -27,7 +28,6 @@ namespace ComicSpidey
         {
             if (!IsChoosing) return;
             if (controller != null) controller.StartMode(mode);
-            if (marker != null) marker.SetActive(mode == 0);
             IsChoosing = false;
             Time.timeScale = previousTimeScale;
             if (settings != null) settings.SetAvailable(true);

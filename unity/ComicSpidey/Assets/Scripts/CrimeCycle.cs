@@ -21,6 +21,14 @@ namespace ComicSpidey
             until = now + 10;
         }
 
+        // Countdown is informational; Tick remains the sole transition owner.
+        public int RemainingSeconds(double now)
+        {
+            if (Stage != CrimeStage.Alert && Stage != CrimeStage.Active) return 0;
+            if (double.IsNaN(now) || double.IsInfinity(now)) return 0;
+            return (int)System.Math.Ceiling(System.Math.Max(0, System.Math.Min(120, until - now)));
+        }
+
         public CrimeEvent Tick(double now)
         {
             if (now < until) return CrimeEvent.None;

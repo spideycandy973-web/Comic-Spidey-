@@ -35,9 +35,9 @@ namespace ComicSpidey
                     var view = player.CameraView != null ? player.CameraView : player.transform;
                     string direction = CompassMath.Direction(view.forward.x, view.forward.z, offset.x, offset.y, offset.z);
                     int distance = Mathf.RoundToInt(offset.magnitude);
-                    return "Crime — " + direction + " " + distance + "m (gold marker)";
+                    return "Crime — " + direction + " " + distance + "m (gold marker) " + cycle.RemainingSeconds(Time.time) + "s";
                 }
-                if (cycle.Stage == CrimeStage.Active) return "Stop attackers " + cycle.DefeatedCount + "/2";
+                if (cycle.Stage == CrimeStage.Active) return "Stop attackers " + cycle.DefeatedCount + "/2 — " + cycle.RemainingSeconds(Time.time) + "s";
                 if (cycle.Stage == CrimeStage.Resolved) return "Crime stopped!";
                 return "Free roam — crimes stopped: " + cycle.ResolvedCount + (progressWritable ? "" : " (save unavailable)");
             }

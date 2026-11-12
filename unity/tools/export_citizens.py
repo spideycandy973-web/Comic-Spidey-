@@ -39,3 +39,11 @@ for name in ('citizen', 'citizen2'):
         raise SystemExit(f'{name}: FBX verification failed: rigs={rig_count}, skinned={skinned}, actions={animated}')
     print(f'{name} verified FBX: {target.stat().st_size} bytes, '
           f'rigs={rig_count}, skinned meshes={skinned}, animated actions={animated}', flush=True)
+
+# The standalone bpy wheel may crash during CPython shutdown after successful
+# export/re-import on headless runners. Flush diagnostics and exit only after
+# both files pass the checks above; earlier exceptions still fail the job.
+import os
+sys.stdout.flush()
+sys.stderr.flush()
+os._exit(0)

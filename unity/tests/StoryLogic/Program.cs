@@ -149,6 +149,44 @@ static class Program
         Check(crime.Tick(320) == CrimeEvent.AlertStarted && crime.StartEncounter(321), "Crime restarts after failure");
         crime.Fail(322);
         Check(crime.Stage == CrimeStage.Waiting && crime.ResolvedCount == 1 && crime.Tick(351) == CrimeEvent.None && crime.Tick(352) == CrimeEvent.AlertStarted, "Player defeat cancels crime and keeps session count");
-        Console.WriteLine("Story, swing, health, graphics, checkpoint, dodge, boss, combo and crime-cycle rules passed.");
+        Check(CrimeProgressSave.TryDecode(CrimeProgressSave.Encode(27), out int crimeTotal) && crimeTotal == 27, "Crime total round trip");
+        foreach (string invalid in new[] { "", "v2:1", "v1:-1", "v1:+1", "v1: 1", "v1:1:2", "v1:1000001", "v1:2147483648" })
+            Check(!CrimeProgressSave.TryDecode(invalid, out _), "Reject invalid crime save: " + invalid);
+        bool rejectedCrimeTotal = false;
+        try { CrimeProgressSave.Encode(-1); } catch (ArgumentOutOfRangeException) { rejectedCrimeTotal = true; }
+        Check(rejectedCrimeTotal, "Reject negative crime total");
+        var restoredCrime = new CrimeCycle(0, 27);
+        Check(restoredCrime.ResolvedCount == 27 && restoredCrime.Stage == CrimeStage.Waiting, "Restores only completed count, not active crime");
+        restoredCrime.Tick(10); restoredCrime.StartEncounter(11); restoredCrime.Defeat(0, 12);
+        restoredCrime.ClearTotal();
+        Check(restoredCrime.Stage == CrimeStage.Active && restoredCrime.DefeatedCount == 1 && restoredCrime.ResolvedCount == 0, "Resetting crime count does not interrupt an active crime");
+        restoredCrime.Defeat(1, 13);
+        Check(restoredCrime.ResolvedCount == 1, "New crime increments after reset");
+        var saturatedCrime = new CrimeCycle(0, CrimeProgressSave.MaxCompleted);
+        saturatedCrime.Tick(10); saturatedCrime.StartEncounter(11); saturatedCrime.Defeat(0, 12); saturatedCrime.Defeat(1, 13);
+        Check(saturatedCrime.ResolvedCount == CrimeProgressSave.MaxCompleted, "Crime total does not overflow");
+        var clock = new DayNightClock(0.99);
+        clock.Advance(14.4);
+        Check(Math.Abs(clock.Phase - 0.01) < 0.000001, "Day clock wraps midnight");
+        double phaseBefore = clock.Phase;
+        clock.Advance(-2); clock.Advance(0); clock.Advance(double.NaN); clock.Advance(double.PositiveInfinity);
+        Check(clock.Phase == phaseBefore, "Day clock ignores invalid or nonpositive elapsed time");
+        clock.Advance(DayNightClock.DayDurationSeconds * 3);
+        Check(Math.Abs(clock.Phase - phaseBefore) < 0.000001, "Complete days retain phase");
+        Check(Math.Abs(new DayNightClock(-0.25).Phase - 0.75) < 0.000001, "Day clock normalizes negative phases");
+        Check(Math.Abs(new DayNightClock(double.NaN).Phase - 0.42) < 0.000001, "Day clock handles invalid phase");
+        var melee = new EnemyAttackTiming();
+        Check(!melee.Tick(0, false) && !melee.WindingUp, "Enemy waits until player enters range");
+        Check(!melee.Tick(1, true) && melee.WindingUp, "Enemy warns before attacking");
+        Check(!melee.Tick(1.5, true) && melee.WindingUp, "Enemy wind-up lasts through warning");
+        Check(melee.Tick(1.7, true) && !melee.WindingUp, "Enemy strikes after warning");
+        Check(!melee.Tick(2, true) && !melee.WindingUp, "Enemy cooldown prevents repeated strikes");
+        Check(!melee.Tick(3.3, true) && melee.WindingUp, "Enemy can attack again after cooldown");
+        Check(!melee.Tick(4.0, false) && !melee.WindingUp, "Leaving range avoids the strike");
+        Check(!melee.Tick(5.6, true) && melee.WindingUp, "Enemy starts another warning");
+        melee.Interrupt(7.2);
+        Check(!melee.WindingUp && !melee.Tick(7, true), "Hit stun interrupts and delays attack");
+        Check(!melee.Tick(7.3, true) && melee.WindingUp, "Enemy recovers after interruption");
+        Console.WriteLine("Story, swing, health, graphics, checkpoints, combat, crime and day-clock rules passed.");
     }
 }

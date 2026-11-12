@@ -9,7 +9,7 @@ namespace ComicSpidey
         private GraphicsOptionsData options;
         private Light sun;
         private Camera view;
-        private bool confirmReset;
+        private bool confirmReset, confirmCrimeReset;
         private bool available = true;
         public bool IsOpen { get; private set; }
         private float previousTimeScale = 1f;
@@ -57,7 +57,7 @@ namespace ComicSpidey
         {
             if (IsOpen == open) return;
             if (open) { previousTimeScale = Time.timeScale; Time.timeScale = 0f; }
-            else { Time.timeScale = previousTimeScale; confirmReset = false; }
+            else { Time.timeScale = previousTimeScale; confirmReset = confirmCrimeReset = false; }
             IsOpen = open;
         }
 
@@ -76,8 +76,8 @@ namespace ComicSpidey
                 return;
             }
             GUI.Box(new Rect(0, 0, Screen.width, Screen.height), "");
-            float x = Screen.width * 0.2f, width = Screen.width * 0.6f, h = Screen.height * 0.10f;
-            float y = Screen.height * 0.035f, gap = Screen.height * 0.018f;
+            float x = Screen.width * 0.2f, width = Screen.width * 0.6f, h = Screen.height * 0.09f;
+            float y = Screen.height * 0.035f, gap = Screen.height * 0.014f;
             if (GUI.Button(new Rect(x, y, width, h), "Quality: " + GraphicsOptionsData.QualityNames[options.Quality], button)) { options.CycleQuality(); Apply(); }
             y += h + gap;
             if (GUI.Button(new Rect(x, y, width, h), "Frame rate target: " + GraphicsOptionsData.FrameRates[options.FrameRateIndex], button)) { options.CycleFrameRate(); Apply(); }
@@ -88,11 +88,22 @@ namespace ComicSpidey
             y += h + gap;
             if (GUI.Button(new Rect(x, y, width, h), confirmReset ? "CONFIRM RESET TEST PROGRESS" : "RESET TEST PROGRESS", button))
             {
-                if (!confirmReset) confirmReset = true;
+                if (!confirmReset) { confirmReset = true; confirmCrimeReset = false; }
                 else
                 {
                     var controller = GetComponent<PrototypeController>();
                     if (controller != null) controller.ResetTestProgress();
+                    SetOpen(false);
+                }
+            }
+            y += h + gap;
+            if (GUI.Button(new Rect(x, y, width, h), confirmCrimeReset ? "CONFIRM RESET CRIME COUNT" : "RESET CRIME COUNT", button))
+            {
+                if (!confirmCrimeReset) { confirmCrimeReset = true; confirmReset = false; }
+                else
+                {
+                    var controller = GetComponent<PrototypeController>();
+                    if (controller != null) controller.ResetCrimeProgress();
                     SetOpen(false);
                 }
             }

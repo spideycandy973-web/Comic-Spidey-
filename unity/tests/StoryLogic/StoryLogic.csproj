@@ -14,6 +14,9 @@
     <Compile Include="../../ComicSpidey/Assets/Scripts/OctopusFightRules.cs" Link="OctopusFightRules.cs" />
     <Compile Include="../../ComicSpidey/Assets/Scripts/CombatCombo.cs" Link="CombatCombo.cs" />
     <Compile Include="../../ComicSpidey/Assets/Scripts/CrimeCycle.cs" Link="CrimeCycle.cs" />
+    <Compile Include="../../ComicSpidey/Assets/Scripts/CrimeProgressSave.cs" Link="CrimeProgressSave.cs" />
+    <Compile Include="../../ComicSpidey/Assets/Scripts/DayNightClock.cs" Link="DayNightClock.cs" />
+    <Compile Include="../../ComicSpidey/Assets/Scripts/EnemyAttackTiming.cs" Link="EnemyAttackTiming.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 </Project>

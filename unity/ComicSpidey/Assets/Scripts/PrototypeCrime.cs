@@ -14,7 +14,9 @@ namespace ComicSpidey
             new Vector3(20, 0, -2), new Vector3(60, 0, -2)
         };
         private readonly List<PrototypeEnemy> attackers = new List<PrototypeEnemy>();
+        private const string ProgressKey = "comicspidey.prototype.crime.completed.v1";
         private CrimeCycle cycle;
+        private bool progressWritable;
         private PrototypeController player;
         private Vector3 site;
         private float nextSpawnAttempt;
@@ -34,14 +36,17 @@ namespace ComicSpidey
                 }
                 if (cycle.Stage == CrimeStage.Active) return "Stop attackers " + cycle.DefeatedCount + "/2";
                 if (cycle.Stage == CrimeStage.Resolved) return "Crime stopped!";
-                return "Free roam — crimes stopped: " + cycle.ResolvedCount;
+                return "Free roam — crimes stopped: " + cycle.ResolvedCount + (progressWritable ? "" : " (save unavailable)");
             }
         }
 
         public void Initialize(PrototypeController controller)
         {
             player = controller;
-            cycle = new CrimeCycle(Time.time);
+            string saved = PlayerPrefs.GetString(ProgressKey, "");
+            int count = 0;
+            progressWritable = !PlayerPrefs.HasKey(ProgressKey) || CrimeProgressSave.TryDecode(saved, out count);
+            cycle = new CrimeCycle(Time.time, count);
             var shader = Resources.Load<Shader>("Hero/HeroLit");
             beacon = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             beacon.name = "CrimeTestMarker";
@@ -122,7 +127,29 @@ namespace ComicSpidey
         {
             int index = id == "crime-0" ? 0 : id == "crime-1" ? 1 : -1;
             if (!cycle.Defeat(index, Time.time)) return;
-            if (cycle.Stage == CrimeStage.Resolved) RemoveAttackers();
+            if (cycle.Stage == CrimeStage.Resolved)
+            {
+                // Never overwrite an unrecognised/corrupted or future save.
+                if (progressWritable)
+                {
+                    PlayerPrefs.SetString(ProgressKey, CrimeProgressSave.Encode(cycle.ResolvedCount));
+                    PlayerPrefs.Save();
+                }
+                RemoveAttackers();
+            }
+        }
+
+        public static void ClearSavedProgress()
+        {
+            PlayerPrefs.DeleteKey(ProgressKey);
+            PlayerPrefs.Save();
+        }
+
+        public void ResetCount()
+        {
+            ClearSavedProgress();
+            if (cycle != null) cycle.ClearTotal();
+            progressWritable = true;
         }
 
         public void PlayerDefeated()

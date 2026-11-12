@@ -12,7 +12,14 @@ namespace ComicSpidey
         private int defeatedMask;
         private double until;
 
-        public CrimeCycle(double now) { Stage = CrimeStage.Waiting; until = now + 10; }
+        public CrimeCycle(double now, int resolvedCount = 0)
+        {
+            if (resolvedCount < 0 || resolvedCount > CrimeProgressSave.MaxCompleted)
+                throw new System.ArgumentOutOfRangeException(nameof(resolvedCount));
+            ResolvedCount = resolvedCount;
+            Stage = CrimeStage.Waiting;
+            until = now + 10;
+        }
 
         public CrimeEvent Tick(double now)
         {
@@ -51,11 +58,14 @@ namespace ComicSpidey
             if (DefeatedCount == 2)
             {
                 Stage = CrimeStage.Resolved;
-                ResolvedCount++;
+                if (ResolvedCount < CrimeProgressSave.MaxCompleted) ResolvedCount++;
                 until = now + 6;
             }
             return true;
         }
+
+        // Reset only the total; do not interrupt an active encounter.
+        public void ClearTotal() { ResolvedCount = 0; }
 
         public void Fail(double now)
         {

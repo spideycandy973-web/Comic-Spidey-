@@ -36,7 +36,11 @@ Add what happened and a screenshot or screen recording if possible.
       appears. Reach the gold marker, defeat two attackers with tap/hold combat,
       and check the stopped count. Wait for another alert. Ignore an alert to
       check expiry; let attackers defeat the player to check cleanup/retry.
-      These crimes are prototype encounters and the count is session-only.
+      Close/reopen and check that the stopped count persists; an unfinished crime
+      restarts as a new alert rather than resuming. These are prototype crimes.
+- [ ] Reset the crime count in Settings (two taps); confirm it becomes zero but
+      the story checkpoint and graphics choices stay unchanged. Resetting the
+      story checkpoint should likewise leave the crime count unchanged.
 - [ ] Return to Story Test on next launch; its checkpoint is unchanged by Free Roam.
 - [ ] Check the supplied road strips appear with correct texture and orientation;
       check streets, intersections and player contact for flicker or clipping.
@@ -48,6 +52,8 @@ Add what happened and a screenshot or screen recording if possible.
       for a heavy hit that briefly stuns an attacker. Release outside the button
       or lose focus to cancel. Try misses, cooldowns and multitouch with movement.
       No combat animations yet; all new input and hit/stun behavior is untested.
+- [ ] Attackers flash orange before striking; dodge during the warning and check
+      they cannot hit the player through a wall. A hit should interrupt them.
 - [ ] Attack button damages a nearby attacker; they pursue and damage the player.
 - [ ] Dodge moves in the chosen direction on the ground, briefly avoids damage,
       cannot be spammed, and does not go through walls. No dodge animation yet.
@@ -78,6 +84,8 @@ until actually tested on the phone. This is not the full robbery mission.
 - [ ] Buildings, streets, lights and skyline resemble the supplied comic references.
 - [ ] Comic outlines, colours and lighting look right without obscuring gameplay.
 - [ ] Traffic and pedestrians move naturally; collisions prevent walking through objects.
+- [ ] Watch the 12-minute experimental day/night lighting cycle; check readability,
+      shadows, transitions and pause/resume. It is not a complete sky or weather.
 - [ ] Explore districts, rooftops and interiors; day/night and weather work.
 - [ ] Crime, emergency services, ambient city sounds and random activities work.
 
@@ -111,8 +119,8 @@ until actually tested on the phone. This is not the full robbery mission.
   graphics settings, test-encounter checkpoint, experimental comic shader and
   converted pedestrian patrols, supplied road batches, test mode selection and
   prototype dodge, static vehicle display, supplied building previews and
-  separate Octopus test fight, experimental combat combos and free-roam crime
-  encounters are
+  separate Octopus test fight, experimental combat combos, free-roam crime
+  encounters, saved test count and prototype day/night lighting are
   **not yet Unity-built or phone-tested**. They are not the final
   city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the

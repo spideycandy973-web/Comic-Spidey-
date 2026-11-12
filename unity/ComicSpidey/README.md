@@ -13,9 +13,13 @@ The source now presents **Story Test**, **Free Roam Test**, and **Boss Test**
 choices; these are limited test scenarios, not the full campaign or open world.
 Free Roam source now includes repeatable, timed crime alerts at a small set of
 street sites. Reaching a marker starts an encounter with two placeholder attackers;
-completion updates a session-only counter, and expiry or player defeat cancels it.
-This has not been built or phone-tested and is not the final crime/progression,
-civilian-rescue or police system. They have not been built or tested in Unity. The prototype contains
+completion saves a separate local test-crime counter, and expiry or player
+defeat cancels the current encounter. In-progress crimes are not restored after
+restart. Settings offers a separately confirmed reset of that counter, without
+resetting the story test or graphics preferences. An unrecognized/corrupted
+counter is not overwritten automatically. This has not been built or
+phone-tested and is not the final crime/progression, civilian-rescue or police
+system. The prototype contains
 no intentional online gameplay dependency, but airplane-mode operation and the
 complete offline game still require device testing.
 The runtime bootstrap creates a small temporary block city, placeholder capsule,
@@ -29,7 +33,9 @@ movement, jumping, multitouch joystick/look areas and an experimental hold-to-we
 tether. Desktop controls are WASD, Space, right-mouse drag, E (web), F (attack) and
 Left Shift (dodge); tap F for light attacks or hold and release for a heavy.
 The prototype fight has light chains, a heavier stun attack and enemy hit stun;
-the attack has no combat animation and is not Unity/device-tested. A prototype
+placeholder enemies briefly flash orange before melee strikes and cannot attack
+through obstacles. These attacks have no combat animation and are not
+Unity/device-tested. A prototype
 ground dodge has a cooldown and a short damage
 protection window; it currently has no dodge animation and is not Unity-tested.
 Source now includes experimental wall climbing and wall jumping, plus building
@@ -66,6 +72,10 @@ layout are omitted. Import, appearance, web attachment, collision and mobile
 performance have not been verified in Unity. Run
 `unity/tools/convert_neighborhood_building.py /path/to/Untitled.glb` to
 reproduce the building conversion.
+A basic, unsaved 12-minute day/night cycle changes the test sun, ambient
+lighting and solid sky colour, pausing with the settings menu. There are no
+clouds, stars, weather or final nighttime lighting; the appearance and mobile
+cost are untested in Unity and on devices.
 The prototype material now uses stepped
 lighting and a subtle halftone pattern as a first comic-style experiment, not
 the final requested visual style. This shader, the conversion, the approximate

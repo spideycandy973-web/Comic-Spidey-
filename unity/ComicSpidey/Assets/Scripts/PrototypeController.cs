@@ -26,7 +26,7 @@ namespace ComicSpidey
         private readonly CombatHealth health = new CombatHealth(6);
         private readonly List<PrototypeEnemy> enemies = new List<PrototypeEnemy>();
         private float invulnerableUntil, respawnNoticeUntil;
-        private Material enemyMaterial, enemyHitMaterial;
+        private Material enemyMaterial, enemyHitMaterial, enemyWarningMaterial;
         private bool trackingMouse;
         private Vector3 lastMouse;
         private LineRenderer webLine;
@@ -271,10 +271,11 @@ namespace ComicSpidey
 
         private void EnsureEnemyMaterials()
         {
-            if (enemyMaterial != null && enemyHitMaterial != null) return;
+            if (enemyMaterial != null && enemyHitMaterial != null && enemyWarningMaterial != null) return;
             Shader shader = Resources.Load<Shader>("Hero/HeroLit");
             enemyMaterial = new Material(shader) { color = new Color(0.44f, 0.12f, 0.22f) };
             enemyHitMaterial = new Material(shader) { color = new Color(1f, 0.8f, 0.25f) };
+            enemyWarningMaterial = new Material(shader) { color = new Color(1f, 0.25f, 0.05f) };
         }
 
         private PrototypeEnemy CreateEnemy(string id, Vector3 position, System.Action<string> onDefeated = null)
@@ -287,7 +288,7 @@ namespace ComicSpidey
             enemyMotor.height = 2f;
             enemyMotor.radius = 0.45f;
             var actor = enemy.AddComponent<PrototypeEnemy>();
-            actor.Initialize(this, id, enemyMaterial, enemyHitMaterial, onDefeated);
+            actor.Initialize(this, id, enemyMaterial, enemyHitMaterial, enemyWarningMaterial, onDefeated);
             enemies.Add(actor);
             return actor;
         }
@@ -397,7 +398,8 @@ namespace ComicSpidey
             enemies.Clear();
             if (enemyMaterial != null) Destroy(enemyMaterial);
             if (enemyHitMaterial != null) Destroy(enemyHitMaterial);
-            enemyMaterial = enemyHitMaterial = null;
+            if (enemyWarningMaterial != null) Destroy(enemyWarningMaterial);
+            enemyMaterial = enemyHitMaterial = enemyWarningMaterial = null;
             encounterSpawned = false;
             checkpoint = new PrototypeCheckpoint();
             story = new StoryProgress();
@@ -415,6 +417,13 @@ namespace ComicSpidey
             combo.Reset();
             PlayerPrefs.DeleteKey(CheckpointKey);
             PlayerPrefs.Save();
+        }
+
+        // Separate from the story checkpoint, graphics and all future campaign saves.
+        public void ResetCrimeProgress()
+        {
+            if (crime != null) crime.ResetCount();
+            else PrototypeCrime.ClearSavedProgress();
         }
 
         public void ReceiveDamage(int amount)
@@ -442,6 +451,7 @@ namespace ComicSpidey
         {
             if (enemyMaterial != null) Destroy(enemyMaterial);
             if (enemyHitMaterial != null) Destroy(enemyHitMaterial);
+            if (enemyWarningMaterial != null) Destroy(enemyWarningMaterial);
             if (webLine != null && webLine.material != null) Destroy(webLine.material);
         }
 

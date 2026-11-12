@@ -105,6 +105,7 @@ namespace ComicSpidey
             view.tag = "MainCamera";
             var camera = view.AddComponent<Camera>();
             view.AddComponent<AudioListener>();
+            view.AddComponent<PrototypeDayNight>().Initialize(light, camera);
             var settings = player.AddComponent<PrototypeSettings>();
             settings.Initialize(camera, light);
             var playerController = player.AddComponent<PrototypeController>();

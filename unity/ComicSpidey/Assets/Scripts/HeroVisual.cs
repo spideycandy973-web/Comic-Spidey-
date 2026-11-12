@@ -10,6 +10,8 @@ namespace ComicSpidey
         private Animation animationPlayer;
         private string currentClip;
         private Material suitMaterial;
+        private bool wasGrounded;
+        private float landingUntil;
 
         public bool Initialize(GameObject fallback)
         {
@@ -55,6 +57,9 @@ namespace ComicSpidey
             AddClip("stand", WrapMode.Loop);
             AddClip("run", WrapMode.Loop);
             AddClip("hanging", WrapMode.Loop);
+            AddClip("jumpUp", WrapMode.Once);
+            AddClip("jumpDown", WrapMode.Loop);
+            AddClip("braceDrop", WrapMode.Once);
             Play("stand");
             fallback.SetActive(false);
             return true;
@@ -74,8 +79,14 @@ namespace ComicSpidey
         public void UpdateMotion(bool grounded, bool tethered, Vector3 velocity)
         {
             if (animationPlayer == null) return;
-            var horizontal = new Vector2(velocity.x, velocity.z).sqrMagnitude;
-            Play(tethered ? "hanging" : (grounded && horizontal > 0.4f ? "run" : "stand"));
+            float horizontal = new Vector2(velocity.x, velocity.z).sqrMagnitude;
+            if (grounded && !wasGrounded && !tethered) landingUntil = Time.time + 0.3f;
+            wasGrounded = grounded;
+            if (tethered) Play("hanging");
+            else if (!grounded) Play(velocity.y > 0.5f ? "jumpUp" : "jumpDown");
+            else if (horizontal > 0.4f) Play("run");
+            else if (Time.time < landingUntil) Play("braceDrop");
+            else Play("stand");
         }
 
         private void Play(string name)

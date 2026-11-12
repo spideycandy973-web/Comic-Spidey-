@@ -65,6 +65,7 @@ namespace ComicSpidey
                 anchors.Add(anchor.transform);
             }
 
+            AddSuppliedRoads();
             AddSuppliedStreetLights();
             AddTestPedestrians();
 
@@ -98,8 +99,47 @@ namespace ComicSpidey
             view.tag = "MainCamera";
             var camera = view.AddComponent<Camera>();
             view.AddComponent<AudioListener>();
-            player.AddComponent<PrototypeSettings>().Initialize(camera, light);
-            player.AddComponent<PrototypeController>().Initialize(view.transform, anchors);
+            var settings = player.AddComponent<PrototypeSettings>();
+            settings.Initialize(camera, light);
+            var playerController = player.AddComponent<PrototypeController>();
+            playerController.Initialize(view.transform, anchors);
+            var modeMenu = player.AddComponent<PrototypeModeMenu>();
+            playerController.InitializeModeMenu(modeMenu);
+            modeMenu.Initialize(playerController, settings, marker);
+        }
+
+        private static void AddSuppliedRoads()
+        {
+            var source = Resources.Load<GameObject>("City/road_strip");
+            var texture = Resources.Load<Texture2D>("City/road_strip");
+            var filter = source != null ? source.GetComponentInChildren<MeshFilter>() : null;
+            if (filter == null || filter.sharedMesh == null || texture == null) return;
+            var material = MakeMaterial(Color.white);
+            material.mainTexture = texture;
+            // Batch strips per street so the supplied mesh doesn't add hundreds
+            // of individual draw calls. The original cube roads remain as a
+            // fallback and supply the ground collision. This is a test layout.
+            for (int street = -2; street <= 3; street++)
+            for (int axis = 0; axis < 2; axis++)
+            {
+                var pieces = new List<CombineInstance>();
+                float center = street * 40 - 2;
+                for (int segment = 0; segment < 20; segment++)
+                for (int lane = 0; lane < 4; lane++)
+                {
+                    float along = -120 + segment * 12;
+                    float across = center + (lane - 1.5f) * 3.3f;
+                    var position = axis == 0 ? new Vector3(across, 0.07f, along) : new Vector3(along, 0.09f, across);
+                    var rotation = axis == 0 ? Quaternion.identity : Quaternion.Euler(0, 90, 0);
+                    pieces.Add(new CombineInstance { mesh = filter.sharedMesh,
+                        transform = Matrix4x4.TRS(position, rotation, new Vector3(1.5f, 1, 2)) });
+                }
+                var combined = new Mesh { name = "NeighborhoodRoadBatch" };
+                combined.CombineMeshes(pieces.ToArray(), true, true);
+                var road = new GameObject("SuppliedRoadBatch");
+                road.AddComponent<MeshFilter>().sharedMesh = combined;
+                road.AddComponent<MeshRenderer>().sharedMaterial = material;
+            }
         }
 
         private static void AddTestPedestrians()

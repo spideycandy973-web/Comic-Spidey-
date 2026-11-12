@@ -16,7 +16,7 @@ function loadFbx(name) {
 }
 test('hero FBX files contain compatible skeletons, skinned mesh and clips', () => {
   let original;
-  for (const name of ['stand', 'run', 'hanging']) {
+  for (const name of ['stand', 'run', 'hanging', 'jumpUp', 'jumpDown', 'braceDrop']) {
     const scene = loadFbx(name);
     let mesh;
     scene.traverse(node => { if (node.isSkinnedMesh) mesh = node; });
@@ -78,4 +78,14 @@ test('citizen sources contain rigs and walk clips; converted FBX files exist', a
     assert.equal(fbx.subarray(0, 20).toString('ascii'), 'Kaydara FBX Binary  ');
     assert.ok(fbx.length > 100000, `${name} converted FBX is nonempty`);
   }
+});
+
+test('neighborhood road conversion contains expected mesh and JPEG', () => {
+  const road = path => new URL(`../../ComicSpidey/Assets/Resources/City/${path}`, import.meta.url);
+  const obj = readFileSync(road('road_strip.obj'), 'utf8');
+  assert.equal((obj.match(/^v /gm) || []).length, 138);
+  assert.equal((obj.match(/^vt /gm) || []).length, 138);
+  assert.equal((obj.match(/^vn /gm) || []).length, 138);
+  assert.equal((obj.match(/^f /gm) || []).length, 72);
+  assert.equal(readFileSync(road('road_strip.jpg')).subarray(0, 3).toString('hex'), 'ffd8ff');
 });

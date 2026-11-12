@@ -13,6 +13,7 @@ Add what happened and a screenshot or screen recording if possible.
 
 ## Install and stability
 - [ ] Installs and opens without a crash.
+- [ ] Enable airplane mode before launch; start and play without internet.
 - [ ] Reopens after closing, locking/unlocking and switching apps.
 - [ ] Runs for 10 minutes without a crash, major heat or serious slowdown.
 
@@ -24,8 +25,14 @@ Add what happened and a screenshot or screen recording if possible.
 - [ ] Swing continuously between buildings; no web through walls or ground.
 - [ ] Climb walls, wall-run and transition to rooftops.
 - [ ] Air tricks and appropriate jumping, falling, landing and swinging animations.
+      (Jump/fall/landing clips were added to source but have not been phone-tested.)
 
-## Next test build: temporary encounter only
+## Next test build: temporary modes and encounter only
+- [ ] Select Story Test; the test objective and encounter work.
+- [ ] Relaunch and select Free Roam Test; explore without starting the encounter.
+- [ ] Return to Story Test on next launch; its checkpoint is unchanged by Free Roam.
+- [ ] Check the supplied road strips appear with correct texture and orientation;
+      check streets, intersections and player contact for flicker or clipping.
 - [ ] Follow the gold marker and two placeholder attackers appear.
 - [ ] Attack button damages a nearby attacker; they pursue and damage the player.
 - [ ] Defeat both attackers; the test-encounter completion message appears.
@@ -83,7 +90,8 @@ until actually tested on the phone. This is not the full robbery mission.
   window textures, experimental swing momentum and a basic placeholder enemy
   encounter, converted supplied street lights, experimental climb/web changes
   graphics settings, test-encounter checkpoint, experimental comic shader and
-  converted pedestrian patrols are **not yet Unity-built or phone-tested**. They are not the final
+  converted pedestrian patrols, supplied road batches and test mode selection
+  are **not yet Unity-built or phone-tested**. They are not the final
   city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the
   requested campaign. Full combat, full Story and most checklist items are absent.

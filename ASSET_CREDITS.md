@@ -18,7 +18,8 @@ If any supplied asset permission or attribution is incorrect, remove/replace it 
 ## Unity prototype
 
 `unity/ComicSpidey/Assets/Resources/Hero/` contains `stand.fbx`, `run.fbx`,
-`hanging.fbx` and the suit texture from the user's `spiderman.zip`. The FBX
+`hanging.fbx`, `jumpUp.fbx`, `jumpDown.fbx`, `braceDrop.fbx` and the suit
+texture from the user's `spiderman.zip`. The FBX
 files contain the supplied rigged model and Mixamo clips. The user confirmed
 permission to include and publicly redistribute these character and animation
 assets; ownership and the chain of rights have not been independently verified.
@@ -32,3 +33,11 @@ black-and-red model.
   and animation actions in both exports. Three.js 0.160.1's FBXLoader rejects
   an empty eye animation track in the exports; Unity import and actual visual/
   animation behaviour are not yet verified and may also require corrections.
+
+- **Unity neighborhood road test:** `unity/ComicSpidey/Assets/Resources/City/`
+  includes a straight road strip and its base-colour atlas extracted from
+  `source/Untitled.glb` in the user-supplied neighborhood pack. The user
+  confirmed permission to include and redistribute the pack; the ownership and
+  license chain have not been independently verified. The converted mesh is
+  batched in a temporary layout, not the supplied full city, and is untested
+  in Unity. Reproduce with `unity/tools/convert_neighborhood_road.py`.

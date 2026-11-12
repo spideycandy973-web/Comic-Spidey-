@@ -27,6 +27,8 @@ namespace ComicSpidey
         private LineRenderer webLine;
         private HeroVisual heroVisual;
         private PrototypeSettings settings;
+        private PrototypeModeMenu modeMenu;
+        private bool storyMode;
         private float climbBlockedUntil;
         private bool climbing;
         private StoryProgress story = new StoryProgress();
@@ -46,7 +48,14 @@ namespace ComicSpidey
             webLine.startWidth = webLine.endWidth = 0.04f;
             webLine.positionCount = 2;
             webLine.enabled = false;
-            LoadTestCheckpoint();
+        }
+
+        public void InitializeModeMenu(PrototypeModeMenu menu) { modeMenu = menu; }
+
+        public void StartMode(bool useStory)
+        {
+            storyMode = useStory;
+            if (storyMode) LoadTestCheckpoint();
         }
 
         // Use viewport-relative sizes so the touch targets scale on phones.
@@ -58,7 +67,7 @@ namespace ComicSpidey
 
         private void Update()
         {
-            if (cameraTransform == null) return;
+            if (cameraTransform == null || (modeMenu != null && modeMenu.IsChoosing)) return;
             if (settings != null && settings.IsOpen)
             {
                 ResetInput();
@@ -116,7 +125,7 @@ namespace ComicSpidey
             if ((collisions & CollisionFlags.Below) != 0 && velocity.y < 0) velocity.y = -2f;
             // Stop after the first experimental encounter; the following legacy
             // objectives are outside this small test world and are not the campaign.
-            if (story.Stage == 0 && story.Visit(transform.position.x, transform.position.y - 1f, transform.position.z))
+            if (storyMode && story.Stage == 0 && story.Visit(transform.position.x, transform.position.y - 1f, transform.position.z))
             {
                 checkpoint.StartEncounter();
                 SaveTestCheckpoint();
@@ -230,7 +239,7 @@ namespace ComicSpidey
 
         private void TryAttack()
         {
-            if (story.Stage != 1 || Time.time < nextAttack) return;
+            if (!storyMode || story.Stage != 1 || Time.time < nextAttack) return;
             nextAttack = Time.time + 0.45f;
             PrototypeEnemy target = null;
             float bestSquared = 2.8f * 2.8f;
@@ -379,14 +388,15 @@ namespace ComicSpidey
 
         private void OnGUI()
         {
+            if (modeMenu != null && modeMenu.IsChoosing) return;
             float unit = Mathf.Min(Screen.width, Screen.height);
             int font = Mathf.Max(16, Mathf.RoundToInt(unit * 0.035f));
             var panel = new GUIStyle(GUI.skin.box) { fontSize = font, alignment = TextAnchor.MiddleCenter, wordWrap = true };
             var label = new GUIStyle(GUI.skin.label) { fontSize = font, wordWrap = true };
-            string objective = story.Stage >= 2 ? "Test encounter complete" : story.Current.Title;
+            string objective = !storyMode ? "Free roam — test city" : story.Stage >= 2 ? "Test encounter complete" : story.Current.Title;
             GUI.Box(new Rect(ButtonMargin, ButtonMargin, Screen.width * 0.45f, unit * 0.09f), "PROTOTYPE - " + objective, panel);
             string status = "Health " + health.Current + "/" + health.Maximum;
-            if (story.Stage == 1) status += "   Attackers " + story.DefeatedCount + "/2";
+            if (storyMode && story.Stage == 1) status += "   Attackers " + story.DefeatedCount + "/2";
             if (Time.time < respawnNoticeUntil) status += "   RETRY";
             if (climbing) status += "   CLIMB";
             GUI.Label(new Rect(ButtonMargin, unit * 0.13f, Screen.width * 0.55f, unit * 0.1f), status, label);

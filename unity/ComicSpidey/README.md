@@ -9,9 +9,14 @@ was too small; the screenshot showed portrait orientation and placeholder blocks
 Changes after that build still need a new Unity build and device testing.
 
 `Assets/Scenes/Prototype.unity` is an initial scene registered in build settings.
+The source now presents **Story Test** and **Free Roam Test** choices; these are
+limited to the small existing test city and encounter, not the full campaign or
+open world. They have not been built or tested in Unity. The prototype contains
+no intentional online gameplay dependency, but airplane-mode operation and the
+complete offline game still require device testing.
 The runtime bootstrap creates a small temporary block city, placeholder capsule,
 camera and directional light. It attempts to use the supplied rigged Spider-Man
-FBX with its texture and stand, run and hanging clips. These assets were supplied
+FBX with its texture and stand, run, hanging, jump, fall and landing clips. These assets were supplied
 by the user; redistribution permission was confirmed, but ownership and licensing
 have not been independently verified. If the model or texture cannot be loaded,
 the capsule remains visible. Build #3 showed the textured red-and-blue hero model on the user's phone, but animation and rig behaviour have not been fully verified. The
@@ -43,7 +48,9 @@ system and has not been verified in Unity or on a device.
 The next revision requests landscape orientation on mobile, enlarges text and
 touch targets, and adds temporary road markings and window textures. A supplied
 neighborhood street-light mesh and base-colour texture have been converted to
-OBJ/PNG and placed in the test world. The prototype material now uses stepped
+OBJ/PNG and placed in the test world. A straight road mesh and colour atlas
+from the same pack are converted to OBJ/JPEG and batched into test streets.
+The prototype material now uses stepped
 lighting and a subtle halftone pattern as a first comic-style experiment, not
 the final requested visual style. This shader, the conversion, the approximate
 pole collision and the other changes are unverified in Unity and on the phone. They
@@ -54,6 +61,9 @@ render scaling may be unsupported by a device or rendering backend. None of
 these settings have yet been verified in Unity or on the phone. The source GLB and
 repeatable conversion tool are `godot/assets/city/street-light.glb` and
 `unity/tools/convert_street_light.py` (paths relative to the repository root).
+`unity/tools/convert_neighborhood_road.py` reproduces the road conversion from
+`source/Untitled.glb` inside the user's neighborhood archive. Road appearance,
+orientation, collision and performance still need Unity and phone tests.
 
 ## Next build and testing steps
 

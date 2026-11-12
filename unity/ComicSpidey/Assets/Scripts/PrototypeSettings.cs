@@ -10,6 +10,7 @@ namespace ComicSpidey
         private Light sun;
         private Camera view;
         private bool confirmReset;
+        private bool available = true;
         public bool IsOpen { get; private set; }
         private float previousTimeScale = 1f;
 
@@ -20,6 +21,8 @@ namespace ComicSpidey
         {
             return IsOpen || MenuButton.Contains(new Vector2(point.x, Screen.height - point.y));
         }
+
+        public void SetAvailable(bool value) { available = value; }
 
         public void Initialize(Camera cameraView, Light sunLight)
         {
@@ -62,7 +65,7 @@ namespace ComicSpidey
 
         private void OnGUI()
         {
-            if (options == null) return;
+            if (options == null || !available) return;
             GUI.depth = -10;
             float unit = Mathf.Min(Screen.width, Screen.height);
             var button = new GUIStyle(GUI.skin.button) { fontSize = Mathf.Max(16, Mathf.RoundToInt(unit * 0.035f)), wordWrap = true };

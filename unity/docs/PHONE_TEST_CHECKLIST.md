@@ -31,6 +31,11 @@ Add what happened and a screenshot or screen recording if possible.
 - [ ] Select Boss Test; the supplied Doctor Octopus model and textures appear.
       Move near him, dodge the red slam warning, attack during recovery, defeat
       all four phases, then check retry after player defeat. He is not animated.
+- [ ] Find the eight cyan test tokens on streets and rooftops. Check the nearest
+      direction and distance, proximity pickup, no pickup through a wall, and
+      that collected tokens stay gone after reopening Free Roam.
+- [ ] In Settings, confirm Reset Test Tokens: tokens return; the crime count,
+      story checkpoint and graphics options remain unchanged.
 - [ ] Select Story Test; the test objective and encounter work.
 - [ ] Relaunch and select Free Roam Test; after about 10 seconds, a crime alert
       appears. Reach the gold marker, defeat two attackers with tap/hold combat,
@@ -120,7 +125,8 @@ until actually tested on the phone. This is not the full robbery mission.
   converted pedestrian patrols, supplied road batches, test mode selection and
   prototype dodge, static vehicle display, supplied building previews and
   separate Octopus test fight, experimental combat combos, free-roam crime
-  encounters, saved test count and prototype day/night lighting are
+  encounters, saved test count, placeholder collectible tokens and prototype
+  day/night lighting are
   **not yet Unity-built or phone-tested**. They are not the final
   city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the

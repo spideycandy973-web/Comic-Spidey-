@@ -9,7 +9,7 @@ namespace ComicSpidey
         private GraphicsOptionsData options;
         private Light sun;
         private Camera view;
-        private bool confirmReset, confirmCrimeReset;
+        private bool confirmReset, confirmCrimeReset, confirmCollectibleReset;
         private bool available = true;
         public bool IsOpen { get; private set; }
         private float previousTimeScale = 1f;
@@ -57,7 +57,7 @@ namespace ComicSpidey
         {
             if (IsOpen == open) return;
             if (open) { previousTimeScale = Time.timeScale; Time.timeScale = 0f; }
-            else { Time.timeScale = previousTimeScale; confirmReset = confirmCrimeReset = false; }
+            else { Time.timeScale = previousTimeScale; confirmReset = confirmCrimeReset = confirmCollectibleReset = false; }
             IsOpen = open;
         }
 
@@ -88,7 +88,7 @@ namespace ComicSpidey
             y += h + gap;
             if (GUI.Button(new Rect(x, y, width, h), confirmReset ? "CONFIRM RESET TEST PROGRESS" : "RESET TEST PROGRESS", button))
             {
-                if (!confirmReset) { confirmReset = true; confirmCrimeReset = false; }
+                if (!confirmReset) { confirmReset = true; confirmCrimeReset = confirmCollectibleReset = false; }
                 else
                 {
                     var controller = GetComponent<PrototypeController>();
@@ -99,11 +99,22 @@ namespace ComicSpidey
             y += h + gap;
             if (GUI.Button(new Rect(x, y, width, h), confirmCrimeReset ? "CONFIRM RESET CRIME COUNT" : "RESET CRIME COUNT", button))
             {
-                if (!confirmCrimeReset) { confirmCrimeReset = true; confirmReset = false; }
+                if (!confirmCrimeReset) { confirmCrimeReset = true; confirmReset = confirmCollectibleReset = false; }
                 else
                 {
                     var controller = GetComponent<PrototypeController>();
                     if (controller != null) controller.ResetCrimeProgress();
+                    SetOpen(false);
+                }
+            }
+            y += h + gap;
+            if (GUI.Button(new Rect(x, y, width, h), confirmCollectibleReset ? "CONFIRM RESET TOKENS" : "RESET TEST TOKENS", button))
+            {
+                if (!confirmCollectibleReset) { confirmCollectibleReset = true; confirmReset = confirmCrimeReset = false; }
+                else
+                {
+                    var controller = GetComponent<PrototypeController>();
+                    if (controller != null) controller.ResetCollectibleProgress();
                     SetOpen(false);
                 }
             }

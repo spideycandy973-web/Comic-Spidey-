@@ -19,7 +19,12 @@ restart. Settings offers a separately confirmed reset of that counter, without
 resetting the story test or graphics preferences. An unrecognized/corrupted
 counter is not overwritten automatically. This has not been built or
 phone-tested and is not the final crime/progression, civilian-rescue or police
-system. The prototype contains
+system. Eight floating placeholder test tokens can be picked up in Free Roam,
+including on four roofs. The HUD reports the nearest token relative to the camera;
+collection flags use a separate versioned local save and a separate confirmed
+reset. They have no rewards and are not the final collectible art or progression.
+Collection, placement, navigation, saves and resets remain untested in Unity
+and on a phone. The prototype contains
 no intentional online gameplay dependency, but airplane-mode operation and the
 complete offline game still require device testing.
 The runtime bootstrap creates a small temporary block city, placeholder capsule,

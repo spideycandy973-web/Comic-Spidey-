@@ -36,6 +36,7 @@ namespace ComicSpidey
         private bool storyMode, bossMode;
         private PrototypeOctopus boss;
         private PrototypeCrime crime;
+        private PrototypeCollectibles collectibles;
         private float climbBlockedUntil;
         private bool climbing;
         private StoryProgress story = new StoryProgress();
@@ -68,6 +69,8 @@ namespace ComicSpidey
             {
                 crime = gameObject.AddComponent<PrototypeCrime>();
                 crime.Initialize(this);
+                collectibles = gameObject.AddComponent<PrototypeCollectibles>();
+                collectibles.Initialize(transform, cameraTransform);
             }
             if (bossMode)
             {
@@ -426,6 +429,13 @@ namespace ComicSpidey
             else PrototypeCrime.ClearSavedProgress();
         }
 
+        // Test collectibles have a separate key from crimes and the story test.
+        public void ResetCollectibleProgress()
+        {
+            if (collectibles != null) collectibles.ResetProgress();
+            else PrototypeCollectibles.ClearSavedProgress();
+        }
+
         public void ReceiveDamage(int amount)
         {
             if (Time.time < invulnerableUntil || dodge.IsProtected(Time.time) || !health.Damage(amount)) return;
@@ -534,6 +544,8 @@ namespace ComicSpidey
             if (climbing) status += "   CLIMB";
             if (dodge.IsActive(Time.time)) status += "   DODGE";
             GUI.Label(new Rect(ButtonMargin, unit * 0.13f, Screen.width * 0.55f, unit * 0.1f), status, label);
+            if (collectibles != null)
+                GUI.Label(new Rect(ButtonMargin, unit * 0.23f, Screen.width * 0.58f, unit * 0.1f), collectibles.Status, label);
             GUI.Box(new Rect(WebRect.x, Screen.height - WebRect.yMax, WebRect.width, WebRect.height), "HOLD\nWEB", panel);
             GUI.Box(new Rect(JumpRect.x, Screen.height - JumpRect.yMax, JumpRect.width, JumpRect.height), "JUMP", panel);
             GUI.Box(new Rect(AttackRect.x, Screen.height - AttackRect.yMax, AttackRect.width, AttackRect.height), "ATTACK\nTAP/HOLD", panel);

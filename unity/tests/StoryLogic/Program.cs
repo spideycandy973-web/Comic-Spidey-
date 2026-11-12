@@ -187,6 +187,33 @@ static class Program
         melee.Interrupt(7.2);
         Check(!melee.WindingUp && !melee.Tick(7, true), "Hit stun interrupts and delays attack");
         Check(!melee.Tick(7.3, true) && melee.WindingUp, "Enemy recovers after interruption");
-        Console.WriteLine("Story, swing, health, graphics, checkpoints, combat, crime and day-clock rules passed.");
+        var tokens = new CollectibleProgress();
+        Check(tokens.Count == 0 && !tokens.Collect(-1) && !tokens.Collect(8), "Collectibles start empty and reject out-of-range IDs");
+        Check(tokens.Collect(0) && tokens.Collect(7) && !tokens.Collect(7) && tokens.Count == 2, "Unique token collection");
+        Check(CollectibleProgress.TryDecode(tokens.Encode(), out var restoredTokens) && restoredTokens.Contains(0) && restoredTokens.Contains(7) && restoredTokens.Count == 2, "Collectible save round trip");
+        foreach (string invalid in new[] { "", "v2:1", "v1:-1", "v1:+1", "v1: 1", "v1:256", "v1:1:2", "v1:2147483648" })
+            Check(!CollectibleProgress.TryDecode(invalid, out _), "Reject invalid token save: " + invalid);
+        for (int mask = 0; mask < 256; mask++)
+        {
+            Check(CollectibleProgress.TryDecode("v1:" + mask, out var sample), "Decode valid token mask");
+            int expectedCount = 0;
+            for (int bit = 0; bit < CollectibleProgress.Total; bit++)
+            {
+                bool expected = (mask & (1 << bit)) != 0;
+                if (expected) expectedCount++;
+                Check(sample.Contains(bit) == expected, "Restore each token flag");
+            }
+            Check(sample.Count == expectedCount && sample.Encode() == "v1:" + mask, "All token masks round trip");
+        }
+        restoredTokens.Reset();
+        Check(restoredTokens.Count == 0 && restoredTokens.Encode() == "v1:0" && restoredTokens.Collect(7), "Reset makes collected tokens available again");
+        Check(CompassMath.Direction(0, 1, 0, 0, 10) == "ahead", "Compass ahead");
+        Check(CompassMath.Direction(0, 1, 10, 0, 0) == "right", "Compass right");
+        Check(CompassMath.Direction(0, 1, -10, 0, 0) == "left", "Compass left");
+        Check(CompassMath.Direction(0, 1, 0, 0, -10) == "behind", "Compass behind");
+        Check(CompassMath.Direction(1, 0, 0, 0, 10) == "left", "Compass follows camera rotation");
+        Check(CompassMath.Direction(0, 0, 1, 0, 0) == "right", "Compass handles vertical camera");
+        Check(CompassMath.Direction(0, 1, 0, 5, 0) == "above" && CompassMath.Direction(0, 1, 0, -5, 0) == "below", "Compass vertical guidance");
+        Console.WriteLine("Story, swing, health, graphics, checkpoints, combat, crime, day-clock, collectible and compass rules passed.");
     }
 }

@@ -17,6 +17,8 @@
     <Compile Include="../../ComicSpidey/Assets/Scripts/CrimeProgressSave.cs" Link="CrimeProgressSave.cs" />
     <Compile Include="../../ComicSpidey/Assets/Scripts/DayNightClock.cs" Link="DayNightClock.cs" />
     <Compile Include="../../ComicSpidey/Assets/Scripts/EnemyAttackTiming.cs" Link="EnemyAttackTiming.cs" />
+    <Compile Include="../../ComicSpidey/Assets/Scripts/CollectibleProgress.cs" Link="CollectibleProgress.cs" />
+    <Compile Include="../../ComicSpidey/Assets/Scripts/CompassMath.cs" Link="CompassMath.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 </Project>

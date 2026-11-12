@@ -31,7 +31,7 @@ namespace ComicSpidey
         private Vector3 lastMouse;
         private LineRenderer webLine, webShotLine;
         private readonly WebShooter webShooter = new WebShooter();
-        private bool webShotRequested;
+        private bool webShotRequested, rescueRequested;
         private float webShotVisibleUntil, webShotNoticeUntil;
         private string webShotNotice = "";
         private HeroVisual heroVisual;
@@ -111,6 +111,7 @@ namespace ComicSpidey
         private Rect WebRect => new Rect(JumpRect.x, JumpRect.yMax + ButtonMargin, ButtonSize, ButtonSize);
         private Rect AttackRect => new Rect(JumpRect.x, WebRect.yMax + ButtonMargin, ButtonSize, ButtonSize);
         private Rect WebShotRect => new Rect(JumpRect.x - ButtonSize - ButtonMargin, WebRect.y, ButtonSize, ButtonSize);
+        private Rect RescueRect => new Rect(JumpRect.x - ButtonSize - ButtonMargin, AttackRect.y, ButtonSize, ButtonSize);
         private Rect DodgeRect => new Rect(JumpRect.x - ButtonSize - ButtonMargin, JumpRect.y, ButtonSize, ButtonSize);
 
         private void Update()
@@ -127,7 +128,7 @@ namespace ComicSpidey
             if (mantling)
             {
                 UpdateMantle();
-                jumpRequested = attackRequested = heavyAttackRequested = dodgeRequested = webShotRequested = false;
+                jumpRequested = attackRequested = heavyAttackRequested = dodgeRequested = webShotRequested = rescueRequested = false;
                 return;
             }
             if (jumpRequested && webAttached)
@@ -167,7 +168,7 @@ namespace ComicSpidey
                 else if (TryStartMantle(wall))
                 {
                     UpdateMantle();
-                    jumpRequested = attackRequested = heavyAttackRequested = dodgeRequested = webShotRequested = false;
+                    jumpRequested = attackRequested = heavyAttackRequested = dodgeRequested = webShotRequested = rescueRequested = false;
                     return;
                 }
                 else velocity = Vector3.up * 4f - wall.normal * 0.6f;
@@ -211,6 +212,8 @@ namespace ComicSpidey
                 SaveTestCheckpoint();
                 SpawnEncounter();
             }
+            if (rescueRequested && crime != null) crime.TryRescue();
+            rescueRequested = false;
             if (webShotRequested) TryWebShot();
             webShotRequested = false;
             if (attackRequested) TryAttack(heavyAttackRequested);
@@ -345,6 +348,7 @@ namespace ComicSpidey
                 }
                 if (Input.GetKeyDown(KeyCode.LeftShift)) dodgeRequested = true;
                 if (Input.GetKeyDown(KeyCode.Q)) webShotRequested = true;
+                if (Input.GetKeyDown(KeyCode.R)) rescueRequested = true;
                 if (Input.GetMouseButton(1))
                 {
                     Vector3 mouse = Input.mousePosition;
@@ -369,6 +373,7 @@ namespace ComicSpidey
                     if (settings != null && settings.BlocksTouch(p)) continue;
                     if (JumpRect.Contains(p)) jumpRequested = true;
                     else if (DodgeRect.Contains(p)) dodgeRequested = true;
+                    else if (crime != null && crime.RescueAvailable && RescueRect.Contains(p)) rescueRequested = true;
                     else if (!bossMode && WebShotRect.Contains(p)) webShotRequested = true;
                     else if (WebRect.Contains(p) && webFinger == -1) { webFinger = touch.fingerId; AttachWeb(); }
                     else if (AttackRect.Contains(p))
@@ -693,7 +698,7 @@ namespace ComicSpidey
             heavyAttackRequested = false;
             keyboardAttackHeld = false;
             dodgeRequested = false;
-            webShotRequested = false;
+            webShotRequested = rescueRequested = false;
             if (webShotLine != null) webShotLine.enabled = false;
             if (webLine != null) webLine.enabled = false;
             dodge.Cancel();
@@ -743,6 +748,8 @@ namespace ComicSpidey
             GUI.Box(new Rect(AttackRect.x, Screen.height - AttackRect.yMax, AttackRect.width, AttackRect.height), "ATTACK\nTAP/HOLD", panel);
             GUI.Box(new Rect(DodgeRect.x, Screen.height - DodgeRect.yMax, DodgeRect.width, DodgeRect.height), "DODGE", panel);
             if (!bossMode) GUI.Box(new Rect(WebShotRect.x, Screen.height - WebShotRect.yMax, WebShotRect.width, WebShotRect.height), "WEB\nSHOT", panel);
+            if (crime != null && crime.RescueAvailable)
+                GUI.Box(new Rect(RescueRect.x, Screen.height - RescueRect.yMax, RescueRect.width, RescueRect.height), "RESCUE", panel);
             if (joystickFinger == -1)
                 GUI.Label(new Rect(ButtonMargin, Screen.height - unit * 0.14f, Screen.width * 0.4f, unit * 0.1f), "Drag left to move", label);
         }

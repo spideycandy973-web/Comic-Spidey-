@@ -97,7 +97,7 @@ namespace ComicSpidey
                 }
             }
             y += h + gap;
-            if (GUI.Button(new Rect(x, y, width, h), confirmCrimeReset ? "CONFIRM RESET CRIME COUNT" : "RESET CRIME COUNT", button))
+            if (GUI.Button(new Rect(x, y, width, h), confirmCrimeReset ? "CONFIRM RESET CRIME + RESCUE COUNTS" : "RESET CRIME + RESCUE COUNTS", button))
             {
                 if (!confirmCrimeReset) { confirmCrimeReset = true; confirmReset = confirmCollectibleReset = false; }
                 else

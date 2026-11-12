@@ -45,12 +45,19 @@ Add what happened and a screenshot or screen recording if possible.
 - [ ] Select Story Test; the test objective and encounter work.
 - [ ] Relaunch and select Free Roam Test; after about 10 seconds, a crime alert
       appears. Check the relative direction and distance to the gold marker;
-      reach it and defeat two attackers with tap/hold combat,
-      and check the stopped count. Wait for another alert. Ignore an alert to
+      reach it and defeat two attackers with tap/hold combat. If it is a rescue
+      alert, also complete the rescue before checking the count. Wait for another alert. Ignore an alert to
       check expiry; let attackers defeat the player to check cleanup/retry.
       Close/reopen and check that the stopped count persists; an unfinished crime
       restarts as a new alert rather than resuming. These are prototype crimes.
-- [ ] Reset the crime count in Settings (two taps); confirm it becomes zero but
+- [ ] When a rescue alert appears, follow the gold marker, defeat both attackers,
+      then find the stationary green placeholder civilian and tap RESCUE nearby.
+      Check the button is unavailable before combat ends, a wall blocks the
+      interaction, the countdown expires, and retry cleans up the actors. A
+      successful rescue increments both total crime and rescue counts; check
+      both after reopening. Alerts alternate between rescue and ordinary crimes.
+      This is a prototype, not civilian AI or an escort mission.
+- [ ] Reset the crime and rescue counts in Settings (two taps); confirm both become zero but
       the story checkpoint and graphics choices stay unchanged. Resetting the
       story checkpoint should likewise leave the crime count unchanged.
 - [ ] Return to Story Test on next launch; its checkpoint is unchanged by Free Roam.
@@ -141,7 +148,7 @@ until actually tested on the phone. This is not the full robbery mission.
   prototype dodge, static vehicle display, supplied building previews and
   separate Octopus test fight, experimental combat combos, free-roam crime
   encounters, saved test count, placeholder collectible tokens and prototype
-  day/night lighting, rooftop mantle, web-jump and web-shot changes are
+  day/night lighting, rooftop mantle, web-jump, web-shot and rescue changes are
   **not yet Unity-built or phone-tested**. They are not the final
   city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the

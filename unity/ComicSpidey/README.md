@@ -11,15 +11,18 @@ Changes after that build still need a new Unity build and device testing.
 `Assets/Scenes/Prototype.unity` is an initial scene registered in build settings.
 The source now presents **Story Test**, **Free Roam Test**, and **Boss Test**
 choices; these are limited test scenarios, not the full campaign or open world.
-Free Roam source now includes repeatable, timed crime alerts at a small set of
-street sites. Reaching a marker starts an encounter with two placeholder attackers;
-completion saves a separate local test-crime counter, and expiry or player
-defeat cancels the current encounter. In-progress crimes are not restored after
-restart. Settings offers a separately confirmed reset of that counter, without
-resetting the story test or graphics preferences. An unrecognized/corrupted
-counter is not overwritten automatically. This has not been built or
-phone-tested and is not the final crime/progression, civilian-rescue or police
-system. Eight floating placeholder test tokens can be picked up in Free Roam,
+Free Roam source has two alternating timed alert variants at a small set of
+street sites, after a randomly chosen first type. Both start with two placeholder
+attackers; in the rescue variant, defeating them unlocks a timed close-range
+RESCUE interaction with a stationary, invulnerable placeholder civilian. A clear
+path is required. This is not civilian AI, escort, dialogue or a campaign mission.
+Desktop uses R to rescue. Both events contribute to a versioned local test-crime
+counter; successful rescues also increment a separate rescue counter. In-progress
+encounters do not survive restart. Settings resets both counters together without
+resetting the story test or graphics preferences. Unrecognized/corrupted counters
+are not overwritten automatically. Spawn placement, collision, controls, saves and
+cleanup have not been built or phone-tested and are not the final crime/rescue or
+police systems. Eight floating placeholder test tokens can be picked up in Free Roam,
 including on four roofs. The HUD reports the nearest token relative to the camera;
 collection flags use a separate versioned local save and a separate confirmed
 reset. They have no rewards and are not the final collectible art or progression.

@@ -17,7 +17,9 @@ namespace ComicSpidey
         private float pitch = 18f;
         private int joystickFinger = -1, lookFinger = -1, webFinger = -1;
         private Vector2 joystickOrigin, moveInput;
-        private bool jumpRequested, attackRequested, encounterSpawned;
+        private bool jumpRequested, attackRequested, dodgeRequested, encounterSpawned;
+        private readonly DodgeTiming dodge = new DodgeTiming();
+        private Vector3 dodgeDirection;
         private readonly CombatHealth health = new CombatHealth(6);
         private readonly List<PrototypeEnemy> enemies = new List<PrototypeEnemy>();
         private float nextAttack, invulnerableUntil, respawnNoticeUntil;
@@ -64,6 +66,7 @@ namespace ComicSpidey
         private Rect JumpRect => new Rect(Screen.width - ButtonMargin - ButtonSize, ButtonMargin, ButtonSize, ButtonSize);
         private Rect WebRect => new Rect(JumpRect.x, JumpRect.yMax + ButtonMargin, ButtonSize, ButtonSize);
         private Rect AttackRect => new Rect(JumpRect.x, WebRect.yMax + ButtonMargin, ButtonSize, ButtonSize);
+        private Rect DodgeRect => new Rect(JumpRect.x - ButtonSize - ButtonMargin, JumpRect.y, ButtonSize, ButtonSize);
 
         private void Update()
         {
@@ -77,8 +80,15 @@ namespace ComicSpidey
             var heading = Quaternion.Euler(0, yaw, 0);
             var desired = heading * new Vector3(moveInput.x, 0, moveInput.y);
             if (desired.sqrMagnitude > 1) desired.Normalize();
+            if (dodgeRequested && dodge.TryStart(Time.time, motor.isGrounded, webAttached))
+            {
+                dodgeDirection = desired.sqrMagnitude > 0.01f ? desired.normalized : -(heading * Vector3.forward);
+                jumpRequested = false;
+            }
+            dodgeRequested = false;
+            bool dodging = dodge.IsActive(Time.time);
             climbing = false;
-            if (!webAttached && Time.time >= climbBlockedUntil && moveInput.y > 0.25f && desired.sqrMagnitude > 0.01f &&
+            if (!dodging && !webAttached && Time.time >= climbBlockedUntil && moveInput.y > 0.25f && desired.sqrMagnitude > 0.01f &&
                 Physics.Raycast(transform.position + Vector3.up * 0.3f, desired.normalized, out RaycastHit wall,
                     motor.radius + 0.4f, ~0, QueryTriggerInteraction.Ignore) &&
                 wall.collider.GetComponent<ClimbableSurface>() != null && Mathf.Abs(wall.normal.y) < 0.2f &&
@@ -97,11 +107,12 @@ namespace ComicSpidey
             else
             {
                 if (motor.isGrounded && velocity.y < 0) velocity.y = -2f;
-                if (jumpRequested && motor.isGrounded) velocity.y = 8f;
+                if (!dodging && jumpRequested && motor.isGrounded) velocity.y = 8f;
                 velocity.y -= 20f * Time.deltaTime;
                 Vector3 horizontal = new Vector3(velocity.x, 0, velocity.z);
                 // Steering adds acceleration instead of erasing tether momentum.
-                if (webAttached)
+                if (dodging) horizontal = dodgeDirection * 11f;
+                else if (webAttached)
                 {
                     horizontal += desired * (5f * Time.deltaTime);
                     horizontal = Vector3.ClampMagnitude(horizontal, 24f);
@@ -172,6 +183,7 @@ namespace ComicSpidey
                     (Input.GetKey(KeyCode.W) ? 1 : 0) - (Input.GetKey(KeyCode.S) ? 1 : 0));
                 if (Input.GetKeyDown(KeyCode.Space)) jumpRequested = true;
                 if (Input.GetKeyDown(KeyCode.F)) attackRequested = true;
+                if (Input.GetKeyDown(KeyCode.LeftShift)) dodgeRequested = true;
                 if (Input.GetMouseButton(1))
                 {
                     Vector3 mouse = Input.mousePosition;
@@ -195,6 +207,7 @@ namespace ComicSpidey
                 {
                     if (settings != null && settings.BlocksTouch(p)) continue;
                     if (JumpRect.Contains(p)) jumpRequested = true;
+                    else if (DodgeRect.Contains(p)) dodgeRequested = true;
                     else if (WebRect.Contains(p) && webFinger == -1) { webFinger = touch.fingerId; AttachWeb(); }
                     else if (AttackRect.Contains(p)) attackRequested = true;
                     else if (p.x < Screen.width * 0.45f && joystickFinger == -1) { joystickFinger = touch.fingerId; joystickOrigin = p; moveInput = Vector2.zero; }
@@ -239,7 +252,7 @@ namespace ComicSpidey
 
         private void TryAttack()
         {
-            if (!storyMode || story.Stage != 1 || Time.time < nextAttack) return;
+            if (!storyMode || story.Stage != 1 || Time.time < nextAttack || dodge.IsActive(Time.time)) return;
             nextAttack = Time.time + 0.45f;
             PrototypeEnemy target = null;
             float bestSquared = 2.8f * 2.8f;
@@ -308,13 +321,14 @@ namespace ComicSpidey
             ResetInput();
             webLine.enabled = false;
             invulnerableUntil = 0f;
+            dodge.Reset();
             PlayerPrefs.DeleteKey(CheckpointKey);
             PlayerPrefs.Save();
         }
 
         public void ReceiveDamage(int amount)
         {
-            if (Time.time < invulnerableUntil || !health.Damage(amount)) return;
+            if (Time.time < invulnerableUntil || dodge.IsProtected(Time.time) || !health.Damage(amount)) return;
             invulnerableUntil = Time.time + 0.65f;
             if (!health.IsDefeated) return;
             // A simple retry for this prototype: enemies already defeated stay
@@ -324,6 +338,7 @@ namespace ComicSpidey
             motor.enabled = true;
             velocity = Vector3.zero;
             webAttached = false;
+            dodge.Reset();
             health.Restore();
             invulnerableUntil = Time.time + 2f;
             respawnNoticeUntil = Time.time + 3f;
@@ -345,6 +360,7 @@ namespace ComicSpidey
 
         private void AttachWeb()
         {
+            if (dodge.IsActive(Time.time)) return;
             // Try nearby building rooftops, but attach only where an unobstructed
             // ray actually hits a tagged building. Do not tether to empty sky.
             webAttached = false;
@@ -383,6 +399,8 @@ namespace ComicSpidey
             webAttached = false;
             jumpRequested = false;
             attackRequested = false;
+            dodgeRequested = false;
+            dodge.Cancel();
             trackingMouse = false;
         }
 
@@ -399,10 +417,12 @@ namespace ComicSpidey
             if (storyMode && story.Stage == 1) status += "   Attackers " + story.DefeatedCount + "/2";
             if (Time.time < respawnNoticeUntil) status += "   RETRY";
             if (climbing) status += "   CLIMB";
+            if (dodge.IsActive(Time.time)) status += "   DODGE";
             GUI.Label(new Rect(ButtonMargin, unit * 0.13f, Screen.width * 0.55f, unit * 0.1f), status, label);
             GUI.Box(new Rect(WebRect.x, Screen.height - WebRect.yMax, WebRect.width, WebRect.height), "HOLD\nWEB", panel);
             GUI.Box(new Rect(JumpRect.x, Screen.height - JumpRect.yMax, JumpRect.width, JumpRect.height), "JUMP", panel);
             GUI.Box(new Rect(AttackRect.x, Screen.height - AttackRect.yMax, AttackRect.width, AttackRect.height), "ATTACK", panel);
+            GUI.Box(new Rect(DodgeRect.x, Screen.height - DodgeRect.yMax, DodgeRect.width, DodgeRect.height), "DODGE", panel);
             if (joystickFinger == -1)
                 GUI.Label(new Rect(ButtonMargin, Screen.height - unit * 0.14f, Screen.width * 0.4f, unit * 0.1f), "Drag left to move", label);
         }

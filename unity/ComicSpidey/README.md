@@ -22,7 +22,9 @@ have not been independently verified. If the model or texture cannot be loaded,
 the capsule remains visible. Build #3 showed the textured red-and-blue hero model on the user's phone, but animation and rig behaviour have not been fully verified. The
 requested Peter-led campaign and Miles as a later character are not implemented. The prototype implements basic camera-relative
 movement, jumping, multitouch joystick/look areas and an experimental hold-to-web
-tether. Desktop controls are WASD, Space, right-mouse drag, E (web) and F (attack).
+tether. Desktop controls are WASD, Space, right-mouse drag, E (web), F (attack) and
+Left Shift (dodge). A prototype ground dodge has a cooldown and a short damage
+protection window; it currently has no dodge animation and is not Unity-tested.
 Source now includes experimental wall climbing and wall jumping, plus building
 surface raycasts for web attachment. These traversal changes are not yet built
 or physically tested, and climbing does not yet have a rooftop mantle or its
@@ -90,7 +92,7 @@ engine does not by itself correct logic or guarantee smooth performance.
 
 `dotnet run --project unity/tests/StoryLogic/StoryLogic.csproj --configuration Release`
 exercises engine-independent Story progression, tether projection, health and
-option-selection and prototype checkpoint rules without a Unity license.
+option-selection, prototype checkpoint and dodge timing rules without a Unity license.
 These tests do not compile or run the Unity scene and cannot validate Android.
 
 Asset checks can also be run with `npm ci && npm test` in

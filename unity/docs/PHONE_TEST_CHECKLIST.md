@@ -35,6 +35,8 @@ Add what happened and a screenshot or screen recording if possible.
       check streets, intersections and player contact for flicker or clipping.
 - [ ] Follow the gold marker and two placeholder attackers appear.
 - [ ] Attack button damages a nearby attacker; they pursue and damage the player.
+- [ ] Dodge moves in the chosen direction on the ground, briefly avoids damage,
+      cannot be spammed, and does not go through walls. No dodge animation yet.
 - [ ] Defeat both attackers; the test-encounter completion message appears.
 - [ ] Let the player be defeated and check that retry restores player health.
 - [ ] Defeat one attacker, close and reopen the app: only the other attacker returns.
@@ -90,8 +92,8 @@ until actually tested on the phone. This is not the full robbery mission.
   window textures, experimental swing momentum and a basic placeholder enemy
   encounter, converted supplied street lights, experimental climb/web changes
   graphics settings, test-encounter checkpoint, experimental comic shader and
-  converted pedestrian patrols, supplied road batches and test mode selection
-  are **not yet Unity-built or phone-tested**. They are not the final
+  converted pedestrian patrols, supplied road batches, test mode selection and
+  prototype dodge are **not yet Unity-built or phone-tested**. They are not the final
   city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the
   requested campaign. Full combat, full Story and most checklist items are absent.

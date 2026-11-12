@@ -10,6 +10,7 @@
     <Compile Include="../../ComicSpidey/Assets/Scripts/CombatHealth.cs" Link="CombatHealth.cs" />
     <Compile Include="../../ComicSpidey/Assets/Scripts/GraphicsOptionsData.cs" Link="GraphicsOptionsData.cs" />
     <Compile Include="../../ComicSpidey/Assets/Scripts/PrototypeCheckpoint.cs" Link="PrototypeCheckpoint.cs" />
+    <Compile Include="../../ComicSpidey/Assets/Scripts/DodgeTiming.cs" Link="DodgeTiming.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 </Project>

@@ -80,6 +80,17 @@ static class Program
             !complete.MarkDefeated(0), "Completed checkpoint round trip is terminal");
         foreach (string invalid in new[] { "", "v2:0:0", "v1:0:1", "v1:1:3", "v1:2:0", "v1:-1:0", "v1:1:0:extra", "v1:a:0" })
             Check(!PrototypeCheckpoint.TryDecode(invalid, out _), "Reject malformed checkpoint: " + invalid);
-        Console.WriteLine("Story, swing, health, graphics options and prototype checkpoint tests passed.");
+        var dodge = new DodgeTiming();
+        Check(!dodge.IsActive(0) && !dodge.IsProtected(0), "Dodge starts inactive");
+        Check(!dodge.TryStart(1, false, false) && !dodge.TryStart(1, true, true), "Dodge requires ground and no tether");
+        Check(dodge.TryStart(1, true, false) && dodge.IsActive(1.1) && dodge.IsProtected(1.1), "Dodge starts with protection");
+        Check(!dodge.IsProtected(1.23) && dodge.IsActive(1.23), "Protection ends before the dodge");
+        Check(!dodge.IsActive(1.33) && !dodge.TryStart(1.5, true, false), "Cooldown continues after the dodge");
+        Check(dodge.TryStart(1.9, true, false), "Can dodge after cooldown");
+        dodge.Cancel();
+        Check(!dodge.IsActive(1.91) && !dodge.IsProtected(1.91) && !dodge.TryStart(2, true, false), "Cancel retains cooldown");
+        dodge.Reset();
+        Check(dodge.TryStart(2, true, false), "Reset clears cooldown");
+        Console.WriteLine("Story, swing, health, graphics, checkpoint and dodge timing tests passed.");
     }
 }

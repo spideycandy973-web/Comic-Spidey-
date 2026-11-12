@@ -9,9 +9,8 @@ was too small; the screenshot showed portrait orientation and placeholder blocks
 Changes after that build still need a new Unity build and device testing.
 
 `Assets/Scenes/Prototype.unity` is an initial scene registered in build settings.
-The source now presents **Story Test** and **Free Roam Test** choices; these are
-limited to the small existing test city and encounter, not the full campaign or
-open world. They have not been built or tested in Unity. The prototype contains
+The source now presents **Story Test**, **Free Roam Test**, and **Boss Test**
+choices; these are limited test scenarios, not the full campaign or open world. They have not been built or tested in Unity. The prototype contains
 no intentional online gameplay dependency, but airplane-mode operation and the
 complete offline game still require device testing.
 The runtime bootstrap creates a small temporary block city, placeholder capsule,
@@ -70,6 +69,12 @@ The supplied civil-service FBX and base-colour/decal/optics maps are now used
 as ten static parked-vehicle previews. They are not traffic or emergencies. The
 Unity FBX import, texture slots, scale, alignment and collision are unverified;
 the original pack's normal, metalness and opacity maps are not yet used.
+The Doctor Octopus GLB was converted into three static OBJ parts and textures.
+A separate experimental Boss Test uses a telegraphed area slam, dodge and
+attack-in-recovery loop with four increasing-difficulty phases. The model has no
+rig or animations. This is not the requested campaign boss battle, does not
+implement story or final boss mechanics, and has not been built or phone-tested.
+Conversion can be reproduced with `unity/tools/convert_doctor_octopus.py`.
 
 ## Next build and testing steps
 

@@ -30,7 +30,8 @@ namespace ComicSpidey
         private HeroVisual heroVisual;
         private PrototypeSettings settings;
         private PrototypeModeMenu modeMenu;
-        private bool storyMode;
+        private bool storyMode, bossMode;
+        private PrototypeOctopus boss;
         private float climbBlockedUntil;
         private bool climbing;
         private StoryProgress story = new StoryProgress();
@@ -54,10 +55,21 @@ namespace ComicSpidey
 
         public void InitializeModeMenu(PrototypeModeMenu menu) { modeMenu = menu; }
 
-        public void StartMode(bool useStory)
+        public void StartMode(int mode)
         {
-            storyMode = useStory;
+            storyMode = mode == 0;
+            bossMode = mode == 2;
             if (storyMode) LoadTestCheckpoint();
+            if (bossMode)
+            {
+                var actor = new GameObject("TestDoctorOctopus");
+                actor.transform.position = new Vector3(0, 1, -12);
+                var enemyMotor = actor.AddComponent<CharacterController>();
+                enemyMotor.height = 2f;
+                enemyMotor.radius = 0.55f;
+                boss = actor.AddComponent<PrototypeOctopus>();
+                boss.Initialize(this);
+            }
         }
 
         // Use viewport-relative sizes so the touch targets scale on phones.
@@ -252,7 +264,15 @@ namespace ComicSpidey
 
         private void TryAttack()
         {
-            if (!storyMode || story.Stage != 1 || Time.time < nextAttack || dodge.IsActive(Time.time)) return;
+            if (Time.time < nextAttack || dodge.IsActive(Time.time)) return;
+            if (bossMode)
+            {
+                nextAttack = Time.time + 0.45f;
+                if (boss != null && (boss.transform.position - transform.position).sqrMagnitude < 3f * 3f)
+                    boss.ReceiveHit();
+                return;
+            }
+            if (!storyMode || story.Stage != 1) return;
             nextAttack = Time.time + 0.45f;
             PrototypeEnemy target = null;
             float bestSquared = 2.8f * 2.8f;
@@ -334,12 +354,13 @@ namespace ComicSpidey
             // A simple retry for this prototype: enemies already defeated stay
             // defeated. This is not the game's checkpoint/save implementation.
             motor.enabled = false;
-            transform.position = new Vector3(0, 1, -35);
+            transform.position = bossMode ? new Vector3(0, 1, 0) : new Vector3(0, 1, -35);
             motor.enabled = true;
             velocity = Vector3.zero;
             webAttached = false;
             dodge.Reset();
             health.Restore();
+            if (bossMode && boss != null) boss.ResetFight();
             invulnerableUntil = Time.time + 2f;
             respawnNoticeUntil = Time.time + 3f;
         }
@@ -411,10 +432,18 @@ namespace ComicSpidey
             int font = Mathf.Max(16, Mathf.RoundToInt(unit * 0.035f));
             var panel = new GUIStyle(GUI.skin.box) { fontSize = font, alignment = TextAnchor.MiddleCenter, wordWrap = true };
             var label = new GUIStyle(GUI.skin.label) { fontSize = font, wordWrap = true };
-            string objective = !storyMode ? "Free roam — test city" : story.Stage >= 2 ? "Test encounter complete" : story.Current.Title;
+            string objective = bossMode ? "Doctor Octopus — test fight" : !storyMode ? "Free roam — test city" : story.Stage >= 2 ? "Test encounter complete" : story.Current.Title;
             GUI.Box(new Rect(ButtonMargin, ButtonMargin, Screen.width * 0.45f, unit * 0.09f), "PROTOTYPE - " + objective, panel);
             string status = "Health " + health.Current + "/" + health.Maximum;
             if (storyMode && story.Stage == 1) status += "   Attackers " + story.DefeatedCount + "/2";
+            if (bossMode && boss != null)
+            {
+                var fight = boss.Rules;
+                status += "   OCK " + fight.Health + "/" + OctopusFightRules.MaximumHealth + "  PHASE " + fight.Phase;
+                status += fight.State == OctopusState.Telegraph ? "  DODGE!" :
+                    fight.State == OctopusState.Recovery ? "  ATTACK!" :
+                    fight.State == OctopusState.Defeated ? "  TEST COMPLETE" : "";
+            }
             if (Time.time < respawnNoticeUntil) status += "   RETRY";
             if (climbing) status += "   CLIMB";
             if (dodge.IsActive(Time.time)) status += "   DODGE";

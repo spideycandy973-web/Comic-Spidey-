@@ -91,6 +91,27 @@ static class Program
         Check(!dodge.IsActive(1.91) && !dodge.IsProtected(1.91) && !dodge.TryStart(2, true, false), "Cancel retains cooldown");
         dodge.Reset();
         Check(dodge.TryStart(2, true, false), "Reset clears cooldown");
-        Console.WriteLine("Story, swing, health, graphics, checkpoint and dodge timing tests passed.");
+        var fight = new OctopusFightRules();
+        Check(fight.Health == 12 && fight.Phase == 1 && fight.State == OctopusState.Waiting, "Boss starts at full health");
+        Check(!fight.TryHit() && !fight.Tick(1, false), "Boss ignores hits outside recovery and waits for player");
+        double now = 2;
+        for (int phase = 1; phase <= 4; phase++)
+        {
+            Check(fight.Phase == phase && !fight.Tick(now, true) && fight.State == OctopusState.Telegraph, "Boss telegraphs phase " + phase);
+            Check(!fight.TryHit(), "Boss cannot be hit during telegraph");
+            now += 2;
+            Check(fight.Tick(now, false) && !fight.Tick(now, true) && fight.State == OctopusState.Recovery, "Slam occurs once and enters recovery");
+            Check(fight.TryHit() && fight.TryHit() && fight.TryHit(), "Three hits during recovery");
+            if (phase < 4)
+            {
+                now += 2;
+                Check(!fight.Tick(now, true) && fight.State == OctopusState.Waiting, "Recovery expires");
+                now += 1;
+            }
+        }
+        Check(fight.Health == 0 && fight.Phase == 4 && fight.State == OctopusState.Defeated && !fight.TryHit() && !fight.Tick(100, true), "Boss defeat is terminal");
+        fight.Reset(100);
+        Check(fight.Health == 12 && fight.Phase == 1 && fight.State == OctopusState.Waiting && !fight.Tick(100, true), "Boss retry resets health and delay");
+        Console.WriteLine("Story, swing, health, graphics, checkpoint, dodge and boss test rules passed.");
     }
 }

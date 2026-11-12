@@ -13,7 +13,7 @@ assets before public distribution.
 | `spiderman.zip` | Hero model/texture, stand, run, hanging, jump-up, jump-down and landing FBXs in use; remaining strafe and swing clips not integrated. |
 | `neighbourhood-city-modular-lowpoly.zip` | Only road strip and streetlight extracted and placed; full city not imported. |
 | `generic-civil-service-vehicles-pack.zip` | Ten vehicle meshes and selected colour/decal maps in a static parked display; no traffic AI, original glass/normal/metal materials or Unity verification. |
-| `doctor_octopus_spider-man_2_ps2.glb` | In older Godot project only; Unity conversion, rig, boss gameplay and testing still needed. |
+| `doctor_octopus_spider-man_2_ps2.glb` | Three static parts and textures converted for a separate experimental Unity boss test. Source has no rig; boss animation, full story boss gameplay and Unity testing still needed. |
 | `spider-man_comic.glb` | Not imported in Unity; format, rig and use must be checked. |
 | `the-amazing-spiderman.zip` | Not imported; inspect contents, rig, textures and permission. |
 | `symbiote-spiderman-tobey-maguire.zip` | Not imported; inspect contents, rig, textures and permission. |

@@ -48,3 +48,9 @@ black-and-red model.
   previews; they are not driving traffic or emergency AI. The user confirmed
   redistribution permission, but provenance and licensing have not been
   independently verified. Unity import, materials and layout are untested.
+
+- **Unity Doctor Octopus test:** `unity/ComicSpidey/Assets/Resources/DoctorOctopus/`
+  contains static OBJ conversions and the three original base-colour textures
+  from the attributed Doctor Octopus GLB above. `unity/tools/convert_doctor_octopus.py`
+  reproduces this conversion. The source has no rig or animation; its separate
+  prototype boss test and Unity/device import have not been verified.

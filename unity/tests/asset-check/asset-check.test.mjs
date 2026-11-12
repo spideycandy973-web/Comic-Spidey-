@@ -107,3 +107,21 @@ test('supplied vehicle FBX contains all ten test fleet meshes and colour texture
     assert.equal(readFileSync(vehicle(`${name}_albedo.png`)).subarray(0, 8).toString('hex'), '89504e470d0a1a0a', `${name} texture`);
   }
 });
+
+test('converted static Doctor Octopus parts preserve source geometry and textures', () => {
+  const source = readFileSync(new URL('../../../godot/assets/doctor_octopus.glb', import.meta.url));
+  const doc = JSON.parse(source.subarray(20, 20 + source.readUInt32LE(12)).toString());
+  assert.equal(doc.meshes.length, 3);
+  assert.equal((doc.skins || []).length, 0, 'source has no rig');
+  for (let i = 0; i < 3; i++) {
+    const file = name => new URL(`../../ComicSpidey/Assets/Resources/DoctorOctopus/part_${i}.${name}`, import.meta.url);
+    const obj = readFileSync(file('obj'), 'utf8');
+    const primitive = doc.meshes[i].primitives[0];
+    const count = doc.accessors[primitive.attributes.POSITION].count;
+    assert.equal((obj.match(/^v /gm) || []).length, count);
+    assert.equal((obj.match(/^vn /gm) || []).length, count);
+    assert.equal((obj.match(/^vt /gm) || []).length, count);
+    assert.equal((obj.match(/^f /gm) || []).length, doc.accessors[primitive.indices].count / 3);
+    assert.equal(readFileSync(file('png')).subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+  }
+});

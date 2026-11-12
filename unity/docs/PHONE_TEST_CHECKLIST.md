@@ -28,6 +28,9 @@ Add what happened and a screenshot or screen recording if possible.
       (Jump/fall/landing clips were added to source but have not been phone-tested.)
 
 ## Next test build: temporary modes and encounter only
+- [ ] Select Boss Test; the supplied Doctor Octopus model and textures appear.
+      Move near him, dodge the red slam warning, attack during recovery, defeat
+      all four phases, then check retry after player defeat. He is not animated.
 - [ ] Select Story Test; the test objective and encounter work.
 - [ ] Relaunch and select Free Roam Test; explore without starting the encounter.
 - [ ] Return to Story Test on next launch; its checkpoint is unchanged by Free Roam.
@@ -96,7 +99,8 @@ until actually tested on the phone. This is not the full robbery mission.
   encounter, converted supplied street lights, experimental climb/web changes
   graphics settings, test-encounter checkpoint, experimental comic shader and
   converted pedestrian patrols, supplied road batches, test mode selection and
-  prototype dodge and the static vehicle display are **not yet Unity-built or phone-tested**. They are not the final
+  prototype dodge, static vehicle display and separate Octopus test fight are
+  **not yet Unity-built or phone-tested**. They are not the final
   city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the
   requested campaign. Full combat, full Story and most checklist items are absent.

@@ -23,6 +23,7 @@
     <Compile Include="../../ComicSpidey/Assets/Scripts/WebShooter.cs" Link="WebShooter.cs" />
     <Compile Include="../../ComicSpidey/Assets/Scripts/WebAimMath.cs" Link="WebAimMath.cs" />
     <Compile Include="../../ComicSpidey/Assets/Scripts/CrimeRotation.cs" Link="CrimeRotation.cs" />
+    <Compile Include="../../ComicSpidey/Assets/Scripts/TrafficRoute.cs" Link="TrafficRoute.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 </Project>

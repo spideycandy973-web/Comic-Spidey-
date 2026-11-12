@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace ComicSpidey
 {
-    // Static, parked asset previews only: there is no traffic or emergency AI.
+    // Parked asset previews plus a single experimental straight-road shuttle.
     public static class PrototypeVehicleDisplay
     {
         private struct Vehicle
@@ -78,9 +78,31 @@ namespace ComicSpidey
                     slots[j] = material;
                 }
                 found.sharedMaterials = slots;
+                if (vehicle.mesh == "taxi") AddTrafficTest(holder);
             }
             // The visible meshes have been reparented; remove any unused import nodes.
             UnityEngine.Object.Destroy(assembly);
+        }
+
+        private static void AddTrafficTest(GameObject parkedTaxi)
+        {
+            // Clone only after mesh, material and approximate collider are ready.
+            var traffic = UnityEngine.Object.Instantiate(parkedTaxi);
+            traffic.name = "TestMovingTaxi";
+            var collider = traffic.GetComponent<BoxCollider>();
+            Physics.SyncTransforms();
+            Bounds bounds = collider.bounds;
+            if (bounds.size.x > bounds.size.z)
+                traffic.transform.Rotate(0, 90, 0, Space.World);
+            Physics.SyncTransforms();
+            bounds = collider.bounds;
+            traffic.transform.position += new Vector3(-42f - bounds.center.x,
+                0.05f - bounds.min.y, -85f - bounds.center.z);
+            // A kinematic body lets physics see the moving collider; its motion
+            // still uses simple tests rather than a full driving simulation.
+            Physics.SyncTransforms();
+            traffic.AddComponent<Rigidbody>();
+            traffic.AddComponent<PrototypeTraffic>().Initialize(-85f, 85f, 4f);
         }
     }
 }

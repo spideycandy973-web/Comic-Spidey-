@@ -98,7 +98,11 @@ Add what happened and a screenshot or screen recording if possible.
       avoid walls and reverse if blocked. Their Unity import is unverified.
 - [ ] Find the ten parked test vehicles (police, taxi, ambulance, fire truck,
       buses, garbage, service and tow trucks, post van); check size, colour,
-      placement, collisions and phone performance. They do not drive yet.
+      placement, collisions and phone performance. The original ten do not drive.
+- [ ] Find the extra moving taxi on the road at x = -42. Check its orientation,
+      size, straight path and reversal, pause/resume, and whether it stops for a
+      player or obstacle then resumes when clear. Check collision, blocked-route
+      behavior and performance. This is a single test shuttle, not traffic AI.
 - [ ] Check the hero and city textures remain visible with the new comic shader;
       check dots and lighting do not shimmer, obscure details or hurt performance.
 
@@ -148,7 +152,7 @@ until actually tested on the phone. This is not the full robbery mission.
   prototype dodge, static vehicle display, supplied building previews and
   separate Octopus test fight, experimental combat combos, free-roam crime
   encounters, saved test count, placeholder collectible tokens and prototype
-  day/night lighting, rooftop mantle, web-jump, web-shot and rescue changes are
+  day/night lighting, rooftop mantle, web-jump, web-shot, rescue and moving taxi changes are
   **not yet Unity-built or phone-tested**. They are not the final
   city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the

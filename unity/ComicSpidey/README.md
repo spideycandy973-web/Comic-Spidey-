@@ -81,6 +81,11 @@ touch targets, and adds temporary road markings and window textures. A supplied
 neighborhood street-light mesh and base-colour texture have been converted to
 OBJ/PNG and placed in the test world. A straight road mesh and colour atlas
 from the same pack are converted to OBJ/JPEG and batched into test streets.
+One additional supplied taxi is an experimental slow-moving straight-road
+shuttle. It reverses at fixed ends and uses physics checks to stop for obstacles,
+but has no intersections, driver AI, wheel animation, pathfinding or emergency
+response. Vehicle alignment, collision detection, pause behavior and mobile
+cost are unverified in Unity and on phones; the original ten remain parked.
 Four test blocks now use an extracted neighborhood building's window and wall
 meshes with shared textures and approximate box collision; the rest remain
 placeholder cubes. Plants, AC units, other material maps and the original city

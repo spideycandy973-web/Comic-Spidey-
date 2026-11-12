@@ -195,6 +195,22 @@ static class Program
         bool rejectedInvalidCrimeTime = false;
         try { new CrimeCycle(double.PositiveInfinity); } catch (ArgumentOutOfRangeException) { rejectedInvalidCrimeTime = true; }
         Check(rejectedInvalidCrimeTime, "Invalid crime clock is rejected");
+        bool invalidTraffic = false;
+        try { new TrafficRoute(3, 3, 3, 1, 4); } catch (ArgumentOutOfRangeException) { invalidTraffic = true; }
+        Check(invalidTraffic, "Traffic rejects an empty route");
+        invalidTraffic = false;
+        try { new TrafficRoute(0, 10, 2, 0, 4); } catch (ArgumentOutOfRangeException) { invalidTraffic = true; }
+        Check(invalidTraffic, "Traffic rejects invalid direction");
+        var traffic = new TrafficRoute(-10, 10, 0, 1, 4);
+        Check(traffic.Preview(1) == 4 && traffic.Position == 0, "Traffic preview does not move vehicle");
+        Check(traffic.Advance(1, true) == 0 && traffic.Position == 0, "Traffic stops for a blocker");
+        Check(traffic.Advance(1, false) == 4 && traffic.Position == 4, "Traffic advances once clear");
+        Check(traffic.Advance(100, false) == 6 && traffic.Position == 10 && traffic.Direction == -1, "Traffic stops at route end and reverses");
+        Check(traffic.Advance(1, true) == 0 && traffic.Direction == -1, "Traffic remains stopped at a blocked turn");
+        Check(traffic.Advance(100, false) == -20 && traffic.Position == -10 && traffic.Direction == 1, "Traffic remains inside both boundaries");
+        Check(traffic.Advance(double.NaN, false) == 0 && traffic.Advance(double.PositiveInfinity, false) == 0 && traffic.Advance(-1, false) == 0, "Traffic ignores invalid elapsed time");
+        var endpointTraffic = new TrafficRoute(0, 5, 0, -1, 1);
+        Check(endpointTraffic.Direction == 1 && endpointTraffic.Advance(1, false) == 1, "Traffic starts facing inward at route end");
         var clock = new DayNightClock(0.99);
         clock.Advance(14.4);
         Check(Math.Abs(clock.Phase - 0.01) < 0.000001, "Day clock wraps midnight");

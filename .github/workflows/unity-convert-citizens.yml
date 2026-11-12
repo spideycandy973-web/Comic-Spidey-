@@ -1,6 +1,11 @@
 name: Convert supplied citizen models for Unity
 on:
   workflow_dispatch:
+  push:
+    branches: ['arena/fcf116e2-comic-spidey']
+    paths:
+      - 'unity/tools/export_citizens.py'
+      - '.github/workflows/unity-convert-citizens.yml'
 permissions:
   contents: write
 jobs:

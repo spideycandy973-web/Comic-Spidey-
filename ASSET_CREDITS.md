@@ -24,3 +24,11 @@ permission to include and publicly redistribute these character and animation
 assets; ownership and the chain of rights have not been independently verified.
 The Unity integration is untested and the supplied suit is not a Miles-style
 black-and-red model.
+
+- **Unity pedestrian prototype:** `unity/ComicSpidey/Assets/Resources/Citizens/`
+  contains FBX conversions of the repository's two generated Citizen Maker/
+  MakeHuman GLBs described above. `unity/tools/export_citizens.py` retains rigs
+  and animation during Blender conversion. Blender re-import found rigged meshes
+  and animation actions in both exports. Three.js 0.160.1's FBXLoader rejects
+  an empty eye animation track in the exports; Unity import and actual visual/
+  animation behaviour are not yet verified and may also require corrections.

@@ -24,7 +24,11 @@ or physically tested, and climbing does not yet have a rooftop mantle or its
 own animation. The tether is not yet a polished or physically validated
 swinging mechanic. The city remains
 primitive geometry; there is no complete Story, combat system, NPC population,
-vehicle, final graphics menu, save migration or final UI yet. A new **untested**
+vehicle, final graphics menu, save migration or final UI yet. Source now creates
+four experimental pedestrian patrols using converted Citizen Maker character
+FBXs (with capsule fallback). Blender re-import verified rigs and animation in
+the exports. Three.js FBXLoader 0.160.1 rejects an empty eye animation track;
+Unity importing, appearance, animation and patrols remain unverified. A new **untested**
 placeholder encounter spawns two capsule attackers after the first temporary
 travel objective. A basic attack button, enemy pursuit, health and retry are
 implemented in source only; they have not been built or played in Unity. The

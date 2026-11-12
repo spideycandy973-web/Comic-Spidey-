@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // These checks inspect the supplied FBXs without a Unity editor. They do not
 // validate Unity's FBX importer, rig rendering, animation or Android builds.
@@ -58,4 +59,23 @@ test('prototype comic shader keeps the textured material and quantized lighting'
   assert.match(shader, /LightingComic/);
   assert.match(shader, /tex2D\(_MainTex/);
   assert.match(shader, /dotPattern/);
+});
+
+// The source GLBs have rigged meshes and walk animation. Blender re-import
+// separately verified their generated FBX files; Unity import and playback are
+// not verified here. Three.js FBXLoader 0.160.1 rejects an empty eye track in
+// these Blender exports, so binary/header checks cannot replace a Unity test.
+test('citizen sources contain rigs and walk clips; converted FBX files exist', async () => {
+  for (const name of ['citizen', 'citizen2']) {
+    const glb = readFileSync(new URL(`../../../godot/assets/${name}.glb`, import.meta.url));
+    const source = await new Promise((resolve, reject) => new GLTFLoader().parse(
+      glb.buffer.slice(glb.byteOffset, glb.byteOffset + glb.byteLength), '', resolve, reject));
+    let skinCount = 0;
+    source.scene.traverse(node => { if (node.isSkinnedMesh) skinCount++; });
+    assert.ok(skinCount > 0, `${name} has skinned meshes`);
+    assert.ok(source.animations.some(clip => clip.tracks.length > 0 && clip.duration > 0), `${name} has animation`);
+    const fbx = readFileSync(new URL(`../../ComicSpidey/Assets/Resources/Citizens/${name}.fbx`, import.meta.url));
+    assert.equal(fbx.subarray(0, 20).toString('ascii'), 'Kaydara FBX Binary  ');
+    assert.ok(fbx.length > 100000, `${name} converted FBX is nonempty`);
+  }
 });

@@ -1,16 +1,18 @@
 using UnityEditor;
 
-// The supplied files have the same Mixamo skeleton. Import their clips as
-// Legacy so the prototype can play them without an editor-authored controller.
-// A proper retargeted Animator controller will replace this prototype setup.
+// Temporary Legacy clip import for the supplied hero and generated citizens.
+// A retargeted Animator controller and Unity/device validation remain needed.
 public sealed class HeroImportSettings : AssetPostprocessor
 {
     private void OnPreprocessModel()
     {
-        if (!assetPath.StartsWith("Assets/Resources/Hero/", System.StringComparison.OrdinalIgnoreCase)) return;
+        bool hero = assetPath.StartsWith("Assets/Resources/Hero/", System.StringComparison.OrdinalIgnoreCase);
+        bool citizen = assetPath.StartsWith("Assets/Resources/Citizens/", System.StringComparison.OrdinalIgnoreCase);
+        if (!hero && !citizen) return;
         var importer = (ModelImporter)assetImporter;
         importer.animationType = ModelImporterAnimationType.Legacy;
         importer.importAnimation = true;
-        importer.materialImportMode = ModelImporterMaterialImportMode.None;
+        // Citizens have embedded colour materials; the hero uses a separate texture.
+        if (hero) importer.materialImportMode = ModelImporterMaterialImportMode.None;
     }
 }

@@ -66,6 +66,7 @@ namespace ComicSpidey
             }
 
             AddSuppliedStreetLights();
+            AddTestPedestrians();
 
             // Temporary test objective and highly visible beacon; not campaign mission 1.
             var marker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -99,6 +100,22 @@ namespace ComicSpidey
             view.AddComponent<AudioListener>();
             player.AddComponent<PrototypeSettings>().Initialize(camera, light);
             player.AddComponent<PrototypeController>().Initialize(view.transform, anchors);
+        }
+
+        private static void AddTestPedestrians()
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                var pedestrian = new GameObject("TestPedestrian" + i);
+                float lane = i < 2 ? -9.7f : 4.7f;
+                pedestrian.transform.position = new Vector3(lane, 0.05f, i % 2 == 0 ? -60f : 60f);
+                var motor = pedestrian.AddComponent<CharacterController>();
+                motor.height = 1.8f;
+                motor.radius = 0.32f;
+                motor.center = new Vector3(0, 0.9f, 0);
+                pedestrian.AddComponent<PrototypeCitizen>().Initialize(i % 2 == 0 ? "citizen" : "citizen2",
+                    -65f, 65f, i % 2 == 0 ? 1f : -1f);
+            }
         }
 
         private static void AddSuppliedStreetLights()

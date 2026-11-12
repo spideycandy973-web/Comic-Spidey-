@@ -35,6 +35,7 @@ namespace ComicSpidey
         private PrototypeModeMenu modeMenu;
         private bool storyMode, bossMode;
         private PrototypeOctopus boss;
+        private PrototypeCrime crime;
         private float climbBlockedUntil;
         private bool climbing;
         private StoryProgress story = new StoryProgress();
@@ -63,6 +64,11 @@ namespace ComicSpidey
             storyMode = mode == 0;
             bossMode = mode == 2;
             if (storyMode) LoadTestCheckpoint();
+            if (mode == 1)
+            {
+                crime = gameObject.AddComponent<PrototypeCrime>();
+                crime.Initialize(this);
+            }
             if (bossMode)
             {
                 var actor = new GameObject("TestDoctorOctopus");
@@ -263,30 +269,57 @@ namespace ComicSpidey
             }
         }
 
+        private void EnsureEnemyMaterials()
+        {
+            if (enemyMaterial != null && enemyHitMaterial != null) return;
+            Shader shader = Resources.Load<Shader>("Hero/HeroLit");
+            enemyMaterial = new Material(shader) { color = new Color(0.44f, 0.12f, 0.22f) };
+            enemyHitMaterial = new Material(shader) { color = new Color(1f, 0.8f, 0.25f) };
+        }
+
+        private PrototypeEnemy CreateEnemy(string id, Vector3 position, System.Action<string> onDefeated = null)
+        {
+            EnsureEnemyMaterials();
+            enemies.RemoveAll(enemy => enemy == null);
+            var enemy = new GameObject(id);
+            enemy.transform.position = position;
+            var enemyMotor = enemy.AddComponent<CharacterController>();
+            enemyMotor.height = 2f;
+            enemyMotor.radius = 0.45f;
+            var actor = enemy.AddComponent<PrototypeEnemy>();
+            actor.Initialize(this, id, enemyMaterial, enemyHitMaterial, onDefeated);
+            enemies.Add(actor);
+            return actor;
+        }
+
         private void SpawnEncounter()
         {
             if (encounterSpawned) return;
             encounterSpawned = true;
-            Shader shader = Resources.Load<Shader>("Hero/HeroLit");
-            enemyMaterial = new Material(shader) { color = new Color(0.44f, 0.12f, 0.22f) };
-            enemyHitMaterial = new Material(shader) { color = new Color(1f, 0.8f, 0.25f) };
             for (int i = 0; i < 2; i++)
             {
                 if (checkpoint.IsDefeated(i)) continue;
-                var enemy = new GameObject("TestAttacker" + i);
-                enemy.transform.position = new Vector3(i == 0 ? -4f : 4f, 1f, -48f);
-                var enemyMotor = enemy.AddComponent<CharacterController>();
-                enemyMotor.height = 2f;
-                enemyMotor.radius = 0.45f;
-                var actor = enemy.AddComponent<PrototypeEnemy>();
-                actor.Initialize(this, "test-attacker-" + i, enemyMaterial, enemyHitMaterial);
-                enemies.Add(actor);
+                CreateEnemy("test-attacker-" + i, new Vector3(i == 0 ? -4f : 4f, 1f, -48f));
             }
+        }
+
+        public PrototypeEnemy SpawnCrimeEnemy(string id, Vector3 position, System.Action<string> onDefeated)
+        {
+            return CreateEnemy(id, position, onDefeated);
+        }
+
+        public void RemoveCrimeEnemy(PrototypeEnemy actor)
+        {
+            if (actor == null) return;
+            enemies.Remove(actor);
+            actor.gameObject.SetActive(false);
+            Destroy(actor.gameObject);
         }
 
         private void TryAttack(bool heavy)
         {
-            if (dodge.IsActive(Time.time) || (!bossMode && (!storyMode || story.Stage != 1))) return;
+            bool activeCrime = crime != null && crime.EncounterActive;
+            if (dodge.IsActive(Time.time) || (!bossMode && !activeCrime && (!storyMode || story.Stage != 1))) return;
             if (bossMode)
             {
                 bool connected = boss != null && boss.Rules.State == OctopusState.Recovery &&
@@ -354,6 +387,7 @@ namespace ComicSpidey
         // checkpoint only. It does not touch graphics options or other game data.
         public void ResetTestProgress()
         {
+            if (crime != null) crime.PlayerDefeated();
             foreach (var enemy in enemies)
             {
                 if (enemy == null) continue;
@@ -391,7 +425,7 @@ namespace ComicSpidey
             // A simple retry for this prototype: enemies already defeated stay
             // defeated. This is not the game's checkpoint/save implementation.
             motor.enabled = false;
-            transform.position = bossMode ? new Vector3(0, 1, 0) : new Vector3(0, 1, -35);
+            transform.position = storyMode ? new Vector3(0, 1, -35) : new Vector3(0, 1, 0);
             motor.enabled = true;
             velocity = Vector3.zero;
             webAttached = false;
@@ -399,6 +433,7 @@ namespace ComicSpidey
             combo.Reset();
             health.Restore();
             if (bossMode && boss != null) boss.ResetFight();
+            if (crime != null) crime.PlayerDefeated();
             invulnerableUntil = Time.time + 2f;
             respawnNoticeUntil = Time.time + 3f;
         }
@@ -473,7 +508,7 @@ namespace ComicSpidey
             int font = Mathf.Max(16, Mathf.RoundToInt(unit * 0.035f));
             var panel = new GUIStyle(GUI.skin.box) { fontSize = font, alignment = TextAnchor.MiddleCenter, wordWrap = true };
             var label = new GUIStyle(GUI.skin.label) { fontSize = font, wordWrap = true };
-            string objective = bossMode ? "Doctor Octopus — test fight" : !storyMode ? "Free roam — test city" : story.Stage >= 2 ? "Test encounter complete" : story.Current.Title;
+            string objective = bossMode ? "Doctor Octopus — test fight" : crime != null ? crime.Status : !storyMode ? "Free roam — test city" : story.Stage >= 2 ? "Test encounter complete" : story.Current.Title;
             GUI.Box(new Rect(ButtonMargin, ButtonMargin, Screen.width * 0.45f, unit * 0.09f), "PROTOTYPE - " + objective, panel);
             string status = "Health " + health.Current + "/" + health.Maximum;
             if (storyMode && story.Stage == 1) status += "   Attackers " + story.DefeatedCount + "/2";

@@ -10,7 +10,12 @@ Changes after that build still need a new Unity build and device testing.
 
 `Assets/Scenes/Prototype.unity` is an initial scene registered in build settings.
 The source now presents **Story Test**, **Free Roam Test**, and **Boss Test**
-choices; these are limited test scenarios, not the full campaign or open world. They have not been built or tested in Unity. The prototype contains
+choices; these are limited test scenarios, not the full campaign or open world.
+Free Roam source now includes repeatable, timed crime alerts at a small set of
+street sites. Reaching a marker starts an encounter with two placeholder attackers;
+completion updates a session-only counter, and expiry or player defeat cancels it.
+This has not been built or phone-tested and is not the final crime/progression,
+civilian-rescue or police system. They have not been built or tested in Unity. The prototype contains
 no intentional online gameplay dependency, but airplane-mode operation and the
 complete offline game still require device testing.
 The runtime bootstrap creates a small temporary block city, placeholder capsule,

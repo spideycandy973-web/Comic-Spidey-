@@ -13,6 +13,7 @@
     <Compile Include="../../ComicSpidey/Assets/Scripts/DodgeTiming.cs" Link="DodgeTiming.cs" />
     <Compile Include="../../ComicSpidey/Assets/Scripts/OctopusFightRules.cs" Link="OctopusFightRules.cs" />
     <Compile Include="../../ComicSpidey/Assets/Scripts/CombatCombo.cs" Link="CombatCombo.cs" />
+    <Compile Include="../../ComicSpidey/Assets/Scripts/CrimeCycle.cs" Link="CrimeCycle.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
 </Project>

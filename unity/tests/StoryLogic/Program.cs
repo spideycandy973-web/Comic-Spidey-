@@ -134,6 +134,21 @@ static class Program
         Check(!heavyBoss.TryHit(0) && heavyBoss.Health == 12, "Boss rejects zero damage");
         Check(heavyBoss.TryHit(2) && heavyBoss.Health == 10, "Boss takes heavy damage in recovery");
         Check(heavyBoss.TryHit(50) && heavyBoss.Health == 0 && heavyBoss.State == OctopusState.Defeated, "Boss damage clamps to zero");
-        Console.WriteLine("Story, swing, health, graphics, checkpoint, dodge, boss and combo rules passed.");
+        var crime = new CrimeCycle(0);
+        Check(crime.Stage == CrimeStage.Waiting && !crime.StartEncounter(1) && crime.Tick(9) == CrimeEvent.None, "Crime waits before alert");
+        Check(crime.Tick(10) == CrimeEvent.AlertStarted && crime.Stage == CrimeStage.Alert, "Crime alert appears");
+        Check(crime.StartEncounter(11) && !crime.StartEncounter(11), "Alert starts a single encounter");
+        Check(!crime.Defeat(-1, 12) && !crime.Defeat(2, 12), "Reject unregistered attackers");
+        Check(crime.Defeat(0, 12) && !crime.Defeat(0, 12) && crime.DefeatedCount == 1, "Count each attacker once");
+        Check(crime.Defeat(1, 13) && crime.Stage == CrimeStage.Resolved && crime.ResolvedCount == 1, "Crime resolves after both attackers");
+        Check(!crime.Defeat(1, 13) && crime.Tick(18) == CrimeEvent.None && crime.Stage == CrimeStage.Resolved, "Resolution is shown briefly");
+        Check(crime.Tick(19) == CrimeEvent.None && crime.Stage == CrimeStage.Waiting && crime.Tick(48) == CrimeEvent.None, "Completed encounter enters cooldown");
+        Check(crime.Tick(49) == CrimeEvent.AlertStarted && crime.Tick(139) == CrimeEvent.Expired && crime.Stage == CrimeStage.Waiting, "Ignored alert expires");
+        Check(crime.Tick(169) == CrimeEvent.AlertStarted && crime.StartEncounter(170), "New crime can start after expiry");
+        Check(crime.Tick(290) == CrimeEvent.Expired && crime.Stage == CrimeStage.Waiting, "Active crime expires");
+        Check(crime.Tick(320) == CrimeEvent.AlertStarted && crime.StartEncounter(321), "Crime restarts after failure");
+        crime.Fail(322);
+        Check(crime.Stage == CrimeStage.Waiting && crime.ResolvedCount == 1 && crime.Tick(351) == CrimeEvent.None && crime.Tick(352) == CrimeEvent.AlertStarted, "Player defeat cancels crime and keeps session count");
+        Console.WriteLine("Story, swing, health, graphics, checkpoint, dodge, boss, combo and crime-cycle rules passed.");
     }
 }

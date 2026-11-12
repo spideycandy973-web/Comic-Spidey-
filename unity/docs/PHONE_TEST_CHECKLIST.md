@@ -32,7 +32,11 @@ Add what happened and a screenshot or screen recording if possible.
       Move near him, dodge the red slam warning, attack during recovery, defeat
       all four phases, then check retry after player defeat. He is not animated.
 - [ ] Select Story Test; the test objective and encounter work.
-- [ ] Relaunch and select Free Roam Test; explore without starting the encounter.
+- [ ] Relaunch and select Free Roam Test; after about 10 seconds, a crime alert
+      appears. Reach the gold marker, defeat two attackers with tap/hold combat,
+      and check the stopped count. Wait for another alert. Ignore an alert to
+      check expiry; let attackers defeat the player to check cleanup/retry.
+      These crimes are prototype encounters and the count is session-only.
 - [ ] Return to Story Test on next launch; its checkpoint is unchanged by Free Roam.
 - [ ] Check the supplied road strips appear with correct texture and orientation;
       check streets, intersections and player contact for flicker or clipping.
@@ -107,7 +111,8 @@ until actually tested on the phone. This is not the full robbery mission.
   graphics settings, test-encounter checkpoint, experimental comic shader and
   converted pedestrian patrols, supplied road batches, test mode selection and
   prototype dodge, static vehicle display, supplied building previews and
-  separate Octopus test fight and experimental combat combos are
+  separate Octopus test fight, experimental combat combos and free-roam crime
+  encounters are
   **not yet Unity-built or phone-tested**. They are not the final
   city, combat or traversal system.
 - The current first travel objective is a temporary test, not mission 1 of the

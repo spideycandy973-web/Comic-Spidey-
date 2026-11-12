@@ -10,6 +10,7 @@ namespace ComicSpidey
         private CharacterController motor;
         private PrototypeController player;
         private string enemyId;
+        private System.Action<string> onDefeated;
         private float nextAttack;
         private float verticalSpeed;
         private Renderer body;
@@ -19,10 +20,12 @@ namespace ComicSpidey
 
         public bool Alive => !health.IsDefeated;
 
-        public void Initialize(PrototypeController target, string id, Material normal, Material hit)
+        public void Initialize(PrototypeController target, string id, Material normal, Material hit,
+            System.Action<string> defeated = null)
         {
             player = target;
             enemyId = id;
+            onDefeated = defeated;
             motor = GetComponent<CharacterController>();
             normalMaterial = normal;
             hitMaterial = hit;
@@ -52,6 +55,8 @@ namespace ComicSpidey
                 {
                     nextAttack = Time.time + 1.5f;
                     player.ReceiveDamage(1);
+                    // The player's retry can remove this free-roam attacker.
+                    if (!isActiveAndEnabled) return;
                 }
             }
             if (motor.isGrounded && verticalSpeed < 0) verticalSpeed = -2f;
@@ -70,7 +75,8 @@ namespace ComicSpidey
             if (!health.IsDefeated) return;
             // Report once, then hide immediately even though Destroy is delayed.
             gameObject.SetActive(false);
-            player.EnemyDefeated(enemyId);
+            if (onDefeated != null) onDefeated(enemyId);
+            else player.EnemyDefeated(enemyId);
             Destroy(gameObject);
         }
     }
